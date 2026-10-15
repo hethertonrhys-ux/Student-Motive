@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { SITE_URL } from "@/lib/site";
 
 export type LoginState = {
   step: "email" | "code";
@@ -15,6 +16,7 @@ function isAllowedEmail(email: string) {
 
 export async function sendCode(_prev: LoginState, formData: FormData): Promise<LoginState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const next = String(formData.get("next") ?? "/dashboard");
 
   if (!/^[^@\s]+@[^@\s]+$/.test(email)) {
     return { step: "email", email, error: "Enter a valid email address." };
@@ -26,7 +28,11 @@ export async function sendCode(_prev: LoginState, formData: FormData): Promise<L
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { shouldCreateUser: true },
+    options: {
+      shouldCreateUser: true,
+      // Used when the email contains a login link rather than a code.
+      emailRedirectTo: `${SITE_URL}/auth/callback?next=${encodeURIComponent(next)}`,
+    },
   });
 
   if (error) {
