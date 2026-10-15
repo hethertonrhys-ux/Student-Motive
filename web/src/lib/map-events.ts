@@ -1,0 +1,81 @@
+import "server-only";
+import { createClient } from "@/lib/supabase/server";
+import { nextLondonSixAm, nowMs } from "@/lib/time";
+import type { EventCategory } from "@/lib/types";
+
+// One pin on the map.
+export type MapEvent = {
+  id: string;
+  title: string;
+  category: EventCategory;
+  freeFood: boolean;
+  startsAt: string;
+  endsAt: string;
+  going: number;
+  lat: number;
+  lng: number;
+  place: string;
+  society: string;
+};
+
+export type MapWindows = {
+  now: string;
+  tonightEnds: string; // next 6am
+  tomorrowEnds: string; // the 6am after that
+};
+
+type Row = {
+  id: string;
+  title: string;
+  category: EventCategory;
+  free_food: boolean;
+  starts_at: string;
+  ends_at: string;
+  going_count: number;
+  lat: number | null;
+  lng: number | null;
+  location_note: string | null;
+  venues: { name: string; lat: number; lng: number } | null;
+  societies: { name: string } | null;
+};
+
+// Everything that's on from now until the end of tomorrow night.
+export async function getMapEvents(): Promise<{ events: MapEvent[]; windows: MapWindows }> {
+  const now = nowMs();
+  const windows: MapWindows = {
+    now: new Date(now).toISOString(),
+    tonightEnds: nextLondonSixAm(now),
+    tomorrowEnds: nextLondonSixAm(now, 1),
+  };
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("events")
+    .select("id, title, category, free_food, starts_at, ends_at, going_count, lat, lng, location_note, venues(name, lat, lng), societies(name)")
+    .eq("is_cancelled", false)
+    .gt("ends_at", windows.now)
+    .lt("starts_at", windows.tomorrowEnds)
+    .order("starts_at")
+    .limit(500);
+
+  const events: MapEvent[] = [];
+  for (const row of (data ?? []) as unknown as Row[]) {
+    const lat = row.lat ?? row.venues?.lat;
+    const lng = row.lng ?? row.venues?.lng;
+    if (lat == null || lng == null) continue;
+    events.push({
+      id: row.id,
+      title: row.title,
+      category: row.category,
+      freeFood: row.free_food,
+      startsAt: row.starts_at,
+      endsAt: row.ends_at,
+      going: row.going_count,
+      lat,
+      lng,
+      place: [row.venues?.name, row.location_note].filter(Boolean).join(" · "),
+      society: row.societies?.name ?? "",
+    });
+  }
+  return { events, windows };
+}

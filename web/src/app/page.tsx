@@ -35,9 +35,9 @@ export default function Home() {
           <Link href="/login" className="btn px-5 py-3 text-base">
             Get your society on Motive
           </Link>
-          <a href="#how" className="btn-ghost px-5 py-3 text-base">
-            How it works
-          </a>
+          <Link href="/map" className="btn-ghost px-5 py-3 text-base">
+            See the live map
+          </Link>
         </div>
       </section>
 

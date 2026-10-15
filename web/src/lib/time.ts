@@ -89,3 +89,13 @@ export function hasEnded(endIso: string, now = Date.now()) {
 export function nowMs() {
   return Date.now();
 }
+
+// The next 6am in London after `now`. "Tonight" runs until then.
+export function nextLondonSixAm(now = Date.now(), extraDays = 0): string {
+  const p = londonParts(new Date(now));
+  const addDays = (p.hour >= 6 ? 1 : 0) + extraDays;
+  const d = new Date(Date.UTC(p.year, p.month - 1, p.day + addDays));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const local = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T06:00`;
+  return londonInputToIso(local)!;
+}

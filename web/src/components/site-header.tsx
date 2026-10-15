@@ -10,6 +10,9 @@ export async function SiteHeader() {
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
         <Logo />
         <nav className="flex items-center gap-1 text-sm font-semibold sm:gap-2">
+          <Link href="/map" className="rounded-lg px-3 py-2 hover:bg-brand-soft">
+            Map
+          </Link>
           {profile ? (
             <>
               <Link href="/dashboard" className="rounded-lg px-3 py-2 hover:bg-brand-soft">

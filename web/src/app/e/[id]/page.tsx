@@ -102,7 +102,8 @@ export default async function EventPage({ params }: PageProps<"/e/[id]">) {
 
       <div className="card mt-10 bg-brand-soft">
         <p className="font-display text-lg font-bold">See everything on at LSE tonight</p>
-        <p className="text-muted">The Motive app shows every society event on a live map. Coming soon to iPhone and Android.</p>
+        <p className="text-muted">Every society event on one live map.</p>
+        <Link href="/map" className="mt-2 inline-block font-semibold text-brand">Open the live map →</Link>
       </div>
     </article>
   );
