@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Secrets: never commit these
+.env
+.env.*
+!.env.example
+
+# Build output
+.next/
+dist/
+.expo/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
