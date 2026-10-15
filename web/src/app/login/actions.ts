@@ -36,10 +36,13 @@ export async function sendCode(_prev: LoginState, formData: FormData): Promise<L
   });
 
   if (error) {
+    console.error("Login email failed:", error.status, error.code, error.message);
     if (error.status === 429) {
       return { step: "email", email, error: "Too many attempts. Wait a few minutes and try again." };
     }
-    return { step: "email", email, error: "We couldn't send the email. Please try again." };
+    // While building on your own computer, show the real reason to help fix it.
+    const detail = process.env.NODE_ENV === "development" ? ` (${error.status ?? ""} ${error.message})` : "";
+    return { step: "email", email, error: `We couldn't send the email. Please try again.${detail}` };
   }
 
   return { step: "code", email };
