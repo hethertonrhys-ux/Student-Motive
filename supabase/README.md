@@ -10,6 +10,8 @@ Project ID: `xrpbmcoptyrpgkdowfdt` (London region)
 - `migrations/20261018000000_table_bank.sql`: a "bank" player per table who records buy-ins and cash-outs.
 - `migrations/20261018120000_confirm_seat_and_start_tables.sql`: confirming your seat, and starting a table early.
 - `migrations/20261019000000_allow_other_emails.sql`: lets the Motive admin allow non-LSE emails, one address or a whole domain (e.g. `@kcl.ac.uk`).
+- `migrations/20261020000000_social.sql`: friends, profiles, student-hosted events, event chats and private messages.
+- `migrations/20261021000000_profile_photos.sql`: profile photos (the `avatars` storage bucket).
 - `seed.sql`: starter data (LSE buildings, LSE halls, other universities, first society).
 
 ## Running them

@@ -14,7 +14,8 @@ export function Avatar({ name, url, size = 36, ring = false }: { name: string; u
   const ringClass = ring ? "ring-2 ring-live ring-offset-2 ring-offset-[var(--surface)]" : "";
   if (url) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={url} alt={name} title={name} style={style} className={`rounded-full object-cover ${ringClass}`} />;
+    // If the photo can't load, this shows a plain coloured circle rather than broken-image text.
+    return <img src={url} alt="" title={name} style={{ ...style, background: colour }} className={`shrink-0 rounded-full object-cover ${ringClass}`} />;
   }
   return (
     <span
