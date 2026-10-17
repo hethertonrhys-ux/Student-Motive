@@ -43,6 +43,9 @@ export type MotiveEvent = {
   category: EventCategory;
   free_food: boolean;
   venue_id: string | null;
+  // A custom pin, used when the event isn't at one of the listed venues.
+  lat: number | null;
+  lng: number | null;
   location_note: string | null;
   starts_at: string;
   ends_at: string;

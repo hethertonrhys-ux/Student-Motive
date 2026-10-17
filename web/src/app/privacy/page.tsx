@@ -19,7 +19,7 @@ export default function PrivacyPage() {
       <ul>
         <li><strong>Your university email address</strong>, to log you in and confirm you&apos;re a student.</li>
         <li><strong>Societies you follow and events you mark &ldquo;I&apos;m going&rdquo;</strong>, to show you relevant events. Other users only see totals, never your name.</li>
-        <li><strong>Your location, only if you allow it</strong> in the app, to centre the map on you. It isn&apos;t stored on our servers.</li>
+        <li><strong>Your location, only if you allow it</strong> , to show you on the map and how far away events are. It stays on your device and isn&apos;t sent to or stored on our servers.</li>
         <li><strong>Reports and blocks</strong> you make, to keep Motive safe.</li>
         <li><strong>Content societies post</strong>: event details and images.</li>
       </ul>

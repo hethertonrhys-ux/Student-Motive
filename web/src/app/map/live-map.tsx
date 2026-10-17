@@ -2,15 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { GeoJSONSource, Map as MapLibreMap, MapLayerMouseEvent, Popup } from "maplibre-gl";
+import type { GeoJSONSource, GeolocateControl, Map as MapLibreMap, MapLayerMouseEvent, Popup } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { MapEvent, MapWindows } from "@/lib/map-events";
+import { LSE, MAP_STYLE, distanceMetres, howFar } from "@/lib/map-style";
 import { CATEGORIES, categoryLabel, type EventCategory } from "@/lib/types";
 
-// Free map tiles from OpenFreeMap: no account or API key needed.
-const MAP_STYLE = process.env.NEXT_PUBLIC_MAP_STYLE_URL || "https://tiles.openfreemap.org/styles/positron";
-
-const LSE: [number, number] = [-0.1168, 51.5146];
 const BRAND = "#4338ca";
 const LIVE = "#f43f5e";
 const SOON_MS = 60 * 60 * 1000;
@@ -51,7 +48,7 @@ function el(tag: string, className: string, text?: string) {
   return node;
 }
 
-function eventCard(event: MapEvent, now: number) {
+function eventCard(event: MapEvent, now: number, me: [number, number] | null) {
   const s = status(event, now);
   const card = el("a", "motive-pop") as HTMLAnchorElement;
   card.href = `/e/${event.id}`;
@@ -64,6 +61,7 @@ function eventCard(event: MapEvent, now: number) {
   const when = s === "live" ? `Until ${time.format(new Date(event.endsAt))}` : `${time.format(new Date(event.startsAt))}–${time.format(new Date(event.endsAt))}`;
   card.append(el("div", "motive-pop-meta", `${when} · ${event.place}`));
   card.append(el("div", "motive-pop-going", s === "live" ? `${event.going} there or going` : `${event.going} going`));
+  if (me) card.append(el("div", "motive-pop-meta", `📍 ${howFar(distanceMetres(me, [event.lng, event.lat]))}`));
   return card;
 }
 
@@ -81,6 +79,13 @@ export function LiveMap({ events, windows }: Props) {
   const [categories, setCategories] = useState<EventCategory[]>([]);
   const [freeFood, setFreeFood] = useState(false);
   const [now, setNow] = useState(() => new Date(windows.now).getTime());
+  // Your location, if you choose to share it. It stays in your browser:
+  // it's only used to draw your blue dot and work out distances.
+  const geolocateRef = useRef<GeolocateControl | null>(null);
+  const [me, setMe] = useState<[number, number] | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const showPopupRef = useRef<((at: [number, number], content: HTMLElement) => void) | null>(null);
 
   // Keep "live" up to date, and fetch fresh events every minute.
   useEffect(() => {
@@ -105,10 +110,12 @@ export function LiveMap({ events, windows }: Props) {
   const byId = useMemo(() => new Map(events.map((e) => [e.id, e])), [events]);
   const byIdRef = useRef(byId);
   const nowRef = useRef(now);
+  const meRef = useRef(me);
   useEffect(() => {
     byIdRef.current = byId;
     nowRef.current = now;
-  }, [byId, now]);
+    meRef.current = me;
+  }, [byId, now, me]);
 
   // Create the map once.
   useEffect(() => {
@@ -133,6 +140,30 @@ export function LiveMap({ events, windows }: Props) {
       });
       mapRef.current = map;
       map.addControl(new maplibre.NavigationControl({ showCompass: false }), "bottom-right");
+
+      // The "show my location" button (above the zoom buttons). The browser
+      // asks permission the first time.
+      const geolocate = new maplibre.GeolocateControl({
+        positionOptions: { enableHighAccuracy: true, timeout: 15_000 },
+        trackUserLocation: true,
+        showAccuracyCircle: true,
+        fitBoundsOptions: { maxZoom: 15.5 },
+      });
+      geolocateRef.current = geolocate;
+      map.addControl(geolocate, "bottom-right");
+      geolocate.on("geolocate", (e) => {
+        setMe([e.coords.longitude, e.coords.latitude]);
+        setLocating(false);
+        setLocationError(null);
+      });
+      geolocate.on("error", (e) => {
+        setLocating(false);
+        setLocationError(
+          e.code === 1
+            ? "Location is turned off for Motive. Allow it in your phone's settings to see what's near you."
+            : "Couldn't find your location. Try again outside or near a window.",
+        );
+      });
       map.on("error", (e) => {
         if (String(e.error?.message ?? "").toLowerCase().includes("style")) setMapError(true);
       });
@@ -202,7 +233,7 @@ export function LiveMap({ events, windows }: Props) {
           const id = e.features?.[0]?.properties?.id as string | undefined;
           const event = id ? byIdRef.current.get(id) : undefined;
           if (!event) return;
-          showPopup([event.lng, event.lat], eventCard(event, nowRef.current));
+          showPopup([event.lng, event.lat], eventCard(event, nowRef.current, meRef.current));
         });
 
         map.on("click", "clusters", async (e: MapLayerMouseEvent) => {
@@ -221,7 +252,7 @@ export function LiveMap({ events, windows }: Props) {
           const list = el("div", "motive-pop-list");
           for (const leaf of leaves) {
             const event = byIdRef.current.get(leaf.properties?.id as string);
-            if (event) list.append(eventCard(event, nowRef.current));
+            if (event) list.append(eventCard(event, nowRef.current, meRef.current));
           }
           showPopup(center, list);
         });
@@ -232,6 +263,14 @@ export function LiveMap({ events, windows }: Props) {
         }
 
         setReady(true);
+
+        // Already said yes before? Show your location straight away.
+        navigator.permissions
+          ?.query({ name: "geolocation" })
+          .then((p) => {
+            if (p.state === "granted" && !cancelled) geolocate.trigger();
+          })
+          .catch(() => {});
       });
 
       function showPopup(at: [number, number], content: HTMLElement) {
@@ -243,6 +282,7 @@ export function LiveMap({ events, windows }: Props) {
           .setDOMContent(content)
           .addTo(map);
       }
+      showPopupRef.current = showPopup;
     })();
 
     return () => {
@@ -278,6 +318,29 @@ export function LiveMap({ events, windows }: Props) {
   }
 
   const liveCount = visible.filter((e) => status(e, now) === "live").length;
+
+  const nearest = useMemo(() => {
+    if (!me || visible.length === 0) return null;
+    return visible
+      .map((e) => ({ event: e, metres: distanceMetres(me, [e.lng, e.lat]) }))
+      .sort((a, b) => a.metres - b.metres)[0];
+  }, [me, visible]);
+
+  function findMe() {
+    setLocationError(null);
+    if (!navigator.geolocation) {
+      setLocationError("This browser can't share your location.");
+      return;
+    }
+    if (geolocateRef.current?.trigger()) setLocating(true);
+  }
+
+  function goTo(event: MapEvent) {
+    const map = mapRef.current;
+    if (!map) return;
+    map.flyTo({ center: [event.lng, event.lat], zoom: Math.max(map.getZoom(), 16) });
+    showPopupRef.current?.([event.lng, event.lat], eventCard(event, now, me));
+  }
 
   return (
     <div className="relative h-[calc(100dvh-57px)] w-full overflow-hidden">
@@ -327,6 +390,18 @@ export function LiveMap({ events, windows }: Props) {
               {when === "now" ? "Nothing on right now. Try Tonight." : "Nothing posted yet. Check back soon."}
             </p>
           )}
+          {nearest ? (
+            <button type="button" onClick={() => goTo(nearest.event)} className="mt-0.5 block max-w-52 text-left text-xs text-muted">
+              Nearest: <span className="font-semibold text-brand">{nearest.event.title}</span> · {howFar(nearest.metres)}
+            </button>
+          ) : (
+            !me && (
+              <button type="button" onClick={findMe} disabled={locating} className="mt-0.5 text-xs font-semibold text-brand">
+                {locating ? "Finding you…" : "📍 Show what's near me"}
+              </button>
+            )
+          )}
+          {locationError && <p className="mt-1 max-w-52 text-xs text-danger">{locationError}</p>}
         </div>
         <div className="pointer-events-auto mr-12 flex gap-2">
           <button type="button" onClick={() => flyTo("lse")} className="rounded-xl border border-line bg-surface px-3 py-2 text-sm font-bold shadow-lg">

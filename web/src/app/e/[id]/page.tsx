@@ -14,7 +14,8 @@ export async function generateMetadata({ params }: PageProps<"/e/[id]">): Promis
   if (!event) return { title: "Event not found" };
 
   const when = formatEventTime(event.starts_at, event.ends_at);
-  const description = `${when} · ${event.venues?.name ?? ""}${event.societies ? ` · ${event.societies.name}` : ""}`;
+  const place = event.venues?.name ?? event.location_note ?? "";
+  const description = `${when} · ${place}${event.societies ? ` · ${event.societies.name}` : ""}`;
   return {
     title: event.title,
     description,
@@ -36,7 +37,9 @@ export default async function EventPage({ params }: PageProps<"/e/[id]">) {
   const live = !event.is_cancelled && (isLive(event.starts_at, event.ends_at) || earlyStart);
   const finished = hasEnded(event.ends_at);
   const venue = event.venues;
-  const mapsUrl = venue ? `https://www.google.com/maps/search/?api=1&query=${venue.lat},${venue.lng}` : null;
+  // Either a listed venue, or a custom pin named by the location note.
+  const pin = venue ? { lat: venue.lat, lng: venue.lng } : event.lat != null && event.lng != null ? { lat: event.lat, lng: event.lng } : null;
+  const mapsUrl = pin ? `https://www.google.com/maps/search/?api=1&query=${pin.lat},${pin.lng}` : null;
 
   return (
     <article className="mx-auto max-w-2xl px-4 py-10">
@@ -70,14 +73,20 @@ export default async function EventPage({ params }: PageProps<"/e/[id]">) {
           <dt className="text-sm font-semibold text-muted">When</dt>
           <dd className="font-semibold">{formatEventTime(event.starts_at, event.ends_at)}</dd>
         </div>
-        {venue && (
+        {(venue || pin) && (
           <div>
             <dt className="text-sm font-semibold text-muted">Where</dt>
             <dd className="font-semibold">
-              {venue.name}
-              {event.location_note && <span className="font-normal"> · {event.location_note}</span>}
+              {venue ? (
+                <>
+                  {venue.name}
+                  {event.location_note && <span className="font-normal"> · {event.location_note}</span>}
+                </>
+              ) : (
+                event.location_note || "See the map"
+              )}
             </dd>
-            {venue.address && <dd className="text-sm text-muted">{venue.address}</dd>}
+            {venue?.address && <dd className="text-sm text-muted">{venue.address}</dd>}
             {mapsUrl && (
               <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-brand">
                 Open in Maps →

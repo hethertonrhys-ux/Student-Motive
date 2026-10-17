@@ -3,15 +3,8 @@
 import { useActionState } from "react";
 import { CATEGORIES, type EventTable, type MotiveEvent, type Venue } from "@/lib/types";
 import { FormatFields } from "./format-fields";
+import { WhereField } from "./where-field";
 import type { FormState } from "./actions";
-
-const VENUE_GROUPS: { kind: Venue["kind"]; label: string }[] = [
-  { kind: "campus", label: "LSE campus" },
-  { kind: "hall", label: "LSE halls" },
-  { kind: "university", label: "Other universities" },
-  { kind: "club", label: "Clubs & bars" },
-  { kind: "other", label: "Other" },
-];
 
 type Props = {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
@@ -62,33 +55,7 @@ export function EventForm({ action, venues, event, tables, startsAtInput, endsAt
       </div>
       <p className="-mt-3 text-xs text-muted">UK time.</p>
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div>
-          <label htmlFor="venue_id" className="label">Where</label>
-          <select id="venue_id" name="venue_id" required defaultValue={event?.venue_id ?? ""} className="input">
-            <option value="" disabled>Choose a place…</option>
-            {VENUE_GROUPS.map((group) => {
-              const options = venues.filter((v) => v.kind === group.kind);
-              if (options.length === 0) return null;
-              return (
-                <optgroup key={group.kind} label={group.label}>
-                  {options.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name}{v.short_name ? ` (${v.short_name})` : ""}
-                    </option>
-                  ))}
-                </optgroup>
-              );
-            })}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="location_note" className="label">
-            Room or details <span className="font-normal text-muted">(optional)</span>
-          </label>
-          <input id="location_note" name="location_note" maxLength={120} defaultValue={event?.location_note ?? ""} placeholder="e.g. 4th floor, room 4.02" className="input" />
-        </div>
-      </div>
+      <WhereField venues={venues} event={event} />
 
       <FormatFields format={event?.format} capacity={event?.capacity} membersOnly={event?.members_only ?? true} tables={tables} />
 

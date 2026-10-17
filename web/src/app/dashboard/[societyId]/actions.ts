@@ -68,6 +68,13 @@ function readEvent(formData: FormData) {
   if (!title) return { error: "Give your event a name." };
   if (!CATEGORIES.some((c) => c.value === category)) return { error: "Choose a category." };
   if (!venueId) return { error: "Choose where it is." };
+  // "Somewhere else": a pin dropped on the map, named in the place name box.
+  const custom = venueId === "custom";
+  const lat = Number(formData.get("lat") || NaN);
+  const lng = Number(formData.get("lng") || NaN);
+  const locationNote = text(formData, "location_note", 120);
+  if (custom && !(Math.abs(lat) <= 90 && Math.abs(lng) <= 180)) return { error: "Drop a pin on the map to show where it is." };
+  if (custom && !locationNote) return { error: "Give the place a name, e.g. the pub or building." };
   if (!startsAt || !endsAt) return { error: "Add a start and end time." };
   if (new Date(endsAt) <= new Date(startsAt)) return { error: "The end time must be after the start time." };
   if (ticket.error) return { error: `Ticket link: ${ticket.error}` };
@@ -91,8 +98,10 @@ function readEvent(formData: FormData) {
       members_only: formData.get("members_only") === "on",
       title,
       category,
-      venue_id: venueId,
-      location_note: text(formData, "location_note", 120),
+      venue_id: custom ? null : venueId,
+      lat: custom ? lat : null,
+      lng: custom ? lng : null,
+      location_note: locationNote,
       starts_at: startsAt,
       ends_at: endsAt,
       description: text(formData, "description", 5000),
