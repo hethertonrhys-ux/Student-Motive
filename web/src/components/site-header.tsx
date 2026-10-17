@@ -1,37 +1,28 @@
 import Link from "next/link";
 import { getProfile } from "@/lib/auth";
 import { Logo } from "./logo";
+import { NavTabs, SettingsMenu } from "./header-nav";
 
 export async function SiteHeader() {
   const profile = await getProfile();
 
+  const tabs = [{ href: "/map", label: "Map" }];
+  if (profile) tabs.push({ href: "/dashboard", label: "Dashboard" });
+  if (profile?.is_admin) tabs.push({ href: "/admin", label: "Admin" });
+
   return (
-    <header className="border-b border-line bg-surface/80 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
+    <header className="relative z-40 border-b border-line bg-surface/80 backdrop-blur">
+      {/* Fixed height: the map page sizes itself to fill the rest of the screen. */}
+      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-2 px-4">
         <Logo />
-        <nav className="flex items-center gap-1 text-sm font-semibold sm:gap-2">
-          <Link href="/map" className="rounded-lg px-3 py-2 hover:bg-brand-soft">
-            Map
-          </Link>
-          {profile ? (
-            <>
-              <Link href="/dashboard" className="rounded-lg px-3 py-2 hover:bg-brand-soft">
-                Dashboard
-              </Link>
-              {profile.is_admin && (
-                <Link href="/admin" className="rounded-lg px-3 py-2 hover:bg-brand-soft">
-                  Admin
-                </Link>
-              )}
-              <form action="/auth/signout" method="post">
-                <button className="rounded-lg px-3 py-2 text-muted hover:bg-brand-soft">Sign out</button>
-              </form>
-            </>
-          ) : (
-            <Link href="/login" className="btn py-2">
+        <nav className="flex items-center gap-0.5 text-sm font-semibold sm:gap-1">
+          <NavTabs tabs={tabs} />
+          {!profile && (
+            <Link href="/login" className="btn ml-1 py-2 whitespace-nowrap">
               Log in
             </Link>
           )}
+          <SettingsMenu signedInAs={profile ? profile.display_name || profile.email : null} />
         </nav>
       </div>
     </header>

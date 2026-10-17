@@ -16,6 +16,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  // Use the whole iPhone screen; pages keep clear of the home bar with safe-area padding.
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f7f7fb" },
     { media: "(prefers-color-scheme: dark)", color: "#0d0c1d" },
@@ -25,7 +27,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en-GB" className={`${bricolage.variable} ${figtree.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col font-sans">
+      <body className="flex min-h-full flex-col pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] font-sans">
         <SiteHeader />
         <main className="flex-1">{children}</main>
         <SiteFooter />

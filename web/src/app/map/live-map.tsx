@@ -316,7 +316,7 @@ export function LiveMap({ events, windows }: Props) {
       </div>
 
       {/* Status bar */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="pointer-events-auto rounded-2xl border border-line bg-surface px-4 py-2.5 shadow-lg">
           <p className="text-sm font-bold">
             {visible.length} {visible.length === 1 ? "event" : "events"}

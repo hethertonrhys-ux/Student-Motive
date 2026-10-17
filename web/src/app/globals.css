@@ -89,3 +89,9 @@ body {
 .motive-pop-soc { font-size: 13px; font-weight: 600; color: #4338ca; }
 .motive-pop-meta { font-size: 12px; color: #5e5d78; margin-top: 4px; }
 .motive-pop-going { font-size: 12px; font-weight: 700; margin-top: 4px; }
+
+/* Keep the map's zoom buttons clear of the iPhone home bar. */
+.maplibregl-ctrl-bottom-left,
+.maplibregl-ctrl-bottom-right {
+  margin-bottom: env(safe-area-inset-bottom);
+}
