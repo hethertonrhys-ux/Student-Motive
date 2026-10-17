@@ -51,11 +51,11 @@ function Screen({ children, className = "" }: { children: ReactNode; className?:
 export function MotiveTile({ size = 44 }: { size?: number }) {
   return (
     <span
-      className="relative grid place-items-center rounded-[22%] bg-[#4338ca] font-display font-extrabold text-white"
+      className="relative grid shrink-0 place-items-center rounded-[22%] bg-[#4338ca] font-display font-extrabold text-white"
       style={{ width: size, height: size, fontSize: size * 0.6, lineHeight: 1 }}
     >
       <span className="-mt-[12%]">m</span>
-      <span className="absolute rounded-full bg-[#f43f5e]" style={{ width: size * 0.13, height: size * 0.13, right: size * 0.13, bottom: size * 0.27 }} />
+      <span className="absolute rounded-full bg-[#f43f5e]" style={{ width: size * 0.13, height: size * 0.13, right: size * 0.07, bottom: size * 0.29 }} />
     </span>
   );
 }

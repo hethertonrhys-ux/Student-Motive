@@ -22,9 +22,8 @@ export default function InstallPage() {
 
       <p className="mt-10 text-sm">
         <a href="/motive-iphone-story.png" download className="font-semibold text-brand">
-          Download the iPhone steps as an image
-        </a>{" "}
-        <span className="text-muted">(sized for an Instagram story)</span>
+          Save the iPhone steps as a picture
+        </a>
       </p>
     </div>
   );
