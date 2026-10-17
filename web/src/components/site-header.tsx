@@ -29,7 +29,7 @@ export async function SiteHeader() {
             </>
           ) : (
             <Link href="/login" className="btn py-2">
-              Society login
+              Log in
             </Link>
           )}
         </nav>

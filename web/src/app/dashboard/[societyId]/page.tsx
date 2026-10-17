@@ -19,6 +19,11 @@ export default async function SocietyDashboard({ params, searchParams }: PagePro
     .eq("society_id", societyId)
     .order("starts_at", { ascending: true });
   const events = (data ?? []) as MotiveEvent[];
+  const { count: pendingCount } = await supabase
+    .from("society_members")
+    .select("user_id", { count: "exact", head: true })
+    .eq("society_id", societyId)
+    .eq("status", "pending");
 
   const now = nowMs();
   const upcoming = events.filter((e) => !hasEnded(e.ends_at, now));
@@ -29,7 +34,12 @@ export default async function SocietyDashboard({ params, searchParams }: PagePro
       <Link href="/dashboard" className="text-sm font-semibold text-muted hover:text-ink">← Your societies</Link>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
         <h1 className="font-display text-3xl font-extrabold tracking-tight">{society.name}</h1>
-        <Link href={`/dashboard/${societyId}/events/new`} className="btn">+ Post an event</Link>
+        <div className="flex gap-2">
+          <Link href={`/dashboard/${societyId}/members`} className="btn-ghost">
+            Members{pendingCount ? ` · ${pendingCount} waiting` : ""}
+          </Link>
+          <Link href={`/dashboard/${societyId}/events/new`} className="btn">+ Post an event</Link>
+        </div>
       </div>
 
       {posted && (
@@ -92,7 +102,8 @@ function EventRow({ event, live }: { event: MotiveEvent; live: boolean }) {
           <p className="text-xs text-muted">going</p>
         </div>
         <Link href={`/e/${event.id}`} className="text-sm font-semibold text-muted hover:text-ink">View</Link>
-        <Link href={`/dashboard/${event.society_id}/events/${event.id}/edit`} className="text-sm font-semibold text-brand">Edit</Link>
+        <Link href={`/dashboard/${event.society_id}/events/${event.id}/edit`} className="text-sm font-semibold text-muted hover:text-ink">Edit</Link>
+        <Link href={`/dashboard/${event.society_id}/events/${event.id}`} className="text-sm font-semibold text-brand">Manage</Link>
       </div>
     </li>
   );

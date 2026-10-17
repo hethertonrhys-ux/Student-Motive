@@ -6,6 +6,7 @@ import { SITE_URL } from "@/lib/site";
 import { formatEventTime, hasEnded, isLive } from "@/lib/time";
 import { categoryLabel } from "@/lib/types";
 import { ShareButton } from "@/components/share-button";
+import { Participation } from "./participation";
 
 export async function generateMetadata({ params }: PageProps<"/e/[id]">): Promise<Metadata> {
   const { id } = await params;
@@ -84,10 +85,12 @@ export default async function EventPage({ params }: PageProps<"/e/[id]">) {
           </div>
         )}
         <div>
-          <dt className="text-sm font-semibold text-muted">Going</dt>
+          <dt className="text-sm font-semibold text-muted">{event.format === "entries" ? "Entered" : "Going"}</dt>
           <dd className="font-semibold">{event.going_count} {event.going_count === 1 ? "person" : "people"}</dd>
         </div>
       </dl>
+
+      <Participation event={event} society={event.societies ? { name: event.societies.name, slug: event.societies.slug } : null} />
 
       {event.description && <p className="mt-6 whitespace-pre-line text-lg leading-relaxed">{event.description}</p>}
 

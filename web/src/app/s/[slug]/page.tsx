@@ -3,6 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { getProfile } from "@/lib/auth";
+import { JoinForm } from "./join-form";
+import { leaveSociety, requestToJoin } from "./actions";
 import { formatEventTime, isLive } from "@/lib/time";
 import { categoryLabel, type MotiveEvent, type Society } from "@/lib/types";
 
@@ -68,6 +71,8 @@ export default async function SocietyPage({ params }: PageProps<"/s/[slug]">) {
 
       {society.description && <p className="mt-6 text-lg">{society.description}</p>}
 
+      <Membership societyId={society.id} slug={society.slug} name={society.name} />
+
       <h2 className="mt-10 font-display text-xl font-bold">Upcoming events</h2>
       {events.length === 0 ? (
         <p className="mt-3 text-muted">Nothing coming up yet. Check back soon.</p>
@@ -93,6 +98,58 @@ export default async function SocietyPage({ params }: PageProps<"/s/[slug]">) {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+async function Membership({ societyId, slug, name }: { societyId: string; slug: string; name: string }) {
+  const profile = await getProfile();
+  if (!profile) {
+    return (
+      <div className="card mt-6 flex flex-wrap items-center justify-between gap-3">
+        <p className="font-semibold">Members can join events and pick their table.</p>
+        <Link href={`/login?next=/s/${slug}`} className="btn">Log in to join</Link>
+      </div>
+    );
+  }
+
+  const supabase = await createClient();
+  const [{ data: membership }, { data: isAdmin }] = await Promise.all([
+    supabase.from("society_members").select("status").eq("society_id", societyId).eq("user_id", profile.id).maybeSingle(),
+    supabase.rpc("is_society_admin", { sid: societyId }),
+  ]);
+
+  if (isAdmin) {
+    return (
+      <div className="card mt-6 flex flex-wrap items-center justify-between gap-3">
+        <p className="font-semibold">You run this society.</p>
+        <Link href={`/dashboard/${societyId}`} className="btn-ghost">Open dashboard</Link>
+      </div>
+    );
+  }
+  if (membership?.status === "approved") {
+    return (
+      <div className="card mt-6 flex flex-wrap items-center justify-between gap-3">
+        <p className="font-semibold"><span className="text-ok">✓</span> You&apos;re a member of {name}</p>
+        <form action={leaveSociety.bind(null, societyId, slug)}>
+          <button className="text-sm font-semibold text-muted hover:text-danger">Leave</button>
+        </form>
+      </div>
+    );
+  }
+  if (membership?.status === "pending") {
+    return (
+      <div className="card mt-6">
+        <p className="font-semibold">Request sent</p>
+        <p className="text-sm text-muted">The committee will approve you once they&apos;ve checked your membership.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="card mt-6 space-y-2">
+      <p className="font-semibold">Are you a member of {name}?</p>
+      <p className="text-sm text-muted">Join to enter events and pick your table. The committee approves members.</p>
+      <JoinForm action={requestToJoin.bind(null, societyId, slug)} defaultName={profile.display_name ?? ""} />
     </div>
   );
 }

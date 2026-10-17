@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { requireManagedSociety } from "@/lib/society";
 import { getVenues } from "@/lib/venues";
 import { isoToLondonInput } from "@/lib/time";
-import type { MotiveEvent } from "@/lib/types";
+import type { EventTable, MotiveEvent } from "@/lib/types";
 import { EventForm } from "../../../event-form";
 import { deleteEvent, updateEvent } from "../../../actions";
 import { DeleteButton } from "./delete-button";
@@ -15,9 +15,10 @@ export default async function EditEventPage({ params }: PageProps<"/dashboard/[s
   const { societyId, eventId } = await params;
   const { supabase, society } = await requireManagedSociety(societyId);
 
-  const [{ data: event }, venues] = await Promise.all([
+  const [{ data: event }, venues, { data: tables }] = await Promise.all([
     supabase.from("events").select("*").eq("id", eventId).eq("society_id", societyId).maybeSingle<MotiveEvent>(),
     getVenues(supabase),
+    supabase.from("event_tables").select("*").eq("event_id", eventId).order("position"),
   ]);
   if (!event) notFound();
 
@@ -36,6 +37,7 @@ export default async function EditEventPage({ params }: PageProps<"/dashboard/[s
           action={updateEvent.bind(null, societyId, eventId)}
           venues={venues}
           event={event}
+          tables={(tables ?? []) as EventTable[]}
           startsAtInput={isoToLondonInput(event.starts_at)}
           endsAtInput={isoToLondonInput(event.ends_at)}
         />

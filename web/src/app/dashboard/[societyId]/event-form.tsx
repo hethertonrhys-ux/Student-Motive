@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { CATEGORIES, type MotiveEvent, type Venue } from "@/lib/types";
+import { CATEGORIES, type EventTable, type MotiveEvent, type Venue } from "@/lib/types";
+import { FormatFields } from "./format-fields";
 import type { FormState } from "./actions";
 
 const VENUE_GROUPS: { kind: Venue["kind"]; label: string }[] = [
@@ -16,12 +17,13 @@ type Props = {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   venues: Venue[];
   event?: MotiveEvent;
+  tables?: EventTable[];
   // Times already converted to "YYYY-MM-DDTHH:mm" UK time.
   startsAtInput?: string;
   endsAtInput?: string;
 };
 
-export function EventForm({ action, venues, event, startsAtInput, endsAtInput }: Props) {
+export function EventForm({ action, venues, event, tables, startsAtInput, endsAtInput }: Props) {
   const [state, formAction, pending] = useActionState(action, {});
   const isEdit = Boolean(event);
 
@@ -87,6 +89,8 @@ export function EventForm({ action, venues, event, startsAtInput, endsAtInput }:
           <input id="location_note" name="location_note" maxLength={120} defaultValue={event?.location_note ?? ""} placeholder="e.g. 4th floor, room 4.02" className="input" />
         </div>
       </div>
+
+      <FormatFields format={event?.format} capacity={event?.capacity} membersOnly={event?.members_only ?? true} tables={tables} />
 
       <div>
         <label htmlFor="description" className="label">

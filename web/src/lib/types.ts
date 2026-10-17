@@ -51,7 +51,34 @@ export type MotiveEvent = {
   is_cancelled: boolean;
   is_hidden: boolean;
   going_count: number;
+  format: EventFormat;
+  capacity: number | null;
+  members_only: boolean;
+  results_published: boolean;
 };
+
+export type EventFormat = "standard" | "entries" | "tables";
+
+export const FORMATS: { value: EventFormat; label: string; help: string }[] = [
+  { value: "standard", label: "Standard", help: "People tap \"I'm going\"." },
+  { value: "entries", label: "Sign-up list", help: "People enter; set a limit and the rest join a waiting list. Good for tournaments." },
+  { value: "tables", label: "Tables", help: "People pick a table, each with its own level and seats. Good for cash games." },
+];
+
+export type EventTable = {
+  id: string;
+  event_id: string;
+  name: string;
+  level: string | null;
+  seats: number;
+  position: number;
+};
+
+export type EntryStatus = "going" | "waitlist";
+
+// Suggested table levels (societies can also type their own).
+export const POKER_STAKES = ["Free", "2p/5p", "5p/10p", "10p/20p", "25p/50p", "50p/£1", "£1/£2"];
+export const DEFAULT_SEATS = 8;
 
 export const CATEGORIES: { value: EventCategory; label: string }[] = [
   { value: "social", label: "Social" },

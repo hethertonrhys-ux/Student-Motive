@@ -5,13 +5,16 @@ Project ID: `xrpbmcoptyrpgkdowfdt` (London region)
 ## Files
 
 - `migrations/20261015000000_initial_schema.sql`: tables, security rules, sign-up restriction, image storage.
+- `migrations/20261017000000_members_formats_ledger.sql`: society members, event formats (sign-up lists, tables), results ledger.
 - `seed.sql`: starter data (LSE buildings, LSE halls, other universities, first society).
 
-## Running them (first time only)
+## Running them
+
+Each migration file runs **once**, in date order. Never edit one that has already run; add a new file instead.
 
 1. Supabase dashboard → **SQL Editor** → **New query**.
 2. Paste the whole migration file → **Run**. You should see "Success. No rows returned".
-3. New query → paste `seed.sql` → **Run**.
+3. First time only: new query → paste `seed.sql` → **Run**.
 
 ## What the database contains
 
@@ -25,7 +28,12 @@ Project ID: `xrpbmcoptyrpgkdowfdt` (London region)
 | `venues` | Places with map coordinates. |
 | `events` | Events. Located by `venue_id` or a custom `lat`/`lng`. |
 | `follows` | Students following societies. |
-| `going` | "I'm going" taps. `events.going_count` updates automatically. |
+| `society_members` | Approved (or pending) members of each society. |
+| `society_member_invites` | Emails the committee pre-approved (e.g. their SU list). |
+| `event_tables` | Tables inside an event, each with a level and seats. |
+| `event_entries` | Who's going / entered / on the waiting list, and their table. `events.going_count` updates automatically. |
+| `ledger_rows` | Each player's result (pence) at a table. |
+| `ledger_payments` | Payments already made, e.g. someone leaving early. |
 | `blocks` | Students hiding a society (App Store requirement). |
 | `reports` | Reports of bad content (App Store requirement). |
 
@@ -34,6 +42,8 @@ Project ID: `xrpbmcoptyrpgkdowfdt` (London region)
 - Only `@lse.ac.uk` emails (or ones in `allowed_emails`) can sign up.
 - Anyone, even logged out, can read societies, venues and visible events, so shared event links work.
 - Only a society's admins can create, edit or delete its events and edit its page.
-- Students can only change their own follows, "going", blocks and reports.
+- Students can only change their own follows, blocks and reports.
+- Joining events goes through `join_event` / `choose_table` / `leave_event`, which enforce members-only, limits, waiting lists and free seats.
+- Only a society's committee approves members and edits results. Players see results only once the committee shares them.
 - Nobody can make themselves an admin, fake a going count, or un-hide an event Motive has hidden.
 - Images go in the `images` bucket under `<society-id>/...`; only that society's admins can upload there.
