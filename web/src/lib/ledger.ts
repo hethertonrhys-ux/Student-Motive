@@ -67,3 +67,54 @@ export function splitDifference(playerCount: number, totalPence: number): number
   const leftover = needed - base * playerCount;
   return Array.from({ length: playerCount }, (_, i) => base + (i < Math.abs(leftover) ? Math.sign(leftover) : 0));
 }
+
+// "10+10+5" -> 2500 pence (a buy-in plus rebuys). Returns null if invalid.
+export function parsePoundsSum(input: string): number | null {
+  const parts = input.split("+").map((p) => p.trim()).filter(Boolean);
+  if (parts.length === 0) return 0;
+  let total = 0;
+  for (const part of parts) {
+    const pence = parsePounds(part);
+    if (pence === null || pence < 0) return null;
+    total += pence;
+  }
+  return total;
+}
+
+// ---------- Tables with a bank ----------
+// The bank collects every buy-in and pays each player their cash-out.
+
+export type BankRow = { id: string; name: string; buyinPence: number; cashoutPence: number | null; adjustPence: number; paidOut: boolean };
+
+export type BankSummary = {
+  takenIn: number; // all buy-ins
+  paidOut: number; // cash-outs already handed over
+  owed: number; // cash-outs not yet handed over
+  inBank: number; // what the bank should be holding right now
+  stillPlaying: number; // players with no cash-out yet
+  // Once everyone has cashed out: cash-outs minus buy-ins. Should be 0.
+  differencePence: number | null;
+};
+
+export function payoutOf(row: BankRow): number | null {
+  return row.cashoutPence === null ? null : row.cashoutPence + row.adjustPence;
+}
+
+export function bankSummary(rows: BankRow[]): BankSummary {
+  let takenIn = 0, paidOut = 0, owed = 0, stillPlaying = 0, cashouts = 0;
+  for (const r of rows) {
+    takenIn += r.buyinPence;
+    const payout = payoutOf(r);
+    if (payout === null) { stillPlaying++; continue; }
+    cashouts += r.cashoutPence!;
+    if (r.paidOut) paidOut += payout; else owed += payout;
+  }
+  return {
+    takenIn,
+    paidOut,
+    owed,
+    inBank: takenIn - paidOut,
+    stillPlaying,
+    differencePence: stillPlaying === 0 && rows.length > 0 ? cashouts - takenIn : null,
+  };
+}

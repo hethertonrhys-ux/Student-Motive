@@ -8,6 +8,9 @@ import { FORMATS, type EventTable, type MotiveEvent } from "@/lib/types";
 import { Avatar } from "@/components/avatar";
 import { LedgerEditor, type EditorRow } from "./ledger-editor";
 import { LateArrivalForm } from "./late-arrival-form";
+import { BankLedger } from "@/app/e/[id]/bank-ledger";
+import { saveBankLedger } from "@/app/e/[id]/bank-actions";
+import { bankEditorRows } from "@/lib/bank-rows";
 import {
   addLateArrival,
   addPayment,
@@ -18,6 +21,7 @@ import {
   saveLedger,
   savePositions,
   setResultsPublished,
+  setTableBank,
 } from "./actions";
 
 export const metadata: Metadata = { title: "Manage event" };
@@ -147,7 +151,28 @@ export default async function ManageEventPage({ params }: PageProps<"/dashboard/
               const saved = ledger.rows.filter((r) => r.table_id === tableId);
               const seated = going.filter((p) => (tableId ? p.tableId === tableId : true));
               const initialRows = startingRows(saved, seated);
+              const bank = table?.bank_user_id ? people.find((p) => p.userId === table.bank_user_id) : undefined;
               return (
+                <div key={tableId ?? "event"} className="space-y-2">
+                  {table && (
+                    <form action={setTableBank.bind(null, societyId, eventId, table.id)} className="flex flex-wrap items-center gap-2 text-sm">
+                      <span className="font-semibold">{table.name} settles:</span>
+                      <select name="bank_user_id" defaultValue={table.bank_user_id ?? ""} className="rounded-lg border border-line bg-surface px-2 py-1.5" aria-label={`Bank for ${table.name}`}>
+                        <option value="">Players pay each other (no bank)</option>
+                        {seated.map((p) => <option key={p.userId} value={p.userId}>{p.name} is the bank</option>)}
+                      </select>
+                      <button className="font-semibold text-brand">Set</button>
+                    </form>
+                  )}
+                  {table && table.bank_user_id ? (
+                    <BankLedger
+                      key={`bank-${tableId}-${saved.map((r) => `${r.id}:${r.buyin_pence}:${r.cashout_pence}:${r.paid_out}:${r.adjust_pence}`).join("|")}`}
+                      title={`${table.name}${table.level ? ` · ${table.level}` : ""}`}
+                      bankName={bank?.name ?? "The bank"}
+                      initialRows={bankEditorRows(saved, seated)}
+                      saveAction={saveBankLedger.bind(null, eventId, table.id)}
+                    />
+                  ) : (
                 <LedgerEditor
                   // Re-load the editor whenever saved results change.
                   key={`${tableId}-${saved.map((r) => `${r.id}:${r.net_pence}:${r.player_name}`).join("|")}`}
@@ -161,6 +186,8 @@ export default async function ManageEventPage({ params }: PageProps<"/dashboard/
                   addPaymentAction={addPayment.bind(null, societyId, eventId)}
                   deletePaymentAction={deletePayment.bind(null, societyId, eventId)}
                 />
+                  )}
+                </div>
               );
             })}
           </div>

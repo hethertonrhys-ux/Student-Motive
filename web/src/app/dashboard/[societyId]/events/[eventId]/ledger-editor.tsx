@@ -130,7 +130,9 @@ export function LedgerEditor({ title, initialRows, payments, saveAction, addPaym
         <div className="flex flex-wrap items-center gap-3">
           <button className="btn" disabled={saving}>{saving ? "Saving…" : "Save results"}</button>
           {dirty && !saving && <span className="text-sm font-medium text-muted">Unsaved changes</span>}
-          {saveState.saved && !dirty && !saving && <span className="text-sm font-medium text-ok">Saved.</span>}
+          {!dirty && !saving && rows.some((r) => r.id) && rows.filter((r) => r.name.trim()).every((r) => r.id) && (
+            <span className="text-sm font-medium text-ok">All saved ✓</span>
+          )}
           {saveState.error && <span className="text-sm font-medium text-danger">{saveState.error}</span>}
         </div>
       </form>

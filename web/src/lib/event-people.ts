@@ -53,12 +53,15 @@ export type LedgerRowRecord = {
   net_pence: number;
   adjust_pence: number;
   created_by: string | null;
+  buyin_pence: number;
+  cashout_pence: number | null;
+  paid_out: boolean;
 };
 export type LedgerPaymentRecord = { id: string; from_row: string; to_row: string; amount_pence: number; created_by: string | null };
 
 export async function getLedger(supabase: SupabaseClient, eventId: string) {
   const [{ data: rows }, { data: payments }] = await Promise.all([
-    supabase.from("ledger_rows").select("id, table_id, user_id, player_name, net_pence, adjust_pence, created_by").eq("event_id", eventId).order("created_at"),
+    supabase.from("ledger_rows").select("id, table_id, user_id, player_name, net_pence, adjust_pence, created_by, buyin_pence, cashout_pence, paid_out").eq("event_id", eventId).order("created_at"),
     supabase.from("ledger_payments").select("id, from_row, to_row, amount_pence, created_by").eq("event_id", eventId).order("created_at"),
   ]);
   return { rows: (rows ?? []) as LedgerRowRecord[], payments: (payments ?? []) as LedgerPaymentRecord[] };

@@ -7,6 +7,7 @@ Project ID: `xrpbmcoptyrpgkdowfdt` (London region)
 - `migrations/20261015000000_initial_schema.sql`: tables, security rules, sign-up restriction, image storage.
 - `migrations/20261017000000_members_formats_ledger.sql`: society members, event formats (sign-up lists, tables), results ledger.
 - `migrations/20261017120000_tables_flexibility_and_self_reporting.sql`: "also happy to play at", splitting a counting difference, players reporting their own result, committee adding late arrivals.
+- `migrations/20261018000000_table_bank.sql`: a "bank" player per table who records buy-ins and cash-outs.
 - `seed.sql`: starter data (LSE buildings, LSE halls, other universities, first society).
 
 ## Running them
@@ -48,5 +49,6 @@ Each migration file runs **once**, in date order. Never edit one that has alread
 - Only a society's committee approves members and edits results. Players see results only once the committee shares them.
 - Before results are shared, a player can record their own result and payments with players at their own table (`record_my_result`, `record_my_payment`). The committee sees these labelled as entered by the player.
 - Each table has its own ledger: players only settle with people at their table.
+- A table can have a bank (`event_tables.bank_user_id`). The bank can edit only that table's ledger: buy-ins, cash-outs and whether each cash-out has been paid.
 - Nobody can make themselves an admin, fake a going count, or un-hide an event Motive has hidden.
 - Images go in the `images` bucket under `<society-id>/...`; only that society's admins can upload there.

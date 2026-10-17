@@ -12,6 +12,9 @@ import { ActionButton } from "./action-button";
 import { chooseTable, deleteMyPayment, joinEvent, leaveEvent, recordMyPayment, recordMyResult } from "./actions";
 import { AlsoTables } from "./also-tables";
 import { SelfReport } from "./self-report";
+import { BankLedger } from "./bank-ledger";
+import { saveBankLedger } from "./bank-actions";
+import { bankEditorRows } from "@/lib/bank-rows";
 
 type Props = { event: MotiveEvent; society: { name: string; slug: string } | null };
 
@@ -71,10 +74,24 @@ export async function Participation({ event, society }: Props) {
         <GoingPanel event={event} me={me} />
       )}
 
+      {/* Tables where this player is the bank: their bank screen. */}
+      {!event.results_published &&
+        tables.filter((t) => t.bank_user_id === profile.id).map((t) => (
+          <BankScreen key={t.id} event={event} table={t} people={people} />
+        ))}
+
+      {/* Playing at a table with a bank (and not the bank): buy in and cash out with them. */}
+      {me?.status === "going" && !event.results_published && (() => {
+        const myTable = tables.find((t) => t.id === me.tableId);
+        if (!myTable?.bank_user_id || myTable.bank_user_id === profile.id) return null;
+        return <MyBankLine event={event} table={myTable} me={me} people={people} />;
+      })()}
+
       {me?.status === "going" &&
         !event.results_published &&
         new Date(event.starts_at).getTime() <= nowMs() &&
-        (event.format !== "tables" || me.tableId) && <MySelfReport event={event} me={me} people={people} />}
+        (event.format !== "tables" || me.tableId) &&
+        !tables.find((t) => t.id === me.tableId)?.bank_user_id && <MySelfReport event={event} me={me} people={people} />}
 
       {/* Members see who else is coming. */}
       {isMember && event.format !== "tables" && people.some((p) => p.status === "going") && (
@@ -297,6 +314,33 @@ async function MyResults({ eventId, userId, tables }: { eventId: string; userId:
         );
         const myTransfers = s.transfers.filter((t) => t.fromId === mine.id || t.toId === mine.id);
         const table = tables.find((t) => t.id === mine.table_id);
+        if (table?.bank_user_id) {
+          const payout = mine.cashout_pence === null ? null : mine.cashout_pence + mine.adjust_pence;
+          const net = (payout ?? 0) - mine.buyin_pence;
+          return (
+            <div key={mine.id} className="card space-y-2">
+              <div className="flex items-baseline justify-between">
+                <h2 className="font-display text-xl font-bold">Your result · {table.name}</h2>
+                <span className={`font-display text-2xl font-extrabold ${net > 0 ? "text-ok" : net < 0 ? "text-danger" : ""}`}>{formatPounds(net, true)}</span>
+              </div>
+              <p className="text-sm">
+                You bought in <strong>{formatPounds(mine.buyin_pence)}</strong>
+                {payout !== null && <> and cashed out <strong>{formatPounds(payout)}</strong></>}.
+              </p>
+              {payout !== null && payout > 0 && (
+                <p className="rounded-xl bg-brand-soft px-3 py-2 font-semibold">
+                  {mine.paid_out ? "✓ The bank has paid you " : "The bank pays you "}{formatPounds(payout)}
+                </p>
+              )}
+              {payout !== null && payout < 0 && (
+                <p className="rounded-xl bg-brand-soft px-3 py-2 font-semibold">You owe the bank {formatPounds(-payout)}</p>
+              )}
+              {mine.adjust_pence !== 0 && (
+                <p className="text-xs text-muted">Includes {formatPounds(Math.abs(mine.adjust_pence))} {mine.adjust_pence < 0 ? "less" : "more"} as your share of a counting difference.</p>
+              )}
+            </div>
+          );
+        }
         return (
           <div key={mine.id} className="card space-y-3">
             <div className="flex items-baseline justify-between">
@@ -378,5 +422,44 @@ async function MySelfReport({ event, me, people }: { event: MotiveEvent; me: Per
       paymentAction={recordMyPayment.bind(null, event.id)}
       deletePaymentAction={deleteMyPayment.bind(null, event.id)}
     />
+  );
+}
+
+async function BankScreen({ event, table, people }: { event: MotiveEvent; table: EventTable; people: Person[] }) {
+  const supabase = await createClient();
+  const { rows } = await getLedger(supabase, event.id);
+  const saved = rows.filter((r) => r.table_id === table.id);
+  const seated = people.filter((p) => p.status === "going" && p.tableId === table.id);
+  return (
+    <div className="space-y-2">
+      <p className="font-display text-xl font-bold">You&apos;re the bank for {table.name}</p>
+      <BankLedger
+        key={saved.map((r) => `${r.id}:${r.buyin_pence}:${r.cashout_pence}:${r.paid_out}:${r.adjust_pence}`).join("|")}
+        title={`${table.name}${table.level ? ` · ${table.level}` : ""}`}
+        bankName="You"
+        initialRows={bankEditorRows(saved, seated)}
+        saveAction={saveBankLedger.bind(null, event.id, table.id)}
+      />
+    </div>
+  );
+}
+
+async function MyBankLine({ event, table, me, people }: { event: MotiveEvent; table: EventTable; me: Person; people: Person[] }) {
+  const supabase = await createClient();
+  const { rows } = await getLedger(supabase, event.id);
+  const mine = rows.find((r) => r.user_id === me.userId && r.table_id === table.id);
+  const bankName = people.find((p) => p.userId === table.bank_user_id)?.name ?? "The bank";
+  return (
+    <div className="card space-y-2">
+      <p className="font-semibold">🏦 {bankName} is the bank for {table.name}</p>
+      <p className="text-sm text-muted">Buy in and cash out with them. They&apos;ll record it here.</p>
+      {mine && (
+        <dl className="grid grid-cols-3 gap-2 text-center text-sm">
+          <div className="rounded-xl bg-bg p-2"><dt className="text-xs text-muted">Bought in</dt><dd className="font-bold">{formatPounds(mine.buyin_pence)}</dd></div>
+          <div className="rounded-xl bg-bg p-2"><dt className="text-xs text-muted">Cash-out</dt><dd className="font-bold">{mine.cashout_pence === null ? "Playing" : formatPounds(mine.cashout_pence + mine.adjust_pence)}</dd></div>
+          <div className="rounded-xl bg-bg p-2"><dt className="text-xs text-muted">Paid</dt><dd className="font-bold">{mine.paid_out ? "✓" : "–"}</dd></div>
+        </dl>
+      )}
+    </div>
   );
 }

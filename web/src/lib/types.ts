@@ -72,6 +72,7 @@ export type EventTable = {
   level: string | null;
   seats: number;
   position: number;
+  bank_user_id: string | null;
 };
 
 export type EntryStatus = "going" | "waitlist";

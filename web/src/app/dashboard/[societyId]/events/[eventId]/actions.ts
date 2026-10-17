@@ -152,3 +152,10 @@ export async function setResultsPublished(societyId: string, eventId: string, pu
   await supabase.from("events").update({ results_published: published }).eq("id", eventId);
   refresh(societyId, eventId);
 }
+
+export async function setTableBank(societyId: string, eventId: string, tableId: string, formData: FormData) {
+  const supabase = await managed(societyId, eventId);
+  const userId = String(formData.get("bank_user_id") ?? "") || null;
+  await supabase.from("event_tables").update({ bank_user_id: userId }).eq("id", tableId).eq("event_id", eventId);
+  refresh(societyId, eventId);
+}
