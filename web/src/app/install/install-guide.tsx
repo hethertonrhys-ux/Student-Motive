@@ -54,11 +54,13 @@ export function InstallGuide() {
       {/* Android Chrome can install in one tap. */}
       {canOneTap && !device?.inAppBrowser && (
         <div className="card bg-brand-soft">
-          <p className="font-display text-xl font-extrabold">Install in one tap</p>
+          <p className="font-display text-xl font-extrabold">
+            {device?.platform === "other" ? "Want it on this computer too?" : "Install in one tap"}
+          </p>
           <button type="button" onClick={() => oneTapInstall()} className="btn mt-3 px-6 py-3 text-base">
-            Install Motive
+            {device?.platform === "other" ? "Install on this computer" : "Install Motive"}
           </button>
-          <p className="mt-2 text-sm text-muted">Or follow the steps below.</p>
+          {device?.platform !== "other" && <p className="mt-2 text-sm text-muted">Or follow the steps below.</p>}
         </div>
       )}
 
