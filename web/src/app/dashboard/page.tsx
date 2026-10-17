@@ -7,7 +7,8 @@ import type { MotiveEvent, Society } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
+  const { confirmed } = await searchParams;
   const profile = await requireProfile();
   const supabase = await createClient();
 
@@ -25,13 +26,17 @@ export default async function DashboardPage() {
     supabase.from("society_members").select("status, societies(id, name, slug)").eq("user_id", profile.id),
     supabase
       .from("event_entries")
-      .select("status, events(id, title, starts_at, ends_at)")
+      .select("status, event_tables(name, level), events(id, title, starts_at, ends_at)")
       .eq("user_id", profile.id),
   ]);
   const now = nowMs();
   const upcoming = (myEntries ?? [])
-    .map((e) => ({ status: e.status as string, event: e.events as unknown as Pick<MotiveEvent, "id" | "title" | "starts_at" | "ends_at"> | null }))
-    .filter((e): e is { status: string; event: Pick<MotiveEvent, "id" | "title" | "starts_at" | "ends_at"> } => !!e.event && new Date(e.event.ends_at).getTime() > now)
+    .map((e) => ({
+      status: e.status as string,
+      table: e.event_tables as unknown as { name: string; level: string | null } | null,
+      event: e.events as unknown as Pick<MotiveEvent, "id" | "title" | "starts_at" | "ends_at"> | null,
+    }))
+    .filter((e): e is { status: string; table: { name: string; level: string | null } | null; event: Pick<MotiveEvent, "id" | "title" | "starts_at" | "ends_at"> } => !!e.event && new Date(e.event.ends_at).getTime() > now)
     .sort((a, b) => a.event.starts_at.localeCompare(b.event.starts_at));
   const memberOf = (memberships ?? [])
     .map((m) => ({ status: m.status as string, society: m.societies as unknown as Pick<Society, "id" | "name" | "slug"> | null }))
@@ -47,16 +52,29 @@ export default async function DashboardPage() {
       <h1 className="font-display text-3xl font-extrabold tracking-tight">Hi{profile.display_name ? `, ${profile.display_name.split(" ")[0]}` : ""}</h1>
       <p className="mt-1 text-muted">Signed in as {profile.email}</p>
 
+      {(() => {
+        const done = typeof confirmed === "string" ? upcoming.find((u) => u.event.id === confirmed) : undefined;
+        return done ? (
+          <p className="mt-6 rounded-2xl bg-ok/10 px-4 py-3 font-semibold text-ok">
+            ✓ You&apos;re all set for {done.event.title}
+            {done.table ? `: ${done.table.name}${done.table.level ? ` · ${done.table.level}` : ""}` : ""}.
+          </p>
+        ) : null;
+      })()}
+
       {upcoming.length > 0 && (
         <section className="mt-8">
           <h2 className="font-display text-xl font-bold">Your upcoming events</h2>
           <ul className="mt-3 space-y-2">
-            {upcoming.map(({ status, event }) => (
+            {upcoming.map(({ status, event, table }) => (
               <li key={event.id}>
                 <Link href={`/e/${event.id}`} className="card flex items-center justify-between gap-3 py-3 transition hover:border-brand">
                   <span>
                     <span className="block font-bold">{event.title}</span>
-                    <span className="text-sm text-muted">{formatEventTime(event.starts_at, event.ends_at)}</span>
+                    <span className="text-sm text-muted">
+                      {formatEventTime(event.starts_at, event.ends_at)}
+                      {table ? ` · ${table.name}${table.level ? ` (${table.level})` : ""}` : ""}
+                    </span>
                   </span>
                   <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ${status === "going" ? "bg-ok/10 text-ok" : "bg-brand-soft text-brand"}`}>
                     {status === "going" ? "Going" : "Waiting list"}

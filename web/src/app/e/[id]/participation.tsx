@@ -195,6 +195,18 @@ function TablesPicker({ event, tables, people, me }: { event: MotiveEvent; table
 
       {me && <AlsoTables eventId={event.id} tables={tables} myTableId={me.tableId} selected={me.alsoTables} />}
 
+      {me?.tableId && (
+        <div className="card flex flex-wrap items-center justify-between gap-3 border-brand bg-brand-soft">
+          <p className="font-semibold">
+            You&apos;re at {tables.find((t) => t.id === me.tableId)?.name}
+            {tables.find((t) => t.id === me.tableId)?.level ? ` · ${tables.find((t) => t.id === me.tableId)?.level}` : ""}
+          </p>
+          <Link href={`/dashboard?confirmed=${event.id}`} className="btn">
+            Confirm my seat
+          </Link>
+        </div>
+      )}
+
       {!me && (
         <p className="text-sm text-muted">
           Not sure which table yet?{" "}
