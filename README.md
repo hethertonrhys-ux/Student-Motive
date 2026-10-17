@@ -1,4 +1,4 @@
-# Motive
+# Function
 
 Every LSE society and event in one place, on a live map.
 
