@@ -18,7 +18,7 @@ export function InstallGuide() {
     return (
       <div className="card mt-8 bg-ok/10">
         <p className="font-display text-xl font-extrabold">✓ You&apos;re all set</p>
-        <p className="mt-1 text-muted">You&apos;re using Motive from your home screen.</p>
+        <p className="mt-1 text-muted">You&apos;re using Function from your home screen.</p>
         <Link href="/map" className="btn mt-4">Open the live map</Link>
       </div>
     );
@@ -47,7 +47,7 @@ export function InstallGuide() {
             {device?.platform === "other" ? "Want it on this computer too?" : "Install in one tap"}
           </p>
           <button type="button" onClick={() => oneTapInstall()} className="btn mt-3 px-6 py-3 text-base">
-            {device?.platform === "other" ? "Install on this computer" : "Install Motive"}
+            {device?.platform === "other" ? "Install on this computer" : "Install Function"}
           </button>
           {device?.platform !== "other" && <p className="mt-2 text-sm text-muted">Or follow the steps below.</p>}
         </div>

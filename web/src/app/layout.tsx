@@ -10,10 +10,10 @@ const figtree = Figtree({ variable: "--font-figtree", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
-  title: { default: "Motive: what's on at LSE", template: "%s · Motive" },
+  title: { default: "Function: what's on at LSE", template: "%s · Function" },
   description: "Every LSE society and event in one place, on a live map.",
   // When added to an iPhone home screen, open full screen like an app.
-  appleWebApp: { capable: true, title: "Motive", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Function", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

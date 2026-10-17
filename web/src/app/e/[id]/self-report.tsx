@@ -73,7 +73,7 @@ export function SelfReport({ myNetPence, tablemates, payments, resultAction, pay
           </ul>
         )}
         {tablemates.length === 0 ? (
-          <p className="text-sm text-muted">Nobody else is at your table on Motive yet.</p>
+          <p className="text-sm text-muted">Nobody else is at your table on Function yet.</p>
         ) : (
           <form action={savePayment} className="flex flex-wrap items-center gap-2">
             <Segment name="direction" value={payDirection} onChange={(v) => setPayDirection(v as "paid" | "received")} options={[["paid", "I paid"], ["received", "I was paid by"]]} />

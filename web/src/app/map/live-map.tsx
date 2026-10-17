@@ -160,7 +160,7 @@ export function LiveMap({ events, windows }: Props) {
         setLocating(false);
         setLocationError(
           e.code === 1
-            ? "Location is turned off for Motive. Allow it in your phone's settings to see what's near you."
+            ? "Location is turned off for Function. Allow it in your phone's settings to see what's near you."
             : "Couldn't find your location. Try again outside or near a window.",
         );
       });

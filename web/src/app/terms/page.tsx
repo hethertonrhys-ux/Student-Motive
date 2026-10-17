@@ -9,10 +9,10 @@ export default function TermsPage() {
   return (
     <ProsePage title="Terms of use" updated="15 October 2026">
       <DraftBanner />
-      <p>By using Motive you agree to these terms.</p>
+      <p>By using Function you agree to these terms.</p>
 
-      <h2>Who can use Motive</h2>
-      <p>Motive is for students with a valid university email address. You must be 18 or over.</p>
+      <h2>Who can use Function</h2>
+      <p>Function is for students with a valid university email address. You must be 18 or over.</p>
 
       <h2>Posting events</h2>
       <ul>
@@ -30,7 +30,7 @@ export default function TermsPage() {
 
       <h2>Liability</h2>
       <p>
-        Societies are responsible for their own events. Motive lists events but doesn&apos;t organise them and
+        Societies are responsible for their own events. Function lists events but doesn&apos;t organise them and
         isn&apos;t responsible for what happens at them.
       </p>
 

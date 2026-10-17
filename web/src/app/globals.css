@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Motive brand colours. Light mode first, dark mode below. */
+/* Function brand colours. Light mode first, dark mode below. */
 :root {
   --bg: #f7f7fb;
   --surface: #ffffff;

@@ -36,13 +36,13 @@ export async function sendCode(_prev: LoginState, formData: FormData): Promise<L
     if (error.status === 429) {
       return { step: "email", email, error: "Too many attempts. Wait a few minutes and try again." };
     }
-    // Other emails only work if the Motive team has allowed them (Admin page).
+    // Other emails only work if the Function team has allowed them (Admin page).
     // Otherwise the database refuses to create the account.
     if (!isLseEmail(email)) {
       return {
         step: "email",
         email,
-        error: "Motive is for @lse.ac.uk emails. If you've been invited with a different email, check it's typed exactly.",
+        error: "Function is for @lse.ac.uk emails. If you've been invited with a different email, check it's typed exactly.",
       };
     }
     // While building on your own computer, show the real reason to help fix it.

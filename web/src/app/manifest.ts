@@ -1,11 +1,11 @@
 import type { MetadataRoute } from "next";
 
-// Lets phones install Motive from the browser ("Add to Home Screen"),
+// Lets phones install Function from the browser ("Add to Home Screen"),
 // so it opens full screen with its own icon, like an app.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Motive: what's on at LSE",
-    short_name: "Motive",
+    name: "Function: what's on at LSE",
+    short_name: "Function",
     description: "Every LSE society and event in one place, on a live map.",
     id: "/",
     start_url: "/dashboard",

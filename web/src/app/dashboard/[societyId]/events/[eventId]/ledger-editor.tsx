@@ -120,7 +120,7 @@ export function LedgerEditor({ title, initialRows, payments, saveAction, addPaym
           })}
         </ul>
         <button type="button" onClick={() => setRows((cur) => [...cur, { key: newKey(), name: "", amount: "", adjust: 0 }])} className="text-sm font-semibold text-brand">
-          + Add a player not on Motive
+          + Add a player not on Function
         </button>
         <input
           type="hidden"

@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
-import { IPHONE_STEPS, MotiveTile } from "../illustrations";
+import { IPHONE_STEPS, AppTile } from "../illustrations";
 
 // A phone-shaped poster of the iPhone steps (1080x1920 when captured at 3x).
 // Not linked anywhere: open /install/poster and screenshot the poster.
-export const metadata: Metadata = { title: "Add Motive to your iPhone", robots: { index: false } };
+export const metadata: Metadata = { title: "Add Function to your iPhone", robots: { index: false } };
 
 export default function PosterPage() {
   return (
     <div className="grid place-items-center py-6">
       <div id="poster" className="flex h-[640px] w-[360px] flex-col bg-[#4338ca] px-4 pt-5 pb-4 text-white">
         <div className="flex items-center gap-3">
-          <span className="rounded-[24%] ring-2 ring-white"><MotiveTile size={40} /></span>
+          <span className="rounded-[24%] ring-2 ring-white"><AppTile size={40} /></span>
           <div>
-            <p className="font-display text-[19px] leading-tight font-extrabold">Get Motive on your iPhone</p>
+            <p className="font-display text-[19px] leading-tight font-extrabold">Get Function on your iPhone</p>
             <p className="text-[11px] text-white/80">
               Tap the <span className="rounded bg-[#f43f5e] px-1 font-bold text-white">pink</span> bits 👆 in Safari
             </p>

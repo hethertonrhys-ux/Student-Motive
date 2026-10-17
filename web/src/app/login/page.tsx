@@ -13,7 +13,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
 
   return (
     <div className="mx-auto max-w-md px-4 py-16">
-      <h1 className="font-display text-3xl font-extrabold tracking-tight">Log in to Motive</h1>
+      <h1 className="font-display text-3xl font-extrabold tracking-tight">Log in to Function</h1>
       <p className="mt-2 mb-8 text-muted">Use your LSE email address, or the email you were invited with. We&apos;ll email you a code.</p>
       {error === "link" && (
         <p className="mb-4 rounded-xl bg-danger/10 px-3.5 py-2.5 text-sm font-medium text-danger">

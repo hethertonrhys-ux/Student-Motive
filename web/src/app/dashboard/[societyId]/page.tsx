@@ -44,7 +44,7 @@ export default async function SocietyDashboard({ params, searchParams }: PagePro
 
       {posted && (
         <p className="mt-6 rounded-xl bg-ok/10 px-4 py-3 font-semibold text-ok">
-          Your event is live on Motive. Share its link to get more people going.
+          Your event is live on Function. Share its link to get more people going.
         </p>
       )}
 
@@ -89,7 +89,7 @@ function EventRow({ event, live }: { event: MotiveEvent; live: boolean }) {
         <div className="flex flex-wrap items-center gap-2">
           {live && <span className="rounded-full bg-live px-2 py-0.5 text-xs font-bold text-white">LIVE</span>}
           {event.is_cancelled && <span className="rounded-full bg-danger/10 px-2 py-0.5 text-xs font-bold text-danger">Cancelled</span>}
-          {event.is_hidden && <span className="rounded-full bg-danger/10 px-2 py-0.5 text-xs font-bold text-danger">Hidden by Motive</span>}
+          {event.is_hidden && <span className="rounded-full bg-danger/10 px-2 py-0.5 text-xs font-bold text-danger">Hidden by Function</span>}
           <h3 className="font-display text-lg font-bold">{event.title}</h3>
         </div>
         <p className="text-sm text-muted">

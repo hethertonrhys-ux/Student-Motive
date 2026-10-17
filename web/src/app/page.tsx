@@ -28,12 +28,12 @@ export default function Home() {
           Everything on at LSE, on one live map.
         </h1>
         <p className="mt-5 max-w-2xl text-lg text-muted">
-          Motive puts every society and every event in one place. Students open the map and see what&apos;s
+          Function puts every society and every event in one place. Students open the map and see what&apos;s
           happening tonight. Societies post once and reach everyone.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link href="/login" className="btn px-5 py-3 text-base">
-            Get your society on Motive
+            Get your society on Function
           </Link>
           <Link href="/map" className="btn-ghost px-5 py-3 text-base">
             See the live map
@@ -65,7 +65,7 @@ export default function Home() {
 
       <section className="card mb-8 flex flex-col items-start gap-4 bg-brand-soft sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-display text-2xl font-extrabold">Students: put Motive on your phone</h2>
+          <h2 className="font-display text-2xl font-extrabold">Students: put Function on your phone</h2>
           <p className="text-muted">Add it to your home screen in a few taps. Works on iPhone and Android.</p>
         </div>
         <Link href="/install" className="btn px-5 py-3 text-base">

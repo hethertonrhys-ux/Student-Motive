@@ -166,7 +166,7 @@ export function BankLedger({ title, bankName, initialRows, saveAction }: Props) 
         onClick={() => setRows((cur) => [...cur, { key: newKey(), name: "", buyins: "", cashout: "", paidOut: false, adjust: 0 }])}
         className="text-sm font-semibold text-brand"
       >
-        + Add a player not on Motive
+        + Add a player not on Function
       </button>
 
       {parsed.invalid.length > 0 && <p className="text-sm font-medium text-danger">Check the amounts for {parsed.invalid.join(", ")}.</p>}

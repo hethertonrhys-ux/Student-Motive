@@ -17,7 +17,7 @@ export function InviteForm({ action }: { action: (state: InviteState, formData: 
         className="input font-mono text-sm"
       />
       <p className="text-xs text-muted">
-        Paste your SU membership list: one email per line, or separated by commas. People already on Motive are approved
+        Paste your SU membership list: one email per line, or separated by commas. People already on Function are approved
         now; everyone else is approved automatically when they sign up.
       </p>
       {state.error && <p className="text-sm font-medium text-danger">{state.error}</p>}

@@ -33,7 +33,7 @@ export function LateArrivalForm({
         <button className="btn" disabled={pending}>{pending ? "Adding…" : "Add"}</button>
         {state.error && <p className="w-full text-sm font-medium text-danger">{state.error}</p>}
       </form>
-      <p className="mt-2 text-xs text-muted">Not a member on Motive? Add them by name in the results below instead.</p>
+      <p className="mt-2 text-xs text-muted">Not a member on Function? Add them by name in the results below instead.</p>
     </details>
   );
 }

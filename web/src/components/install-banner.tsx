@@ -15,7 +15,7 @@ const readDismissed = () => {
 };
 const noSubscribe = () => () => {};
 
-// A slim bar under the header on phones, until Motive is on the home screen.
+// A slim bar under the header on phones, until Function is on the home screen.
 export function InstallBanner() {
   const device = useDevice();
   const canOneTap = useCanOneTapInstall();
@@ -47,7 +47,7 @@ export function InstallBanner() {
 
   return (
     <div className="flex h-11 items-center gap-2 border-b border-line bg-brand-soft px-4 text-sm">
-      <span className="min-w-0 flex-1 truncate font-semibold">📲 Get Motive on your home screen</span>
+      <span className="min-w-0 flex-1 truncate font-semibold">📲 Get Function on your phone</span>
       {canOneTap ? (
         <button type="button" onClick={() => oneTapInstall()} className="shrink-0 rounded-lg bg-brand px-3 py-1 font-bold text-brand-ink">
           Install

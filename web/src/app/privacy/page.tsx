@@ -10,8 +10,8 @@ export default function PrivacyPage() {
     <ProsePage title="Privacy policy" updated="15 October 2026">
       <DraftBanner />
       <p>
-        This policy explains what personal data Motive collects, why, and your rights under UK data protection law
-        (UK GDPR and the Data Protection Act 2018). Motive is run by its founders, who are the data controller.
+        This policy explains what personal data Function collects, why, and your rights under UK data protection law
+        (UK GDPR and the Data Protection Act 2018). Function is run by its founders, who are the data controller.
         Contact: <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
       </p>
 
@@ -20,20 +20,20 @@ export default function PrivacyPage() {
         <li><strong>Your university email address</strong>, to log you in and confirm you&apos;re a student.</li>
         <li><strong>Societies you follow and events you mark &ldquo;I&apos;m going&rdquo;</strong>, to show you relevant events. Other users only see totals, never your name.</li>
         <li><strong>Your location, only if you allow it</strong>, to show you on the map and how far away events are. It stays on your device and isn&apos;t sent to or stored on our servers.</li>
-        <li><strong>Reports and blocks</strong> you make, to keep Motive safe.</li>
+        <li><strong>Reports and blocks</strong> you make, to keep Function safe.</li>
         <li><strong>Content societies post</strong>: event details and images.</li>
       </ul>
 
       <h2>Why we use it (lawful basis)</h2>
       <p>
-        We use your data to provide the service you signed up for (contract), and to keep Motive safe and working
+        We use your data to provide the service you signed up for (contract), and to keep Function safe and working
         (legitimate interests). Where we ask for permission, such as location or notifications, we rely on your
         consent, and you can withdraw it at any time in your phone&apos;s settings.
       </p>
 
       <h2>Who we share it with</h2>
       <p>
-        We don&apos;t sell your data. We use trusted providers to run Motive: Supabase (database and login) and
+        We don&apos;t sell your data. We use trusted providers to run Function: Supabase (database and login) and
         Vercel (website hosting). They process data only on our instructions.
       </p>
 

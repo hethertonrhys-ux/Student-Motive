@@ -73,7 +73,7 @@ export default async function MembersPage({ params }: PageProps<"/dashboard/[soc
 
       {invited.length > 0 && (
         <section className="mt-8">
-          <h2 className="font-display text-xl font-bold">Added, not on Motive yet ({invited.length})</h2>
+          <h2 className="font-display text-xl font-bold">Added, not on Function yet ({invited.length})</h2>
           <p className="mt-1 text-sm text-muted">They&apos;ll become members automatically when they log in and join.</p>
           <ul className="mt-3 divide-y divide-line rounded-2xl border border-line bg-surface">
             {invited.map((m) => (

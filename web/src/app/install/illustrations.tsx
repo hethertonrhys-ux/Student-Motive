@@ -80,14 +80,19 @@ function Screen({ children, className = "" }: { children: ReactNode; className?:
   );
 }
 
-export function MotiveTile({ size = 44 }: { size?: number }) {
+export function AppTile({ size = 44 }: { size?: number }) {
   return (
     <span
-      className="relative grid shrink-0 place-items-center rounded-[22%] bg-[#4338ca] font-display font-extrabold text-white"
-      style={{ width: size, height: size, fontSize: size * 0.6, lineHeight: 1 }}
+      className="inline-flex shrink-0 items-center justify-center rounded-[22%] bg-[#4338ca] font-display font-extrabold text-white"
+      style={{ width: size, height: size }}
     >
-      <span className="-mt-[12%]">m</span>
-      <span className="absolute rounded-full bg-[#f43f5e]" style={{ width: size * 0.13, height: size * 0.13, right: size * 0.07, bottom: size * 0.29 }} />
+      <span className="flex items-end" style={{ marginTop: -size * 0.08 }}>
+        <span style={{ fontSize: size * 0.68, lineHeight: 1 }}>f</span>
+        <span
+          className="rounded-full bg-[#f43f5e]"
+          style={{ width: size * 0.13, height: size * 0.13, marginLeft: size * 0.03, marginBottom: size * 0.06 }}
+        />
+      </span>
     </span>
   );
 }
@@ -137,8 +142,8 @@ export function IphoneMenu() {
 function ShareSheetTop() {
   return (
     <div className="flex items-center gap-2 px-2.5 pt-2.5 pb-2">
-      <MotiveTile size={22} />
-      <span className="font-semibold">Motive</span>
+      <AppTile size={22} />
+      <span className="font-semibold">Function</span>
     </div>
   );
 }
@@ -183,9 +188,9 @@ export function IphoneAddDialog() {
         <Tap className="px-2 py-0.5 font-bold">Add</Tap>
       </div>
       <div className="m-2 flex items-center gap-2 rounded-xl bg-white p-2">
-        <MotiveTile size={34} />
+        <AppTile size={34} />
         <div className="min-w-0">
-          <p className="font-semibold">Motive</p>
+          <p className="font-semibold">Function</p>
           <p className="truncate text-[9px] text-black/40">{MOTIVE_URL}</p>
         </div>
       </div>
@@ -205,8 +210,8 @@ export function HomeScreen() {
           <span key={i} className="aspect-square rounded-[22%] bg-white/50" />
         ))}
         <span className="relative flex flex-col items-center gap-0.5">
-          <span className="rounded-[22%] ring-4 ring-[#f43f5e]"><MotiveTile size={28} /></span>
-          <span className="text-[9px] font-bold text-white drop-shadow">Motive</span>
+          <span className="rounded-[22%] ring-4 ring-[#f43f5e]"><AppTile size={28} /></span>
+          <span className="text-[9px] font-bold text-white drop-shadow">Function</span>
           <Finger className="-right-3 bottom-3" />
         </span>
       </div>
@@ -252,9 +257,9 @@ export function AndroidInstall() {
       <div className="m-2 rounded-2xl bg-white p-3">
         <p className="font-semibold">Install app</p>
         <div className="mt-2 flex items-center gap-2">
-          <MotiveTile size={30} />
+          <AppTile size={30} />
           <div>
-            <p className="font-semibold">Motive</p>
+            <p className="font-semibold">Function</p>
             <p className="text-[9px] text-black/40">{MOTIVE_URL}</p>
           </div>
         </div>
@@ -300,12 +305,12 @@ export const IPHONE_STEPS: InstallStep[] = [
   },
   { title: "Tap “Add to Home Screen”", body: "Scroll down the list if you need to.", short: "Scroll down if you need to.", art: <IphoneShareSheet /> },
   { title: "Tap Add", body: "Keep “Open as Web App” switched on.", short: "Top right.", art: <IphoneAddDialog /> },
-  { title: "Open Motive from your home screen", body: "Log in once with your email code. You'll stay logged in.", short: "Log in once. That's it.", art: <HomeScreen /> },
+  { title: "Open Function from your home screen", body: "Log in once with your email code. You'll stay logged in.", short: "Log in once. That's it.", art: <HomeScreen /> },
 ];
 
 export const ANDROID_STEPS: InstallStep[] = [
   {
-    title: "Open Motive in Chrome",
+    title: "Open Function in Chrome",
     body: "Open the link below in Chrome, then tap ⋮ in the top right.",
     titleHere: "Tap ⋮",
     bodyHere: "Tap ⋮ in the top right of Chrome.",
@@ -313,6 +318,6 @@ export const ANDROID_STEPS: InstallStep[] = [
     art: <AndroidChrome />,
   },
   { title: "Tap “Add to home screen”", body: "On some phones it's called “Install app”.", short: "Or “Install app”.", art: <AndroidMenu /> },
-  { title: "Tap Install", body: "Motive is added to your home screen and app drawer.", short: "", art: <AndroidInstall /> },
+  { title: "Tap Install", body: "Function is added to your home screen and app drawer.", short: "", art: <AndroidInstall /> },
   { title: "Open it from your home screen", body: "Log in once with your email code. You'll stay logged in.", short: "", art: <HomeScreen /> },
 ];

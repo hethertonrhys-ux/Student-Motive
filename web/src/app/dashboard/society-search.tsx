@@ -88,7 +88,7 @@ export function SocietySearch({ societies }: { societies: SearchableSociety[] })
           ))}
           {results.length === 0 && (
             <li className="px-4 py-4 text-sm text-muted">
-              No society called &ldquo;{query.trim()}&rdquo; on Motive yet.{" "}
+              No society called &ldquo;{query.trim()}&rdquo; on Function yet.{" "}
               <Link href="/dashboard/claim" className="font-semibold text-brand">
                 Run one? Ask to add it →
               </Link>

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
-// Every action re-checks that the caller is a Motive admin.
+// Every action re-checks that the caller is a Function admin.
 // The database security rules check again, so both must agree.
 
 export async function approveClaim(claimId: string) {

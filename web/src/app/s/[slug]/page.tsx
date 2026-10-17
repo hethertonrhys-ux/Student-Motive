@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: PageProps<"/s/[slug]">): Prom
   if (!society) return { title: "Not found" };
   return {
     title: society.name,
-    description: society.description ?? `Upcoming events from ${society.name} on Motive.`,
+    description: society.description ?? `Upcoming events from ${society.name} on Function.`,
   };
 }
 
