@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SITE_HOST } from "@/lib/site";
 import { IPHONE_STEPS, AppTile } from "../illustrations";
 
 // A phone-shaped poster of the iPhone steps (1080x1920 when captured at 3x).
@@ -30,7 +31,7 @@ export default function PosterPage() {
             </li>
           ))}
         </ol>
-        <p className="mt-2.5 text-center font-display text-[15px] font-extrabold">student-motive.vercel.app</p>
+        <p className="mt-2.5 text-center font-display text-[15px] font-extrabold">{SITE_HOST}</p>
         <p className="text-center text-[10px] text-white/75">Android: Chrome → ⋮ → Add to home screen</p>
       </div>
     </div>

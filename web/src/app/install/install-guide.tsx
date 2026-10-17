@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { SITE_HOST, SITE_URL } from "@/lib/site";
 import { oneTapInstall, useCanOneTapInstall, useDevice } from "@/lib/install";
 import { ANDROID_STEPS, IPHONE_STEPS, type InstallStep } from "./illustrations";
 
@@ -140,7 +141,7 @@ function Steps({ steps, browserDone }: { steps: InstallStep[]; browserDone: stri
   );
 }
 
-const INSTALL_LINK = "https://student-motive.vercel.app/install";
+const INSTALL_LINK = `${SITE_URL}/install`;
 
 // The link in a box you can see, select, and copy with one tap.
 function CopyLink() {
@@ -159,7 +160,7 @@ function CopyLink() {
   return (
     <span className="mt-2 flex items-center gap-2 rounded-xl border border-line bg-surface p-1.5 pl-3">
       <span className="min-w-0 flex-1 text-sm font-bold text-ink select-all">
-        student-motive.vercel.app<wbr />/install
+        {SITE_HOST}<wbr />/install
       </span>
       <button
         type="button"

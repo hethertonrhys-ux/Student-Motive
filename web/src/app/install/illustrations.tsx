@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
+import { SITE_HOST } from "@/lib/site";
 
 // Little drawings of what you'll see on your phone at each step of
 // "Add to Home Screen". Used by the install page and the shareable poster.
 
-const MOTIVE_URL = "student-motive.vercel.app";
+const SITE_ADDRESS = SITE_HOST;
 
 export function ShareIcon({ className = "size-5" }: { className?: string }) {
   return (
@@ -105,7 +106,7 @@ function SafariBar({ tapDots }: { tapDots: boolean }) {
   return (
     <div className="flex items-center gap-1.5 bg-[#f9f9fb] px-2 pt-2 pb-4">
       <span className="grid size-7 shrink-0 place-items-center rounded-full bg-black/[0.07] text-black/50">‹</span>
-      <span className="flex-1 truncate rounded-full bg-black/[0.07] px-2 py-1.5 text-center">{MOTIVE_URL}</span>
+      <span className="flex-1 truncate rounded-full bg-black/[0.07] px-2 py-1.5 text-center">{SITE_ADDRESS}</span>
       {tapDots ? (
         <Tap className="size-7 shrink-0"><Dots /></Tap>
       ) : (
@@ -191,7 +192,7 @@ export function IphoneAddDialog() {
         <AppTile size={34} />
         <div className="min-w-0">
           <p className="font-semibold">Function</p>
-          <p className="truncate text-[9px] text-black/40">{MOTIVE_URL}</p>
+          <p className="truncate text-[9px] text-black/40">{SITE_ADDRESS}</p>
         </div>
       </div>
       <div className="mx-2 mb-2 flex items-center justify-between rounded-xl bg-white px-2.5 py-2">
@@ -225,7 +226,7 @@ export function AndroidChrome() {
   return (
     <Screen>
       <div className="flex items-center gap-1.5 bg-white px-2 py-2">
-        <span className="flex-1 truncate rounded-full bg-black/[0.07] px-2 py-1.5">{MOTIVE_URL}</span>
+        <span className="flex-1 truncate rounded-full bg-black/[0.07] px-2 py-1.5">{SITE_ADDRESS}</span>
         <Tap className="size-7"><Dots vertical /></Tap>
       </div>
       <PageSketch className="h-20" />
@@ -260,7 +261,7 @@ export function AndroidInstall() {
           <AppTile size={30} />
           <div>
             <p className="font-semibold">Function</p>
-            <p className="text-[9px] text-black/40">{MOTIVE_URL}</p>
+            <p className="text-[9px] text-black/40">{SITE_ADDRESS}</p>
           </div>
         </div>
         <div className="mt-3 flex justify-end gap-3">
