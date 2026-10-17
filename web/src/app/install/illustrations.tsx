@@ -62,19 +62,27 @@ export function MotiveTile({ size = 44 }: { size?: number }) {
 
 // ---------- iPhone (Safari) ----------
 
+// Safari since iOS 26: the Share button is inside the ••• menu next to the address.
 export function IphoneSafari() {
   return (
     <Screen>
-      <div className="h-20 bg-white p-2">
+      <div className="relative h-24 bg-white p-2">
         <div className="h-2 w-16 rounded bg-[#4338ca]/80" />
         <div className="mt-2 h-1.5 w-24 rounded bg-black/10" />
         <div className="mt-1 h-1.5 w-20 rounded bg-black/10" />
+        {/* The menu that opens from ••• */}
+        <div className="absolute right-2 bottom-1 w-[62%] overflow-hidden rounded-xl bg-white text-[10px] shadow-lg ring-1 ring-black/10">
+          <div className="m-1 flex items-center justify-between rounded-lg bg-brand px-2 py-1.5 font-bold text-white ring-4 ring-brand/30">
+            Share <ShareIcon className="size-3.5" />
+          </div>
+          <div className="px-2.5 py-1 text-black/60">Add to Favourites</div>
+        </div>
       </div>
       <div className="flex items-center gap-1.5 bg-[#f9f9fb] px-2 py-2">
-        <span className="flex-1 truncate rounded-lg bg-black/[0.07] px-2 py-1.5 text-center">{MOTIVE_URL}</span>
-        <Tap className="size-7"><ShareIcon className="size-4" /></Tap>
+        <span className="grid size-7 place-items-center rounded-full bg-black/[0.07] text-black/50">‹</span>
+        <span className="flex-1 truncate rounded-full bg-black/[0.07] px-2 py-1.5 text-center">{MOTIVE_URL}</span>
+        <Tap className="size-7"><Dots /></Tap>
       </div>
-      <p className="bg-[#f9f9fb] px-2 pb-2 text-center text-[9px] text-black/50">or tap ••• first, then Share</p>
     </Screen>
   );
 }
@@ -195,7 +203,12 @@ export function AndroidInstall() {
 }
 
 export const IPHONE_STEPS = [
-  { title: "Open Motive in Safari", body: "Open the link below in Safari, then tap the Share button.", short: "Then tap Share.", art: <IphoneSafari /> },
+  {
+    title: "In Safari, tap ••• then Share",
+    body: "Open the link below in Safari. Tap ••• at the bottom right, next to the web address, then tap Share. (Older iPhones: just tap the Share button at the bottom.)",
+    short: "••• is next to the web address.",
+    art: <IphoneSafari />,
+  },
   { title: "Tap “Add to Home Screen”", body: "Scroll down the list if you can't see it.", short: "Scroll down if you can't see it.", art: <IphoneShareSheet /> },
   { title: "Tap Add", body: "Keep “Open as Web App” switched on.", short: "Keep “Open as Web App” on.", art: <IphoneAddDialog /> },
   { title: "Open it from your home screen", body: "Log in once with your email code. You'll stay logged in.", short: "Log in once. You'll stay logged in.", art: <HomeScreen /> },

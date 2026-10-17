@@ -4,7 +4,7 @@ import { InstallGuide } from "./install-guide";
 
 export const metadata: Metadata = {
   title: "Get the app",
-  description: "Put Motive on your phone's home screen in four taps. Works on iPhone and Android.",
+  description: "Put Motive on your phone's home screen in a few taps. Works on iPhone and Android.",
 };
 
 export default function InstallPage() {
@@ -14,7 +14,7 @@ export default function InstallPage() {
         <MotiveTile size={56} />
         <div>
           <h1 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Get Motive on your phone</h1>
-          <p className="mt-1 text-muted">Four taps. It opens full screen with its own icon, just like an app. Free, and no App Store needed.</p>
+          <p className="mt-1 text-muted">A few taps. It opens full screen with its own icon, just like an app. Free, and no App Store needed.</p>
         </div>
       </div>
 
