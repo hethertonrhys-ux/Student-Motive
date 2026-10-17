@@ -13,7 +13,6 @@ export function InstallGuide() {
   // Until they pick a tab, show the steps for the phone they're on.
   const [picked, setPicked] = useState<Tab | null>(null);
   const tab: Tab | null = picked ?? (device?.platform === "iphone" || device?.platform === "android" ? device.platform : null);
-  const [copied, setCopied] = useState(false);
 
   if (device?.installed) {
     return (
@@ -23,15 +22,6 @@ export function InstallGuide() {
         <Link href="/map" className="btn mt-4">Open the live map</Link>
       </div>
     );
-  }
-
-  async function copyLink() {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-    } catch {
-      // Clipboard blocked: they can still use the menu.
-    }
   }
 
   return (
@@ -45,9 +35,8 @@ export function InstallGuide() {
             menu (<strong>•••</strong> or <strong>⋮</strong>) at the top, then{" "}
             <strong>Open in {device.platform === "android" ? "Chrome" : "Safari"}</strong> or &ldquo;Open in browser&rdquo;.
           </p>
-          <button type="button" onClick={copyLink} className="btn-ghost mt-3 py-2 text-sm">
-            {copied ? "Link copied ✓ Paste it into your browser" : "Or copy the link"}
-          </button>
+          <p className="mt-3 text-sm">Or copy this link and paste it into {device.platform === "android" ? "Chrome" : "Safari"}:</p>
+          <CopyLink />
         </div>
       )}
 
@@ -66,7 +55,8 @@ export function InstallGuide() {
 
       {device?.platform === "other" && (
         <p className="card text-sm">
-          On a computer? Open <strong>student-motive.vercel.app/install</strong> on your phone.
+          On a computer? Open this link on your phone:
+          <CopyLink />
         </p>
       )}
 
@@ -118,9 +108,42 @@ function Steps({ steps }: { steps: typeof IPHONE_STEPS }) {
               <p className="mt-0.5 text-sm text-muted">{step.body}</p>
             </div>
           </div>
+          {i === 0 && <CopyLink />}
           <div className="mt-auto">{step.art}</div>
         </li>
       ))}
     </ol>
+  );
+}
+
+const INSTALL_LINK = "https://student-motive.vercel.app/install";
+
+// The link in a box you can see, select, and copy with one tap.
+function CopyLink() {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(INSTALL_LINK);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // Clipboard blocked: the link is still there to press and hold.
+    }
+  }
+
+  return (
+    <span className="mt-2 flex items-center gap-2 rounded-xl border border-line bg-surface p-1.5 pl-3">
+      <span className="min-w-0 flex-1 text-sm font-bold text-ink select-all">
+        student-motive.vercel.app<wbr />/install
+      </span>
+      <button
+        type="button"
+        onClick={copy}
+        className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-bold transition ${copied ? "bg-ok text-white" : "bg-brand text-brand-ink"}`}
+      >
+        {copied ? "Copied ✓" : "Copy"}
+      </button>
+    </span>
   );
 }

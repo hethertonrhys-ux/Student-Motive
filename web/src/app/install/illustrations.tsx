@@ -195,14 +195,14 @@ export function AndroidInstall() {
 }
 
 export const IPHONE_STEPS = [
-  { title: "Open Motive in Safari", body: `Go to ${MOTIVE_URL}, then tap the Share button.`, short: "Then tap Share.", art: <IphoneSafari /> },
+  { title: "Open Motive in Safari", body: "Open the link below in Safari, then tap the Share button.", short: "Then tap Share.", art: <IphoneSafari /> },
   { title: "Tap “Add to Home Screen”", body: "Scroll down the list if you can't see it.", short: "Scroll down if you can't see it.", art: <IphoneShareSheet /> },
   { title: "Tap Add", body: "Keep “Open as Web App” switched on.", short: "Keep “Open as Web App” on.", art: <IphoneAddDialog /> },
   { title: "Open it from your home screen", body: "Log in once with your email code. You'll stay logged in.", short: "Log in once. You'll stay logged in.", art: <HomeScreen /> },
 ];
 
 export const ANDROID_STEPS: typeof IPHONE_STEPS = [
-  { title: "Open Motive in Chrome", body: `Go to ${MOTIVE_URL}, then tap ⋮ in the top right.`, short: "Then tap ⋮.", art: <AndroidChrome /> },
+  { title: "Open Motive in Chrome", body: "Open the link below in Chrome, then tap ⋮ in the top right.", short: "Then tap ⋮.", art: <AndroidChrome /> },
   { title: "Tap “Add to home screen”", body: "On some phones it's called “Install app”.", short: "Or “Install app”.", art: <AndroidMenu /> },
   { title: "Tap Install", body: "Motive is added to your home screen and app drawer.", short: "", art: <AndroidInstall /> },
   { title: "Open it from your home screen", body: "Log in once with your email code. You'll stay logged in.", short: "", art: <HomeScreen /> },
