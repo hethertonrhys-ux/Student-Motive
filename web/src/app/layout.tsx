@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Figtree } from "next/font/google";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -11,6 +11,15 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   title: { default: "Motive: what's on at LSE", template: "%s · Motive" },
   description: "Every LSE society and event in one place, on a live map.",
+  // When added to an iPhone home screen, open full screen like an app.
+  appleWebApp: { capable: true, title: "Motive", statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f7f7fb" },
+    { media: "(prefers-color-scheme: dark)", color: "#0d0c1d" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

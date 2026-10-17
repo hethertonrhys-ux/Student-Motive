@@ -1,14 +1,47 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState, useSyncExternalStore } from "react";
 import { sendCode, verifyCode, type LoginState } from "./actions";
+
+// Remember that a code was sent, so if the phone reloads the page while
+// you're checking your email (home-screen apps on iPhone often do), the
+// code box is still there when you come back.
+const PENDING_KEY = "motive-login-pending";
+const PENDING_FOR_MS = 60 * 60 * 1000;
+
+function readPending(): string | null {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PENDING_KEY) ?? "null") as { email: string; at: number } | null;
+    return saved && Date.now() - saved.at < PENDING_FOR_MS ? saved.email : null;
+  } catch {
+    return null;
+  }
+}
+function writePending(email: string | null) {
+  try {
+    if (email) localStorage.setItem(PENDING_KEY, JSON.stringify({ email, at: Date.now() }));
+    else localStorage.removeItem(PENDING_KEY);
+  } catch {
+    // Storage blocked (e.g. private browsing): the form still works, it just won't remember.
+  }
+}
+const noSubscribe = () => () => {};
 
 export function LoginForm({ next }: { next: string }) {
   const [emailState, emailAction, sending] = useActionState(sendCode, { step: "email" } as LoginState);
   const [codeState, codeAction, verifying] = useActionState(verifyCode, { step: "code" } as LoginState);
   const [changingEmail, setChangingEmail] = useState(false);
+  const savedEmail = useSyncExternalStore(noSubscribe, readPending, () => null);
 
-  const showCodeStep = emailState.step === "code" && !changingEmail;
+  useEffect(() => {
+    if (emailState.step === "code" && emailState.email) writePending(emailState.email);
+  }, [emailState]);
+  useEffect(() => {
+    if (codeState.error && codeState.email) writePending(codeState.email);
+  }, [codeState]);
+
+  const codeEmail = emailState.step === "code" ? emailState.email : emailState.error ? undefined : (savedEmail ?? undefined);
+  const showCodeStep = Boolean(codeEmail) && !changingEmail;
 
   if (!showCodeStep) {
     return (
@@ -22,7 +55,7 @@ export function LoginForm({ next }: { next: string }) {
             type="email"
             autoComplete="email"
             required
-            defaultValue={emailState.email}
+            defaultValue={emailState.email ?? savedEmail ?? ""}
             placeholder="a.student@lse.ac.uk"
             className="input"
           />
@@ -38,11 +71,11 @@ export function LoginForm({ next }: { next: string }) {
   return (
     <div className="space-y-4">
       <p className="text-muted">
-        We&apos;ve emailed a login code to <strong className="text-ink">{emailState.email}</strong>. It can take a
+        We&apos;ve emailed a login code to <strong className="text-ink">{codeEmail}</strong>. It can take a
         minute, so check your junk folder too.
       </p>
-      <form action={codeAction} className="space-y-4">
-        <input type="hidden" name="email" value={emailState.email} />
+      <form action={codeAction} onSubmit={() => writePending(null)} className="space-y-4">
+        <input type="hidden" name="email" value={codeEmail} />
         <input type="hidden" name="next" value={next} />
         <div>
           <label htmlFor="code" className="label">Login code</label>
@@ -61,9 +94,22 @@ export function LoginForm({ next }: { next: string }) {
           {verifying ? "Checking…" : "Log in"}
         </button>
       </form>
-      <button type="button" onClick={() => setChangingEmail(true)} className="text-sm font-semibold text-brand">
-        Use a different email
-      </button>
+      <div className="flex flex-wrap justify-between gap-2">
+        <form action={emailAction}>
+          <input type="hidden" name="email" value={codeEmail} />
+          <input type="hidden" name="next" value={next} />
+          <button className="text-sm font-semibold text-brand" disabled={sending}>
+            {sending ? "Sending…" : "Send a new code"}
+          </button>
+        </form>
+        <button
+          type="button"
+          onClick={() => { writePending(null); setChangingEmail(true); }}
+          className="text-sm font-semibold text-brand"
+        >
+          Use a different email
+        </button>
+      </div>
     </div>
   );
 }
