@@ -4,6 +4,7 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatEventTime, nowMs } from "@/lib/time";
 import type { MotiveEvent, Society } from "@/lib/types";
+import { SocietySearch, type SearchableSociety } from "./society-search";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -22,12 +23,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       .order("created_at", { ascending: false }),
   ]);
 
-  const [{ data: memberships }, { data: myEntries }] = await Promise.all([
+  const [{ data: memberships }, { data: myEntries }, { data: allSocieties }] = await Promise.all([
     supabase.from("society_members").select("status, societies(id, name, slug)").eq("user_id", profile.id),
     supabase
       .from("event_entries")
       .select("status, event_tables!event_entries_table_id_fkey(name, level), events(id, title, starts_at, ends_at)")
       .eq("user_id", profile.id),
+    supabase.from("societies").select("id, name, slug, kind, logo_url").order("name").limit(2000),
   ]);
   const now = nowMs();
   const upcoming = (myEntries ?? [])
@@ -47,6 +49,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     .filter((s): s is Society => s !== null)
     .sort((a, b) => a.name.localeCompare(b.name));
 
+  const runIds = new Set(societies.map((s) => s.id));
+  const memberStatus = new Map(memberOf.map((m) => [m.society.id, m.status]));
+  const searchable: SearchableSociety[] = (allSocieties ?? []).map((s) => ({
+    ...(s as Omit<SearchableSociety, "relation">),
+    relation: runIds.has(s.id) ? "runs" : memberStatus.get(s.id) === "approved" ? "member" : memberStatus.has(s.id) ? "pending" : null,
+  }));
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <h1 className="font-display text-3xl font-extrabold tracking-tight">Hi{profile.display_name ? `, ${profile.display_name.split(" ")[0]}` : ""}</h1>
@@ -61,6 +70,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           </p>
         ) : null;
       })()}
+
+      <SocietySearch societies={searchable} />
 
       {upcoming.length > 0 && (
         <section className="mt-8">
