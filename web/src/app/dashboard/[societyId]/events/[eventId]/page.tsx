@@ -6,8 +6,10 @@ import { getEventPeople, getLedger, type LedgerRowRecord, type Person } from "@/
 import { formatEventTime, hasEnded } from "@/lib/time";
 import { FORMATS, type EventTable, type MotiveEvent } from "@/lib/types";
 import { Avatar } from "@/components/avatar";
-import { LedgerEditor } from "./ledger-editor";
+import { LedgerEditor, type EditorRow } from "./ledger-editor";
+import { LateArrivalForm } from "./late-arrival-form";
 import {
+  addLateArrival,
   addPayment,
   deletePayment,
   moveEntry,
@@ -32,7 +34,15 @@ export default async function ManageEventPage({ params }: PageProps<"/dashboard/
     .maybeSingle<MotiveEvent>();
   if (!event) notFound();
 
-  const [{ people, tables }, ledger] = await Promise.all([getEventPeople(supabase, eventId), getLedger(supabase, eventId)]);
+  const [{ people, tables }, ledger, { data: memberRows }] = await Promise.all([
+    getEventPeople(supabase, eventId),
+    getLedger(supabase, eventId),
+    supabase.rpc("society_member_list", { sid: societyId }),
+  ]);
+  const notComing = ((memberRows ?? []) as { user_id: string | null; name: string | null; status: string }[])
+    .filter((m) => m.status === "approved" && m.user_id && !people.some((p) => p.userId === m.user_id))
+    .map((m) => ({ userId: m.user_id!, name: m.name ?? "Member" }))
+    .sort((a, b) => a.name.localeCompare(b.name));
   const going = people.filter((p) => p.status === "going");
   const waitlist = people.filter((p) => p.status === "waitlist");
   const finished = hasEnded(event.ends_at);
@@ -81,6 +91,14 @@ export default async function ManageEventPage({ params }: PageProps<"/dashboard/
         ) : (
           <PeopleList people={going} numbered={event.format === "entries"} removeAction={(uid) => removeEntry.bind(null, societyId, eventId, uid)} />
         )}
+
+        {!finished || event.format === "tables" ? (
+          <LateArrivalForm
+            action={addLateArrival.bind(null, societyId, eventId)}
+            members={notComing}
+            tables={event.format === "tables" ? tables : []}
+          />
+        ) : null}
 
         {waitlist.length > 0 && (
           <div className="mt-6">
@@ -135,7 +153,10 @@ export default async function ManageEventPage({ params }: PageProps<"/dashboard/
                   key={`${tableId}-${saved.map((r) => `${r.id}:${r.net_pence}:${r.player_name}`).join("|")}`}
                   title={table ? `${table.name}${table.level ? ` · ${table.level}` : ""}` : "Results"}
                   initialRows={initialRows}
-                  payments={ledger.payments}
+                  payments={ledger.payments.map((p) => ({
+                    ...p,
+                    addedBy: p.created_by ? (people.find((x) => x.userId === p.created_by)?.name ?? null) : null,
+                  }))}
                   saveAction={saveLedger.bind(null, societyId, eventId, tableId)}
                   addPaymentAction={addPayment.bind(null, societyId, eventId)}
                   deletePaymentAction={deletePayment.bind(null, societyId, eventId)}
@@ -150,19 +171,19 @@ export default async function ManageEventPage({ params }: PageProps<"/dashboard/
 }
 
 // Saved results, plus anyone seated at the table who isn't in them yet.
-type StartingRow = { key: string; id?: string; userId: string | null; name: string; amount: string };
-
-function startingRows(saved: LedgerRowRecord[], seated: Person[]): StartingRow[] {
-  const rows: StartingRow[] = saved.map((r) => ({
+function startingRows(saved: LedgerRowRecord[], seated: Person[]): EditorRow[] {
+  const rows: EditorRow[] = saved.map((r) => ({
     key: r.id,
     id: r.id,
     userId: r.user_id,
     name: r.player_name,
     amount: r.net_pence === 0 ? "" : (r.net_pence / 100).toFixed(2).replace(/\.00$/, ""),
+    adjust: r.adjust_pence,
+    selfReported: Boolean(r.user_id && r.created_by === r.user_id),
   }));
   const savedUsers = new Set(saved.map((r) => r.user_id).filter(Boolean));
   for (const p of seated) {
-    if (!savedUsers.has(p.userId)) rows.push({ key: `user-${p.userId}`, userId: p.userId, name: p.name, amount: "" });
+    if (!savedUsers.has(p.userId)) rows.push({ key: `user-${p.userId}`, userId: p.userId, name: p.name, amount: "", adjust: 0 });
   }
   return rows;
 }
@@ -216,6 +237,26 @@ function TablesAdmin({
                 </span>
               )}
             </div>
+            {table && (() => {
+              const willing = people.filter((p) => p.tableId !== table.id && p.alsoTables.includes(table.id));
+              return willing.length > 0 ? (
+                <div className="mt-3 rounded-xl bg-brand-soft p-2.5">
+                  <p className="mb-1.5 text-xs font-bold text-brand">Also happy to play here</p>
+                  <ul className="space-y-1.5">
+                    {willing.map((p) => (
+                      <li key={p.userId} className="flex items-center justify-between gap-2 text-sm">
+                        <span className="flex items-center gap-2">
+                          <Avatar name={p.name} url={p.avatarUrl} size={22} />
+                          <span className="font-semibold">{p.name}</span>
+                          <span className="text-xs text-muted">{tables.find((t) => t.id === p.tableId)?.name ?? "no table"}</span>
+                        </span>
+                        <MoveHere action={moveAction(p.userId)} tableId={table.id} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null;
+            })()}
             {list.length === 0 ? (
               <p className="mt-2 text-sm text-muted">Empty</p>
             ) : (
@@ -246,5 +287,14 @@ function TablesAdmin({
         ),
       )}
     </div>
+  );
+}
+
+function MoveHere({ action, tableId }: { action: (formData: FormData) => Promise<void>; tableId: string }) {
+  return (
+    <form action={action}>
+      <input type="hidden" name="table_id" value={tableId} />
+      <button className="text-xs font-bold text-brand hover:underline">Move here</button>
+    </form>
   );
 }

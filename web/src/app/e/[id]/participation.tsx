@@ -3,13 +3,15 @@ import { getProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getEventPeople, getLedger, type Person } from "@/lib/event-people";
 import { formatPounds, settle } from "@/lib/ledger";
-import { hasEnded } from "@/lib/time";
+import { hasEnded, nowMs } from "@/lib/time";
 import type { EventTable, MotiveEvent } from "@/lib/types";
 import { Avatar } from "@/components/avatar";
 import { NameForm } from "@/components/name-form";
 import { saveName } from "@/app/account/actions";
 import { ActionButton } from "./action-button";
-import { chooseTable, joinEvent, leaveEvent } from "./actions";
+import { chooseTable, deleteMyPayment, joinEvent, leaveEvent, recordMyPayment, recordMyResult } from "./actions";
+import { AlsoTables } from "./also-tables";
+import { SelfReport } from "./self-report";
 
 type Props = { event: MotiveEvent; society: { name: string; slug: string } | null };
 
@@ -68,6 +70,11 @@ export async function Participation({ event, society }: Props) {
       ) : (
         <GoingPanel event={event} me={me} />
       )}
+
+      {me?.status === "going" &&
+        !event.results_published &&
+        new Date(event.starts_at).getTime() <= nowMs() &&
+        (event.format !== "tables" || me.tableId) && <MySelfReport event={event} me={me} people={people} />}
 
       {/* Members see who else is coming. */}
       {isMember && event.format !== "tables" && people.some((p) => p.status === "going") && (
@@ -152,6 +159,7 @@ function TablesPicker({ event, tables, people, me }: { event: MotiveEvent; table
       <div className="grid gap-4 sm:grid-cols-2">
         {tables.map((table) => {
           const seated = people.filter((p) => p.status === "going" && p.tableId === table.id);
+          const willing = people.filter((p) => p.status === "going" && p.tableId !== table.id && p.alsoTables.includes(table.id));
           const mine = me?.tableId === table.id;
           const full = seated.length >= table.seats;
           return (
@@ -164,6 +172,11 @@ function TablesPicker({ event, tables, people, me }: { event: MotiveEvent; table
                 </span>
               </div>
               <PokerTable seats={table.seats} seated={seated} meId={me?.userId ?? null} />
+              {willing.length > 0 && (
+                <p className="mt-2 text-center text-xs font-semibold text-muted">
+                  +{willing.length} also happy to play here
+                </p>
+              )}
               <div className="mt-3 flex justify-center">
                 {mine ? (
                   <ActionButton action={chooseTable.bind(null, event.id, null)} variant="ghost" className="py-2">Leave this table</ActionButton>
@@ -179,6 +192,8 @@ function TablesPicker({ event, tables, people, me }: { event: MotiveEvent; table
           );
         })}
       </div>
+
+      {me && <AlsoTables eventId={event.id} tables={tables} myTableId={me.tableId} selected={me.alsoTables} />}
 
       {!me && (
         <p className="text-sm text-muted">
@@ -265,7 +280,7 @@ async function MyResults({ eventId, userId, tables }: { eventId: string; userId:
         const tableRows = rows.filter((r) => r.table_id === mine.table_id);
         const names = new Map(tableRows.map((r) => [r.id, r.player_name]));
         const s = settle(
-          tableRows.map((r) => ({ id: r.id, name: r.player_name, netPence: r.net_pence })),
+          tableRows.map((r) => ({ id: r.id, name: r.player_name, netPence: r.net_pence + r.adjust_pence })),
           payments.filter((p) => names.has(p.from_row)).map((p) => ({ fromId: p.from_row, toId: p.to_row, amountPence: p.amount_pence })),
         );
         const myTransfers = s.transfers.filter((t) => t.fromId === mine.id || t.toId === mine.id);
@@ -278,6 +293,12 @@ async function MyResults({ eventId, userId, tables }: { eventId: string; userId:
                 {formatPounds(mine.net_pence, true)}
               </span>
             </div>
+            {mine.adjust_pence !== 0 && (
+              <p className="text-sm text-muted">
+                Includes {formatPounds(Math.abs(mine.adjust_pence))} {mine.adjust_pence < 0 ? "extra" : "back"} as your share of a counting
+                difference at the table.
+              </p>
+            )}
             {s.imbalancePence !== 0 ? (
               <p className="text-sm text-muted">The committee is still checking the numbers.</p>
             ) : myTransfers.length === 0 ? (
@@ -309,5 +330,41 @@ async function MyResults({ eventId, userId, tables }: { eventId: string; userId:
         );
       })}
     </div>
+  );
+}
+
+async function MySelfReport({ event, me, people }: { event: MotiveEvent; me: Person; people: Person[] }) {
+  const supabase = await createClient();
+  const { rows, payments } = await getLedger(supabase, event.id);
+  const myRow = rows.find((r) => r.user_id === me.userId);
+  const rowName = new Map(rows.map((r) => [r.id, r.player_name]));
+  const tablemates = people
+    .filter((p) => p.status === "going" && p.userId !== me.userId && p.tableId === me.tableId)
+    .map((p) => ({ userId: p.userId, name: p.name }));
+
+  const myPayments = myRow
+    ? payments
+        .filter((p) => p.from_row === myRow.id || p.to_row === myRow.id)
+        .map((p) => {
+          const iPaid = p.from_row === myRow.id;
+          return {
+            id: p.id,
+            iPaid,
+            otherName: rowName.get(iPaid ? p.to_row : p.from_row) ?? "another player",
+            amountPence: p.amount_pence,
+            mine: p.created_by === me.userId,
+          };
+        })
+    : [];
+
+  return (
+    <SelfReport
+      myNetPence={myRow ? myRow.net_pence : null}
+      tablemates={tablemates}
+      payments={myPayments}
+      resultAction={recordMyResult.bind(null, event.id)}
+      paymentAction={recordMyPayment.bind(null, event.id)}
+      deletePaymentAction={deleteMyPayment.bind(null, event.id)}
+    />
   );
 }

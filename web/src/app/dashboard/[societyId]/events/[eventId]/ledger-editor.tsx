@@ -1,15 +1,23 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { formatPounds, parsePounds, settle } from "@/lib/ledger";
+import { formatPounds, parsePounds, settle, splitDifference } from "@/lib/ledger";
 import type { LedgerState } from "./actions";
 
-type Row = { key: string; id?: string; userId?: string | null; name: string; amount: string };
-type SavedPayment = { id: string; from_row: string; to_row: string; amount_pence: number };
+export type EditorRow = {
+  key: string;
+  id?: string;
+  userId?: string | null;
+  name: string;
+  amount: string;
+  adjust: number; // pence: this player's share of a counting difference
+  selfReported?: boolean; // the player entered it themselves
+};
+type SavedPayment = { id: string; from_row: string; to_row: string; amount_pence: number; addedBy: string | null };
 
 type Props = {
   title: string;
-  initialRows: Row[];
+  initialRows: EditorRow[];
   payments: SavedPayment[];
   saveAction: (state: LedgerState, formData: FormData) => Promise<LedgerState>;
   addPaymentAction: (state: LedgerState, formData: FormData) => Promise<LedgerState>;
@@ -18,9 +26,10 @@ type Props = {
 
 let counter = 0;
 const newKey = () => `new-${++counter}`;
+const pence = (amount: string) => (amount.trim() === "" ? 0 : parsePounds(amount));
 
 export function LedgerEditor({ title, initialRows, payments, saveAction, addPaymentAction, deletePaymentAction }: Props) {
-  const [rows, setRows] = useState<Row[]>(initialRows.length ? initialRows : [{ key: newKey(), name: "", amount: "" }]);
+  const [rows, setRows] = useState<EditorRow[]>(initialRows.length ? initialRows : [{ key: newKey(), name: "", amount: "", adjust: 0 }]);
   const [saveState, save, saving] = useActionState(saveAction, {});
   const [payState, addPayment, paying] = useActionState(addPaymentAction, {});
 
@@ -30,24 +39,34 @@ export function LedgerEditor({ title, initialRows, payments, saveAction, addPaym
 
   // Work out "who pays who" live from what's typed, using payments already saved.
   const preview = useMemo(() => {
-    const parsed = rows
-      .filter((r) => r.name.trim())
-      .map((r) => ({ id: r.id ?? r.key, name: r.name.trim(), netPence: r.amount.trim() === "" ? 0 : parsePounds(r.amount) }));
-    const invalid = parsed.filter((r) => r.netPence === null).map((r) => r.name);
-    if (invalid.length) return { invalid };
-    const valid = parsed as { id: string; name: string; netPence: number }[];
+    const named = rows.filter((r) => r.name.trim());
+    const invalid = named.filter((r) => pence(r.amount) === null).map((r) => r.name);
+    if (invalid.length) return { kind: "invalid" as const, invalid };
+    const rawTotal = named.reduce((sum, r) => sum + (pence(r.amount) ?? 0), 0);
+    const adjustTotal = named.reduce((sum, r) => sum + r.adjust, 0);
     const settlement = settle(
-      valid,
+      named.map((r) => ({ id: r.id ?? r.key, name: r.name.trim(), netPence: (pence(r.amount) ?? 0) + r.adjust })),
       tablePayments.map((p) => ({ fromId: p.from_row, toId: p.to_row, amountPence: p.amount_pence })),
     );
-    return { settlement, names: new Map(valid.map((r) => [r.id, r.name])) };
+    return { kind: "ok" as const, settlement, rawTotal, adjustTotal, count: named.length, names: new Map(named.map((r) => [r.id ?? r.key, r.name.trim()])) };
   }, [rows, tablePayments]);
 
-  const update = (key: string, change: Partial<Row>) => setRows((cur) => cur.map((r) => (r.key === key ? { ...r, ...change } : r)));
+  const update = (key: string, change: Partial<EditorRow>) => setRows((cur) => cur.map((r) => (r.key === key ? { ...r, ...change } : r)));
+
+  function applySplit() {
+    if (preview.kind === "invalid") return;
+    const named = rows.filter((r) => r.name.trim());
+    const shares = splitDifference(named.length, preview.rawTotal);
+    const byKey = new Map(named.map((r, i) => [r.key, shares[i]]));
+    setRows((cur) => cur.map((r) => ({ ...r, adjust: byKey.get(r.key) ?? 0 })));
+  }
+  const clearSplit = () => setRows((cur) => cur.map((r) => ({ ...r, adjust: 0 })));
+
   // Ignore blank rows when deciding if anything has changed.
-  const snapshot = (list: Row[]) =>
-    JSON.stringify(list.filter((r) => r.name.trim() || r.amount.trim()).map(({ id, name, amount }) => ({ id, name, amount })));
+  const snapshot = (list: EditorRow[]) =>
+    JSON.stringify(list.filter((r) => r.name.trim() || r.amount.trim()).map(({ id, name, amount, adjust }) => ({ id, name, amount, adjust })));
   const dirty = snapshot(rows) !== snapshot(initialRows);
+  const hasSplit = rows.some((r) => r.adjust !== 0);
 
   return (
     <div className="card space-y-5">
@@ -58,44 +77,56 @@ export function LedgerEditor({ title, initialRows, payments, saveAction, addPaym
         <p className="text-sm text-muted">How much each player is up (+) or down (−), in pounds.</p>
         <ul className="space-y-2">
           {rows.map((r) => {
-            const pence = r.amount.trim() === "" ? 0 : parsePounds(r.amount);
+            const value = pence(r.amount);
             return (
-              <li key={r.key} className="flex items-center gap-2">
-                <input
-                  value={r.name}
-                  onChange={(e) => update(r.key, { name: e.target.value })}
-                  placeholder="Player name"
-                  maxLength={60}
-                  readOnly={Boolean(r.userId)}
-                  className={`input flex-1 ${r.userId ? "bg-bg" : ""}`}
-                  aria-label="Player name"
-                />
-                <input
-                  value={r.amount}
-                  onChange={(e) => update(r.key, { amount: e.target.value })}
-                  inputMode="decimal"
-                  placeholder="0"
-                  className={`input w-28 text-right font-semibold ${
-                    pence === null ? "border-danger" : pence > 0 ? "text-ok" : pence < 0 ? "text-danger" : ""
-                  }`}
-                  aria-label={`${r.name || "Player"} result in pounds`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setRows((cur) => cur.filter((x) => x.key !== r.key))}
-                  className="px-1 text-sm font-semibold text-muted hover:text-danger"
-                  aria-label={`Remove ${r.name || "row"}`}
-                >
-                  ✕
-                </button>
+              <li key={r.key}>
+                <div className="flex items-center gap-2">
+                  <input
+                    value={r.name}
+                    onChange={(e) => update(r.key, { name: e.target.value })}
+                    placeholder="Player name"
+                    maxLength={60}
+                    readOnly={Boolean(r.userId)}
+                    className={`input flex-1 ${r.userId ? "bg-bg" : ""}`}
+                    aria-label="Player name"
+                  />
+                  <input
+                    value={r.amount}
+                    onChange={(e) => update(r.key, { amount: e.target.value })}
+                    inputMode="decimal"
+                    placeholder="0"
+                    className={`input w-28 text-right font-semibold ${
+                      value === null ? "border-danger" : value > 0 ? "text-ok" : value < 0 ? "text-danger" : ""
+                    }`}
+                    aria-label={`${r.name || "Player"} result in pounds`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setRows((cur) => cur.filter((x) => x.key !== r.key))}
+                    className="px-1 text-sm font-semibold text-muted hover:text-danger"
+                    aria-label={`Remove ${r.name || "row"}`}
+                  >
+                    ✕
+                  </button>
+                </div>
+                {(r.selfReported || r.adjust !== 0) && (
+                  <p className="mt-0.5 flex gap-3 pl-1 text-xs text-muted">
+                    {r.selfReported && <span className="font-semibold text-brand">Entered by the player</span>}
+                    {r.adjust !== 0 && <span>Split: {formatPounds(r.adjust, true)}</span>}
+                  </p>
+                )}
               </li>
             );
           })}
         </ul>
-        <button type="button" onClick={() => setRows((cur) => [...cur, { key: newKey(), name: "", amount: "" }])} className="text-sm font-semibold text-brand">
+        <button type="button" onClick={() => setRows((cur) => [...cur, { key: newKey(), name: "", amount: "", adjust: 0 }])} className="text-sm font-semibold text-brand">
           + Add a player not on Motive
         </button>
-        <input type="hidden" name="rows_json" value={JSON.stringify(rows.map(({ id, userId, name, amount }) => ({ id, userId, name, amount })))} />
+        <input
+          type="hidden"
+          name="rows_json"
+          value={JSON.stringify(rows.map(({ id, userId, name, amount, adjust }) => ({ id, userId, name, amount, adjust })))}
+        />
         <div className="flex flex-wrap items-center gap-3">
           <button className="btn" disabled={saving}>{saving ? "Saving…" : "Save results"}</button>
           {dirty && !saving && <span className="text-sm font-medium text-muted">Unsaved changes</span>}
@@ -107,13 +138,14 @@ export function LedgerEditor({ title, initialRows, payments, saveAction, addPaym
       {/* 2. Payments already made (e.g. someone left early) */}
       <div className="space-y-3 border-t border-line pt-4">
         <h4 className="font-semibold">Payments already made</h4>
-        <p className="text-sm text-muted">If someone left early and paid another player, add it here so nobody pays twice.</p>
+        <p className="text-sm text-muted">If someone left early and settled with another player, it goes here so nobody pays twice.</p>
         {tablePayments.length > 0 && (
           <ul className="space-y-1.5">
             {tablePayments.map((p) => (
-              <li key={p.id} className="flex items-center justify-between rounded-xl bg-bg px-3 py-2 text-sm">
+              <li key={p.id} className="flex items-center justify-between gap-2 rounded-xl bg-bg px-3 py-2 text-sm">
                 <span>
                   <strong>{nameById.get(p.from_row)}</strong> paid <strong>{nameById.get(p.to_row)}</strong> {formatPounds(p.amount_pence)}
+                  {p.addedBy && <span className="ml-2 text-xs font-semibold text-brand">added by {p.addedBy}</span>}
                 </span>
                 <form action={deletePaymentAction.bind(null, p.id)}>
                   <button className="font-semibold text-danger hover:underline">Remove</button>
@@ -145,27 +177,42 @@ export function LedgerEditor({ title, initialRows, payments, saveAction, addPaym
       {/* 3. Who pays who */}
       <div className="space-y-2 border-t border-line pt-4">
         <h4 className="font-semibold">Who pays who</h4>
-        {"invalid" in preview ? (
-          <p className="text-sm text-danger">Check the amount for {preview.invalid!.join(", ")}.</p>
-        ) : preview.settlement!.imbalancePence !== 0 ? (
-          <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm font-medium text-danger">
-            The results don&apos;t add up: they&apos;re {formatPounds(Math.abs(preview.settlement!.imbalancePence))}{" "}
-            {preview.settlement!.imbalancePence > 0 ? "over" : "under"}. Winnings and losses should cancel out, so check
-            everyone&apos;s numbers.
-          </p>
-        ) : preview.settlement!.transfers.length === 0 ? (
+        {preview.kind === "invalid" ? (
+          <p className="text-sm text-danger">Check the amount for {preview.invalid.join(", ")}.</p>
+        ) : preview.settlement.imbalancePence !== 0 ? (
+          <div className="space-y-2 rounded-xl bg-danger/10 px-3 py-3 text-sm">
+            <p className="font-medium text-danger">
+              The results don&apos;t add up: they&apos;re {formatPounds(Math.abs(preview.settlement.imbalancePence))}{" "}
+              {preview.settlement.imbalancePence > 0 ? "over" : "under"}.
+              Check everyone&apos;s numbers, or share the difference evenly.
+            </p>
+            {preview.count > 0 && (
+              <button type="button" onClick={applySplit} className="btn py-2">
+                Split it: {formatPounds(Math.ceil(Math.abs(preview.rawTotal) / preview.count))}
+                {Math.abs(preview.rawTotal) % preview.count ? " or less" : ""} each{" "}
+                {preview.rawTotal > 0 ? "extra to pay" : "back"} ({preview.count} players)
+              </button>
+            )}
+          </div>
+        ) : preview.settlement.transfers.length === 0 ? (
           <p className="text-sm text-muted">Everyone&apos;s square.</p>
         ) : (
           <ul className="space-y-1.5">
-            {preview.settlement!.transfers.map((t, i) => (
+            {preview.settlement.transfers.map((t, i) => (
               <li key={i} className="flex items-center justify-between rounded-xl bg-brand-soft px-3 py-2">
                 <span>
-                  <strong>{preview.names!.get(t.fromId)}</strong> pays <strong>{preview.names!.get(t.toId)}</strong>
+                  <strong>{preview.names.get(t.fromId)}</strong> pays <strong>{preview.names.get(t.toId)}</strong>
                 </span>
                 <span className="font-display text-lg font-extrabold">{formatPounds(t.amountPence)}</span>
               </li>
             ))}
           </ul>
+        )}
+        {hasSplit && preview.kind === "ok" && (
+          <p className="text-sm text-muted">
+            Includes an even split of {formatPounds(Math.abs(preview.adjustTotal))} to make the table add up.{" "}
+            <button type="button" onClick={clearSplit} className="font-semibold text-brand">Undo split</button>
+          </p>
         )}
         {dirty && <p className="text-xs text-muted">Showing your unsaved numbers. Save so players see the same.</p>}
       </div>

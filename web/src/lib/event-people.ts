@@ -10,6 +10,7 @@ export type Person = {
   tableId: string | null;
   finishPosition: number | null;
   joinedAt: string;
+  alsoTables: string[];
 };
 
 // Everyone who's joined an event, with their names. The database decides what
@@ -18,7 +19,7 @@ export async function getEventPeople(supabase: SupabaseClient, eventId: string) 
   const [{ data: entries }, { data: tables }] = await Promise.all([
     supabase
       .from("event_entries")
-      .select("user_id, status, table_id, finish_position, created_at")
+      .select("user_id, status, table_id, finish_position, created_at, also_tables")
       .eq("event_id", eventId)
       .order("created_at"),
     supabase.from("event_tables").select("*").eq("event_id", eventId).order("position"),
@@ -38,18 +39,27 @@ export async function getEventPeople(supabase: SupabaseClient, eventId: string) 
     tableId: e.table_id,
     finishPosition: e.finish_position,
     joinedAt: e.created_at,
+    alsoTables: (e.also_tables as string[] | null) ?? [],
   }));
 
   return { people, tables: (tables ?? []) as EventTable[] };
 }
 
-export type LedgerRowRecord = { id: string; table_id: string | null; user_id: string | null; player_name: string; net_pence: number };
-export type LedgerPaymentRecord = { id: string; from_row: string; to_row: string; amount_pence: number };
+export type LedgerRowRecord = {
+  id: string;
+  table_id: string | null;
+  user_id: string | null;
+  player_name: string;
+  net_pence: number;
+  adjust_pence: number;
+  created_by: string | null;
+};
+export type LedgerPaymentRecord = { id: string; from_row: string; to_row: string; amount_pence: number; created_by: string | null };
 
 export async function getLedger(supabase: SupabaseClient, eventId: string) {
   const [{ data: rows }, { data: payments }] = await Promise.all([
-    supabase.from("ledger_rows").select("id, table_id, user_id, player_name, net_pence").eq("event_id", eventId).order("created_at"),
-    supabase.from("ledger_payments").select("id, from_row, to_row, amount_pence").eq("event_id", eventId).order("created_at"),
+    supabase.from("ledger_rows").select("id, table_id, user_id, player_name, net_pence, adjust_pence, created_by").eq("event_id", eventId).order("created_at"),
+    supabase.from("ledger_payments").select("id, from_row, to_row, amount_pence, created_by").eq("event_id", eventId).order("created_at"),
   ]);
   return { rows: (rows ?? []) as LedgerRowRecord[], payments: (payments ?? []) as LedgerPaymentRecord[] };
 }

@@ -39,6 +39,22 @@ export async function moveEntry(societyId: string, eventId: string, userId: stri
   refresh(societyId, eventId);
 }
 
+export type AddState = { error?: string; added?: string };
+
+// Add someone who arrived late (or without their phone) to the event.
+export async function addLateArrival(societyId: string, eventId: string, _prev: AddState, formData: FormData): Promise<AddState> {
+  const supabase = await managed(societyId, eventId);
+  const userId = String(formData.get("user_id") ?? "");
+  const tableId = String(formData.get("table_id") ?? "") || null;
+  if (!userId) return { error: "Choose a member." };
+  const { error } = await supabase
+    .from("event_entries")
+    .upsert({ event_id: eventId, user_id: userId, status: "going", table_id: tableId }, { onConflict: "event_id,user_id" });
+  if (error) return { error: "Couldn't add them. Please try again." };
+  refresh(societyId, eventId);
+  return { added: userId };
+}
+
 export async function savePositions(societyId: string, eventId: string, formData: FormData) {
   const supabase = await managed(societyId, eventId);
   for (const [key, value] of formData.entries()) {
@@ -56,7 +72,7 @@ export async function savePositions(societyId: string, eventId: string, formData
 
 export type LedgerState = { error?: string; saved?: boolean };
 
-type RowInput = { id?: string; userId?: string | null; name: string; amount: string };
+type RowInput = { id?: string; userId?: string | null; name: string; amount: string; adjust?: number };
 
 export async function saveLedger(
   societyId: string,
@@ -80,11 +96,14 @@ export async function saveLedger(
     if (!name) continue;
     const pence = String(r.amount ?? "").trim() === "" ? 0 : parsePounds(String(r.amount));
     if (pence === null) return { error: `${name}: "${r.amount}" isn't an amount. Use numbers like 12.50 or -8.` };
+    const adjust = Number(r.adjust ?? 0);
+    if (!Number.isInteger(adjust) || Math.abs(adjust) > 1000000) return { error: "The split looks wrong. Clear it and try again." };
     rows.push({
       id: typeof r.id === "string" ? r.id : undefined,
       user_id: typeof r.userId === "string" ? r.userId : null,
       player_name: name,
       net_pence: pence,
+      adjust_pence: adjust,
     });
   }
 
@@ -96,7 +115,7 @@ export async function saveLedger(
   if (remove.length) await supabase.from("ledger_rows").delete().in("id", remove);
 
   for (const r of rows) {
-    const values = { player_name: r.player_name, net_pence: r.net_pence, user_id: r.user_id };
+    const values = { player_name: r.player_name, net_pence: r.net_pence, adjust_pence: r.adjust_pence, user_id: r.user_id };
     const { error } = r.id
       ? await supabase.from("ledger_rows").update(values).eq("id", r.id).eq("event_id", eventId)
       : await supabase.from("ledger_rows").insert({ ...values, event_id: eventId, table_id: tableId });

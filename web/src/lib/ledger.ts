@@ -56,3 +56,14 @@ export function parsePounds(input: string): number | null {
   if (!/^[+-]?\d+(\.\d{1,2})?$/.test(cleaned)) return null;
   return Math.round(parseFloat(cleaned) * 100);
 }
+
+// Shares a counting difference evenly so the table adds up to zero.
+// e.g. results are £8 over with 8 players -> everyone pays £1 more (−100p each).
+// Leftover pennies go to the first few players so the total is exact.
+export function splitDifference(playerCount: number, totalPence: number): number[] {
+  if (playerCount <= 0) return [];
+  const needed = -totalPence;
+  const base = Math.trunc(needed / playerCount);
+  const leftover = needed - base * playerCount;
+  return Array.from({ length: playerCount }, (_, i) => base + (i < Math.abs(leftover) ? Math.sign(leftover) : 0));
+}
