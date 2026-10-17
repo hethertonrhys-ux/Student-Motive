@@ -84,10 +84,10 @@ export function InstallGuide() {
         <>
           {device?.platform === "iphone" && device.iphoneBrowser === "other" && !device.inAppBrowser && (
             <div className="card border-live/40 bg-live/10">
-              <p className="font-bold">This works best in Safari</p>
+              <p className="font-bold">Open this page in Safari to continue</p>
               <p className="mt-1 text-sm">
-                You&apos;re not using Safari right now. Copy this link, open the <strong>Safari</strong> app, and
-                paste it into the address bar. Then follow the steps below.
+                These steps only work in Safari. Copy this link, open the <strong>Safari</strong> app, and paste it
+                into the address bar.
               </p>
               <CopyLink />
             </div>
