@@ -343,7 +343,7 @@ export function LiveMap({ events, windows }: Props) {
   }
 
   return (
-    <div className="relative h-[calc(100dvh-57px)] w-full overflow-hidden">
+    <div className="relative h-[calc(100dvh-57px-var(--banner-h,0px))] w-full overflow-hidden">
       {/* The map library sets its own position on the inner div, so size the wrapper instead. */}
       <div className="absolute inset-0 bg-[#e9ebf0]">
         <div ref={containerRef} className="h-full w-full" />

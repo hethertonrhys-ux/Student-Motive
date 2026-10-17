@@ -1,0 +1,124 @@
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import { oneTapInstall, useCanOneTapInstall, useDevice } from "@/lib/install";
+import { ANDROID_STEPS, IPHONE_STEPS } from "./illustrations";
+
+type Tab = "iphone" | "android";
+
+export function InstallGuide() {
+  const device = useDevice();
+  const canOneTap = useCanOneTapInstall();
+  // Until they pick a tab, show the steps for the phone they're on.
+  const [picked, setPicked] = useState<Tab | null>(null);
+  const tab: Tab | null = picked ?? (device?.platform === "iphone" || device?.platform === "android" ? device.platform : null);
+  const [copied, setCopied] = useState(false);
+
+  if (device?.installed) {
+    return (
+      <div className="card mt-8 bg-ok/10">
+        <p className="font-display text-xl font-extrabold">✓ You&apos;re all set</p>
+        <p className="mt-1 text-muted">You&apos;re using Motive from your home screen.</p>
+        <Link href="/map" className="btn mt-4">Open the live map</Link>
+      </div>
+    );
+  }
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+    } catch {
+      // Clipboard blocked: they can still use the menu.
+    }
+  }
+
+  return (
+    <div className="mt-8 space-y-6">
+      {/* Opened from Instagram etc.: those browsers can't add to the home screen. */}
+      {device?.inAppBrowser && (
+        <div className="card border-live/40 bg-live/10">
+          <p className="font-bold">First, open this page in {device.platform === "android" ? "Chrome" : "Safari"}</p>
+          <p className="mt-1 text-sm">
+            You&apos;re in {device.inAppBrowser}&apos;s browser, which can&apos;t add apps to your home screen. Tap the
+            menu (<strong>•••</strong> or <strong>⋮</strong>) at the top, then{" "}
+            <strong>Open in {device.platform === "android" ? "Chrome" : "Safari"}</strong> or &ldquo;Open in browser&rdquo;.
+          </p>
+          <button type="button" onClick={copyLink} className="btn-ghost mt-3 py-2 text-sm">
+            {copied ? "Link copied ✓ Paste it into your browser" : "Or copy the link"}
+          </button>
+        </div>
+      )}
+
+      {/* Android Chrome can install in one tap. */}
+      {canOneTap && !device?.inAppBrowser && (
+        <div className="card bg-brand-soft">
+          <p className="font-display text-xl font-extrabold">Install in one tap</p>
+          <button type="button" onClick={() => oneTapInstall()} className="btn mt-3 px-6 py-3 text-base">
+            Install Motive
+          </button>
+          <p className="mt-2 text-sm text-muted">Or follow the steps below.</p>
+        </div>
+      )}
+
+      {device?.platform === "other" && (
+        <p className="card text-sm">
+          On a computer? Open <strong>student-motive.vercel.app/install</strong> on your phone.
+        </p>
+      )}
+
+      <div>
+        <p className="mb-2 text-sm font-semibold text-muted">Which phone do you have?</p>
+        <div role="tablist" className="inline-flex rounded-2xl border border-line bg-surface p-1">
+          {(["iphone", "android"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={tab === t}
+              onClick={() => setPicked(t)}
+              className={`rounded-xl px-6 py-2.5 font-display text-base font-bold transition ${
+                tab === t ? "bg-brand text-brand-ink shadow" : "text-muted hover:text-ink"
+              }`}
+            >
+              {t === "iphone" ? "iPhone" : "Android"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {tab === "iphone" && (
+        <>
+          {device?.platform === "iphone" && device.iphoneBrowser === "other" && !device.inAppBrowser && (
+            <p className="rounded-xl bg-brand-soft px-4 py-3 text-sm">
+              Using Chrome or another browser? Tap the <strong>Share</strong> button in the address bar, then follow
+              step 2. If you can&apos;t see it, open this page in Safari.
+            </p>
+          )}
+          <Steps steps={IPHONE_STEPS} />
+        </>
+      )}
+      {tab === "android" && <Steps steps={ANDROID_STEPS} />}
+    </div>
+  );
+}
+
+function Steps({ steps }: { steps: typeof IPHONE_STEPS }) {
+  return (
+    <ol role="tabpanel" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {steps.map((step, i) => (
+        <li key={step.title} className="card flex flex-col gap-3">
+          <div className="flex items-start gap-2.5">
+            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-brand font-display text-sm font-extrabold text-brand-ink">{i + 1}</span>
+            <div>
+              <h3 className="font-bold leading-snug">{step.title}</h3>
+              <p className="mt-0.5 text-sm text-muted">{step.body}</p>
+            </div>
+          </div>
+          <div className="mt-auto">{step.art}</div>
+        </li>
+      ))}
+    </ol>
+  );
+}
