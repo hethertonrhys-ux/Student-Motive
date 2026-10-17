@@ -12,8 +12,10 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values ('avatars', 'avatars', true, 2097152, array['image/jpeg', 'image/png', 'image/webp'])
 on conflict (id) do nothing;
 
-create policy avatars_select_all on storage.objects for select to anon, authenticated
-  using (bucket_id = 'avatars');
+-- The bucket is public, so photos can be viewed by anyone with the link.
+-- Listing files is limited to your own folder (used to tidy up old photos).
+create policy avatars_select_own on storage.objects for select to authenticated
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid())::text);
 create policy avatars_insert_own on storage.objects for insert to authenticated
   with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid())::text);
 create policy avatars_update_own on storage.objects for update to authenticated
