@@ -65,9 +65,12 @@ export default function Home() {
 
       <section className="card mb-8 flex flex-col items-start gap-4 bg-brand-soft sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-display text-2xl font-extrabold">Students: the app is coming soon</h2>
-          <p className="text-muted">The Motive app for iPhone and Android is on its way.</p>
+          <h2 className="font-display text-2xl font-extrabold">Students: put Motive on your phone</h2>
+          <p className="text-muted">Add it to your home screen in four taps. Works on iPhone and Android.</p>
         </div>
+        <Link href="/install" className="btn px-5 py-3 text-base">
+          Show me how
+        </Link>
       </section>
     </div>
   );

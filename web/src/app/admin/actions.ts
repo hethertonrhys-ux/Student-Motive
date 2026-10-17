@@ -77,3 +77,33 @@ export async function addSociety(_prev: AddSocietyState, formData: FormData): Pr
   revalidatePath("/admin");
   return { added: name };
 }
+
+// ---- Who can join: emails (or whole domains) allowed besides @lse.ac.uk ----
+
+export type AllowEmailState = { error?: string; added?: string };
+
+export async function allowEmail(_prev: AllowEmailState, formData: FormData): Promise<AllowEmailState> {
+  await requireAdmin();
+  let email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const note = String(formData.get("note") ?? "").trim().slice(0, 120) || null;
+  // "kcl.ac.uk" on its own means the whole domain.
+  if (/^[^@\s]+\.[^@\s]+$/.test(email)) email = `@${email}`;
+
+  if (!/^([^@\s]+)?@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return { error: "Enter an email like jo@gmail.com, or a whole domain like @kcl.ac.uk." };
+  }
+  if (email.endsWith("@lse.ac.uk")) return { error: "LSE emails can already join." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("allowed_emails").upsert({ email, note });
+  if (error) return { error: "That didn't save. Try again." };
+  revalidatePath("/admin");
+  return { added: email };
+}
+
+export async function removeAllowedEmail(email: string) {
+  await requireAdmin();
+  const supabase = await createClient();
+  await supabase.from("allowed_emails").delete().eq("email", email);
+  revalidatePath("/admin");
+}

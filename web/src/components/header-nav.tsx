@@ -73,6 +73,7 @@ export function SettingsMenu({ signedInAs }: { signedInAs: string | null }) {
               Signed in as <span className="text-ink">{signedInAs}</span>
             </p>
           )}
+          <Link href="/install" className={item}>Get the app on your phone</Link>
           <Link href="/support" className={item}>Help &amp; support</Link>
           <Link href="/terms" className={item}>Terms of use</Link>
           <Link href="/privacy" className={item}>Privacy</Link>

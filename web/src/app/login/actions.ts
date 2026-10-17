@@ -10,7 +10,7 @@ export type LoginState = {
   error?: string;
 };
 
-function isAllowedEmail(email: string) {
+function isLseEmail(email: string) {
   return email.endsWith("@lse.ac.uk");
 }
 
@@ -21,10 +21,6 @@ export async function sendCode(_prev: LoginState, formData: FormData): Promise<L
   if (!/^[^@\s]+@[^@\s]+$/.test(email)) {
     return { step: "email", email, error: "Enter a valid email address." };
   }
-  if (!isAllowedEmail(email)) {
-    return { step: "email", email, error: "Please use your @lse.ac.uk email address." };
-  }
-
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
     email,
@@ -39,6 +35,15 @@ export async function sendCode(_prev: LoginState, formData: FormData): Promise<L
     console.error("Login email failed:", error.status, error.code, error.message);
     if (error.status === 429) {
       return { step: "email", email, error: "Too many attempts. Wait a few minutes and try again." };
+    }
+    // Other emails only work if the Motive team has allowed them (Admin page).
+    // Otherwise the database refuses to create the account.
+    if (!isLseEmail(email)) {
+      return {
+        step: "email",
+        email,
+        error: "Motive is for @lse.ac.uk emails. If you've been invited with a different email, check it's typed exactly.",
+      };
     }
     // While building on your own computer, show the real reason to help fix it.
     const detail = process.env.NODE_ENV === "development" ? ` (${error.status ?? ""} ${error.message})` : "";

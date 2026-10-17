@@ -48,7 +48,7 @@ export function LoginForm({ next }: { next: string }) {
       <form action={(fd) => { setChangingEmail(false); emailAction(fd); }} className="space-y-4">
         <input type="hidden" name="next" value={next} />
         <div>
-          <label htmlFor="email" className="label">LSE email</label>
+          <label htmlFor="email" className="label">Email</label>
           <input
             id="email"
             name="email"

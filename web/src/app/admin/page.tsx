@@ -4,7 +4,8 @@ import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Society } from "@/lib/types";
 import { AddSocietyForm } from "./add-society-form";
-import { approveClaim, dismissReport, hideReportedEvent, rejectClaim } from "./actions";
+import { AllowEmailForm } from "./allow-email-form";
+import { approveClaim, dismissReport, hideReportedEvent, rejectClaim, removeAllowedEmail } from "./actions";
 
 export const metadata: Metadata = { title: "Admin" };
 
@@ -31,7 +32,7 @@ export default async function AdminPage() {
   await requireAdmin();
   const supabase = await createClient();
 
-  const [{ data: claims }, { data: reports }, { data: societies }] = await Promise.all([
+  const [{ data: claims }, { data: reports }, { data: societies }, { data: allowed }] = await Promise.all([
     supabase
       .from("society_claims")
       .select("id, committee_role, message, created_at, societies(name), profiles(email)")
@@ -43,6 +44,7 @@ export default async function AdminPage() {
       .eq("status", "open")
       .order("created_at"),
     supabase.from("societies").select("*").order("kind").order("name"),
+    supabase.from("allowed_emails").select("email, note").order("email"),
   ]);
 
   return (
@@ -97,6 +99,33 @@ export default async function AdminPage() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="mt-10">
+        <h2 className="font-display text-xl font-bold">Who can join</h2>
+        <p className="mt-1 text-sm text-muted">
+          Anyone with an @lse.ac.uk email can log in. Add other emails here, one person at a time, or a whole
+          university with its domain (e.g. @kcl.ac.uk).
+        </p>
+        <div className="card mt-3">
+          <AllowEmailForm />
+        </div>
+        {(allowed ?? []).length > 0 && (
+          <ul className="mt-3 divide-y divide-line rounded-2xl border border-line bg-surface">
+            {(allowed ?? []).map((a) => (
+              <li key={a.email} className="flex items-center justify-between gap-4 px-4 py-2.5">
+                <span className="min-w-0">
+                  <span className="font-semibold break-all">{a.email.startsWith("@") ? `Anyone ${a.email}` : a.email}</span>
+                  {a.note && <span className="ml-2 text-sm text-muted">{a.note}</span>}
+                </span>
+                <form action={removeAllowedEmail.bind(null, a.email)}>
+                  <button className="text-sm font-semibold text-danger hover:underline">Remove</button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-2 text-xs text-muted">Removing an email stops new sign-ups. Anyone who already has an account keeps it.</p>
       </section>
 
       <section className="mt-10">

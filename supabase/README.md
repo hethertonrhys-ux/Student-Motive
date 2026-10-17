@@ -9,6 +9,7 @@ Project ID: `xrpbmcoptyrpgkdowfdt` (London region)
 - `migrations/20261017120000_tables_flexibility_and_self_reporting.sql`: "also happy to play at", splitting a counting difference, players reporting their own result, committee adding late arrivals.
 - `migrations/20261018000000_table_bank.sql`: a "bank" player per table who records buy-ins and cash-outs.
 - `migrations/20261018120000_confirm_seat_and_start_tables.sql`: confirming your seat, and starting a table early.
+- `migrations/20261019000000_allow_other_emails.sql`: lets the Motive admin allow non-LSE emails, one address or a whole domain (e.g. `@kcl.ac.uk`).
 - `seed.sql`: starter data (LSE buildings, LSE halls, other universities, first society).
 
 ## Running them
@@ -24,7 +25,7 @@ Each migration file runs **once**, in date order. Never edit one that has alread
 | Table | What it holds |
 |---|---|
 | `profiles` | One row per logged-in person. `is_admin` = Motive team. |
-| `allowed_emails` | Non-LSE emails allowed to sign up (e.g. Apple's reviewer). |
+| `allowed_emails` | Non-LSE emails (or whole domains like `@kcl.ac.uk`) allowed to sign up. Managed on the Admin page. |
 | `societies` | Societies, halls, other universities, promoters (`kind`). |
 | `society_admins` | Who can post for which society. |
 | `society_claims` | Committee requests to manage a society page, approved by us. |
