@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import type { Society } from "@/lib/types";
 import { AddSocietyForm } from "./add-society-form";
 import { AllowEmailForm } from "./allow-email-form";
-import { approveClaim, dismissReport, hideReportedEvent, rejectClaim, removeAllowedEmail } from "./actions";
+import { approveClaim, deleteReportedMessage, dismissReport, hideReportedEvent, rejectClaim, removeAllowedEmail } from "./actions";
+import { getCards } from "@/lib/social";
 
 export const metadata: Metadata = { title: "Admin" };
 
@@ -24,8 +25,11 @@ type ReportRow = {
   details: string | null;
   created_at: string;
   event_id: string | null;
+  message_id: string | null;
+  reported_user_id: string | null;
   events: { title: string } | null;
   societies: { name: string } | null;
+  messages: { body: string; sender_id: string | null; deleted_at: string | null } | null;
 };
 
 export default async function AdminPage() {
@@ -40,12 +44,20 @@ export default async function AdminPage() {
       .order("created_at"),
     supabase
       .from("reports")
-      .select("id, reason, details, created_at, event_id, events(title), societies(name)")
+      .select("id, reason, details, created_at, event_id, message_id, reported_user_id, events(title), societies(name), messages(body, sender_id, deleted_at)")
       .eq("status", "open")
       .order("created_at"),
     supabase.from("societies").select("*").order("kind").order("name"),
     supabase.from("allowed_emails").select("email, note").order("email"),
   ]);
+
+  const reportList = (reports ?? []) as unknown as ReportRow[];
+  const people = await getCards(
+    supabase,
+    reportList.flatMap((r) => [r.reported_user_id, r.messages?.sender_id]).filter((x): x is string => !!x),
+  );
+  const personLink = (id: string | null | undefined) =>
+    id ? <Link href={`/u/${id}`} className="text-brand">{people.get(id)?.name ?? "Member"}</Link> : "someone";
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
@@ -75,16 +87,25 @@ export default async function AdminPage() {
         <h2 className="font-display text-xl font-bold">Reports ({reports?.length ?? 0})</h2>
         {(reports ?? []).length === 0 && <p className="mt-2 text-muted">No open reports.</p>}
         <ul className="mt-3 space-y-3">
-          {((reports ?? []) as unknown as ReportRow[]).map((report) => (
+          {reportList.map((report) => (
             <li key={report.id} className="card flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0">
                 <p className="font-bold">
                   {report.event_id ? (
                     <Link href={`/e/${report.event_id}`} className="text-brand">{report.events?.title ?? "Event"}</Link>
+                  ) : report.message_id ? (
+                    <>Message from {personLink(report.messages?.sender_id)}</>
+                  ) : report.reported_user_id ? (
+                    <>Person: {personLink(report.reported_user_id)}</>
                   ) : (
                     report.societies?.name
                   )}
                 </p>
+                {report.messages && (
+                  <p className="mt-1 rounded-lg bg-bg px-3 py-2 text-sm italic">
+                    {report.messages.deleted_at ? "(already deleted)" : `“${report.messages.body}”`}
+                  </p>
+                )}
                 <p className="text-sm">{report.reason}</p>
                 {report.details && <p className="mt-1 text-sm text-muted">{report.details}</p>}
               </div>
@@ -92,6 +113,11 @@ export default async function AdminPage() {
                 {report.event_id && (
                   <form action={hideReportedEvent.bind(null, report.id, report.event_id)}>
                     <button className="btn py-2">Hide event</button>
+                  </form>
+                )}
+                {report.message_id && !report.messages?.deleted_at && (
+                  <form action={deleteReportedMessage.bind(null, report.id, report.message_id)}>
+                    <button className="btn py-2">Delete message</button>
                   </form>
                 )}
                 <form action={dismissReport.bind(null, report.id)}><button className="btn-ghost py-2">Dismiss</button></form>

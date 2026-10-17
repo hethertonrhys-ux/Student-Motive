@@ -22,6 +22,19 @@ export default function TermsPage() {
         <li>Follow your university&apos;s and students&apos; union&apos;s rules for society events.</li>
       </ul>
 
+      <h2>Hosting your own events</h2>
+      <ul>
+        <li>You&apos;re responsible for events you host, including who you invite and keeping people safe.</li>
+        <li>Don&apos;t charge entry or sell tickets through Function, and follow the law, including on alcohol.</li>
+        <li>Meet people you don&apos;t know in public places first, and tell a friend where you&apos;re going.</li>
+      </ul>
+
+      <h2>Friends and messages</h2>
+      <ul>
+        <li>Be respectful. No harassment, threats, spam, or sharing other people&apos;s private information.</li>
+        <li>You can block anyone at any time. Blocked people can&apos;t message you, add you or see your events.</li>
+      </ul>
+
       <h2>Reporting and removal</h2>
       <p>
         Anyone can report content. We review reports and may hide content or remove access for anyone who breaks
@@ -30,8 +43,8 @@ export default function TermsPage() {
 
       <h2>Liability</h2>
       <p>
-        Societies are responsible for their own events. Function lists events but doesn&apos;t organise them and
-        isn&apos;t responsible for what happens at them.
+        Societies and student hosts are responsible for their own events. Function lists events but doesn&apos;t
+        organise them and isn&apos;t responsible for what happens at them.
       </p>
 
       <h2>Contact</h2>

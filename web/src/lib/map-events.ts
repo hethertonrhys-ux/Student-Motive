@@ -2,6 +2,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { nextLondonSixAm, nowMs } from "@/lib/time";
 import type { EventCategory } from "@/lib/types";
+import { getCards } from "@/lib/social";
 
 // One pin on the map.
 export type MapEvent = {
@@ -37,6 +38,8 @@ type Row = {
   location_note: string | null;
   venues: { name: string; lat: number; lng: number } | null;
   societies: { name: string } | null;
+  host_user_id: string | null;
+  visibility: "public" | "friends";
   event_tables: { started_at: string | null }[] | null;
 };
 
@@ -52,15 +55,17 @@ export async function getMapEvents(): Promise<{ events: MapEvent[]; windows: Map
   const supabase = await createClient();
   const { data } = await supabase
     .from("events")
-    .select("id, title, category, free_food, starts_at, ends_at, going_count, lat, lng, location_note, venues(name, lat, lng), societies(name), event_tables(started_at)")
+    .select("id, title, category, free_food, starts_at, ends_at, going_count, lat, lng, location_note, venues(name, lat, lng), societies(name), host_user_id, visibility, event_tables(started_at)")
     .eq("is_cancelled", false)
     .gt("ends_at", windows.now)
     .lt("starts_at", windows.tomorrowEnds)
     .order("starts_at")
     .limit(500);
 
+  const rows = (data ?? []) as unknown as Row[];
+  const hosts = await getCards(supabase, rows.map((r) => r.host_user_id).filter((x): x is string => !!x));
   const events: MapEvent[] = [];
-  for (const row of (data ?? []) as unknown as Row[]) {
+  for (const row of rows) {
     const lat = row.lat ?? row.venues?.lat;
     const lng = row.lng ?? row.venues?.lng;
     if (lat == null || lng == null) continue;
@@ -76,7 +81,11 @@ export async function getMapEvents(): Promise<{ events: MapEvent[]; windows: Map
       lat,
       lng,
       place: [row.venues?.name, row.location_note].filter(Boolean).join(" · "),
-      society: row.societies?.name ?? "",
+      society:
+        row.societies?.name ??
+        (row.host_user_id
+          ? `Hosted by ${hosts.get(row.host_user_id)?.name ?? "a student"}${row.visibility === "friends" ? " · Friends only" : ""}`
+          : ""),
     });
   }
   return { events, windows };

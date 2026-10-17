@@ -37,7 +37,11 @@ export type Venue = {
 
 export type MotiveEvent = {
   id: string;
-  society_id: string;
+  // A society's event, or one a student is hosting (exactly one is set).
+  society_id: string | null;
+  host_user_id: string | null;
+  visibility: "public" | "friends";
+  join_mode: "open" | "approval";
   title: string;
   description: string | null;
   category: EventCategory;

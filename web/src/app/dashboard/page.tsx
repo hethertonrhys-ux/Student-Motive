@@ -23,13 +23,20 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       .order("created_at", { ascending: false }),
   ]);
 
-  const [{ data: memberships }, { data: myEntries }, { data: allSocieties }] = await Promise.all([
+  const [{ data: memberships }, { data: myEntries }, { data: allSocieties }, { data: hosting }] = await Promise.all([
     supabase.from("society_members").select("status, societies(id, name, slug)").eq("user_id", profile.id),
     supabase
       .from("event_entries")
       .select("status, event_tables!event_entries_table_id_fkey(name, level), events(id, title, starts_at, ends_at)")
       .eq("user_id", profile.id),
     supabase.from("societies").select("id, name, slug, kind, logo_url").order("name").limit(2000),
+    supabase
+      .from("events")
+      .select("id, title, starts_at, ends_at, going_count, visibility, is_cancelled")
+      .eq("host_user_id", profile.id)
+      .eq("is_cancelled", false)
+      .gt("ends_at", new Date().toISOString())
+      .order("starts_at"),
   ]);
   const now = nowMs();
   const upcoming = (myEntries ?? [])
@@ -60,6 +67,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     <div className="mx-auto max-w-3xl px-4 py-10">
       <h1 className="font-display text-3xl font-extrabold tracking-tight">Hi{profile.display_name ? `, ${profile.display_name.split(" ")[0]}` : ""}</h1>
       <p className="mt-1 text-muted">Signed in as {profile.email}</p>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <Link href="/host/new" className="btn">+ Host an event</Link>
+        <Link href="/account" className="btn-ghost">Edit your profile</Link>
+      </div>
 
       {(() => {
         const done = typeof confirmed === "string" ? upcoming.find((u) => u.event.id === confirmed) : undefined;
@@ -70,6 +81,27 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           </p>
         ) : null;
       })()}
+
+      {(hosting ?? []).length > 0 && (
+        <section className="mt-8">
+          <h2 className="font-display text-xl font-bold">You&apos;re hosting</h2>
+          <ul className="mt-3 space-y-2">
+            {(hosting ?? []).map((e) => (
+              <li key={e.id}>
+                <Link href={`/e/${e.id}`} className="card flex items-center justify-between gap-3 py-3 transition hover:border-brand">
+                  <span>
+                    <span className="block font-bold">{e.title}</span>
+                    <span className="text-sm text-muted">{formatEventTime(e.starts_at, e.ends_at)} · {e.going_count} going</span>
+                  </span>
+                  <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-bold text-brand">
+                    {e.visibility === "friends" ? "Friends only" : "Public"}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <SocietySearch societies={searchable} />
 
@@ -88,7 +120,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                     </span>
                   </span>
                   <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ${status === "going" ? "bg-ok/10 text-ok" : "bg-brand-soft text-brand"}`}>
-                    {status === "going" ? "Going" : "Waiting list"}
+                    {status === "going" ? "Going" : status === "requested" ? "Requested" : "Waiting list"}
                   </span>
                 </Link>
               </li>

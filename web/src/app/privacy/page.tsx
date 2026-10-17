@@ -18,7 +18,11 @@ export default function PrivacyPage() {
       <h2>What we collect</h2>
       <ul>
         <li><strong>Your university email address</strong>, to log you in and confirm you&apos;re a student.</li>
-        <li><strong>Societies you follow and events you mark &ldquo;I&apos;m going&rdquo;</strong>, to show you relevant events. Other users only see totals, never your name.</li>
+        <li><strong>Your profile</strong>: the name, course and short bio you choose. Other students can see these; your email is never shown.</li>
+        <li><strong>Societies you follow and events you join</strong>, to show you relevant events. For society events, other students only see totals. At student-hosted events, the host and other guests can see who&apos;s going.</li>
+        <li><strong>Your friends and friend requests</strong>, so you can find each other and see friends-only events.</li>
+        <li><strong>Messages</strong> you send in event chats and private chats. Only the people in that chat can read them. We only look at a message if someone reports it.</li>
+        <li><strong>Addresses of events you host</strong>. Only you and people going can see the exact address; everyone else sees the rough area.</li>
         <li><strong>Your location, only if you allow it</strong>, to show you on the map and how far away events are. It stays on your device and isn&apos;t sent to or stored on our servers.</li>
         <li><strong>Reports and blocks</strong> you make, to keep Function safe.</li>
         <li><strong>Content societies post</strong>: event details and images.</li>
@@ -38,7 +42,7 @@ export default function PrivacyPage() {
       </p>
 
       <h2>How long we keep it</h2>
-      <p>We keep your account data until you delete your account. Deleting your account removes your profile, follows and &ldquo;going&rdquo; history.</p>
+      <p>We keep your account data until you delete your account. Deleting your account removes your profile, friends, follows, events you host and &ldquo;going&rdquo; history. Messages you sent show as from a &ldquo;Former member&rdquo;.</p>
 
       <h2>Your rights</h2>
       <p>

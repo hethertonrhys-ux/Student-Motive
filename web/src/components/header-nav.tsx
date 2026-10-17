@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 // The tabs along the top. The one for the page you're on is highlighted.
-export function NavTabs({ tabs }: { tabs: { href: string; label: string }[] }) {
+export function NavTabs({ tabs }: { tabs: { href: string; label: string; badge?: number }[] }) {
   const pathname = usePathname();
   return tabs.map((tab) => {
     const active = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
@@ -14,18 +14,23 @@ export function NavTabs({ tabs }: { tabs: { href: string; label: string }[] }) {
         key={tab.href}
         href={tab.href}
         aria-current={active ? "page" : undefined}
-        className={`rounded-lg px-2.5 py-2 whitespace-nowrap transition sm:px-3 ${
+        className={`relative rounded-lg px-2 py-2 whitespace-nowrap transition sm:px-3 ${
           active ? "bg-brand-soft text-brand" : "text-muted hover:bg-brand-soft hover:text-ink"
         }`}
       >
         {tab.label}
+        {tab.badge ? (
+          <span className="absolute -top-0.5 -right-1 grid min-w-[18px] place-items-center rounded-full bg-live px-1 text-[10px] leading-[18px] font-bold text-white">
+            {tab.badge > 9 ? "9+" : tab.badge}
+          </span>
+        ) : null}
       </Link>
     );
   });
 }
 
 // The cog in the top right: help, terms, privacy and signing out.
-export function SettingsMenu({ signedInAs }: { signedInAs: string | null }) {
+export function SettingsMenu({ signedInAs, isAdmin = false }: { signedInAs: string | null; isAdmin?: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -73,6 +78,9 @@ export function SettingsMenu({ signedInAs }: { signedInAs: string | null }) {
               Signed in as <span className="text-ink">{signedInAs}</span>
             </p>
           )}
+          {signedInAs && <Link href="/account" className={item}>Edit your profile</Link>}
+          {signedInAs && <Link href="/host/new" className={item}>Host an event</Link>}
+          {isAdmin && <Link href="/admin" className={item}>Admin</Link>}
           <Link href="/install" className={item}>Get the app on your phone</Link>
           <Link href="/support" className={item}>Help &amp; support</Link>
           <Link href="/terms" className={item}>Terms of use</Link>

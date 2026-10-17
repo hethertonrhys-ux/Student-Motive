@@ -45,6 +45,14 @@ export async function hideReportedEvent(reportId: string, eventId: string) {
   revalidatePath("/admin");
 }
 
+export async function deleteReportedMessage(reportId: string, messageId: string) {
+  await requireAdmin();
+  const supabase = await createClient();
+  await supabase.rpc("delete_message", { mid: messageId });
+  await supabase.from("reports").update({ status: "resolved" }).eq("id", reportId);
+  revalidatePath("/admin");
+}
+
 export async function dismissReport(reportId: string) {
   await requireAdmin();
   const supabase = await createClient();

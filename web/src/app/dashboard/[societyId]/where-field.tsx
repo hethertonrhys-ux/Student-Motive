@@ -16,7 +16,7 @@ const VENUE_GROUPS: { kind: Venue["kind"]; label: string }[] = [
 
 export const CUSTOM_PLACE = "custom";
 
-type Point = { lng: number; lat: number };
+export type Point = { lng: number; lat: number };
 type SearchResult = { label: string; detail: string; point: Point };
 
 // Address search using Photon (built on OpenStreetMap): free, no key.
@@ -100,7 +100,15 @@ export function WhereField({ venues, event }: { venues: Venue[]; event?: MotiveE
   );
 }
 
-function PlacePicker({ pin, onPick }: { pin: Point | null; onPick: (point: Point, name?: string) => void }) {
+// Search for a place and/or tap the map to drop a pin. Also used for
+// student-hosted events.
+export function PlacePicker({
+  pin,
+  onPick,
+}: {
+  pin: Point | null;
+  onPick: (point: Point, name?: string, detail?: string) => void;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markerRef = useRef<Marker | null>(null);
@@ -180,7 +188,7 @@ function PlacePicker({ pin, onPick }: { pin: Point | null; onPick: (point: Point
       markerRef.current.setLngLat([result.point.lng, result.point.lat]).addTo(map);
       map.flyTo({ center: [result.point.lng, result.point.lat], zoom: 16 });
     }
-    onPick(result.point, result.label);
+    onPick(result.point, result.label, result.detail);
     setResults(null);
     setQuery("");
   }
