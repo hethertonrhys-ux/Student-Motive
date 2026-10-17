@@ -115,7 +115,7 @@ export function InstallGuide() {
 // browserDone: they're already in the right browser, so opening it is done.
 function Steps({ steps, browserDone }: { steps: InstallStep[]; browserDone: string | null }) {
   return (
-    <ol role="tabpanel" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <ol role="tabpanel" className={`grid gap-4 sm:grid-cols-2 ${steps.length % 3 === 0 ? "lg:grid-cols-3" : "lg:grid-cols-4"}`}>
       {steps.map((step, i) => (
         <li key={step.title} className="card flex flex-col gap-3">
           <div className="flex items-start gap-2.5">

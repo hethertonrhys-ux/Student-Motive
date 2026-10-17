@@ -31,12 +31,44 @@ function Dots({ vertical }: { vertical?: boolean }) {
   );
 }
 
-// A pulsing ring that says "tap here".
+// Where to tap: bright pink-red with a pointing finger, so it stands out
+// from everything else in the drawing.
+const HIT = "bg-[#f43f5e] text-white font-bold ring-4 ring-[#f43f5e]/35 shadow-md";
+
+function Finger({ className = "-right-2 -bottom-3.5" }: { className?: string }) {
+  return (
+    <span className={`pointer-events-none absolute z-10 text-[20px] leading-none drop-shadow ${className}`} aria-hidden>
+      👆
+    </span>
+  );
+}
+
 function Tap({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <span className={`relative inline-flex items-center justify-center rounded-full bg-brand text-brand-ink ring-4 ring-brand/30 ${className}`}>
+    <span className={`relative inline-flex items-center justify-center rounded-full ${HIT} ${className}`}>
       {children}
+      <Finger />
     </span>
+  );
+}
+
+// A highlighted row in a menu or list.
+function TapRow({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={`relative mx-1 flex items-center justify-between gap-1.5 rounded-lg px-2 py-1.5 ${HIT} ${className}`}>
+      {children}
+      <Finger className="-right-1 -bottom-3.5" />
+    </div>
+  );
+}
+
+function PageSketch({ className = "h-16" }: { className?: string }) {
+  return (
+    <div className={`bg-white p-2 ${className}`}>
+      <div className="h-2 w-16 rounded bg-[#4338ca]/60" />
+      <div className="mt-2 h-1.5 w-24 rounded bg-black/10" />
+      <div className="mt-1 h-1.5 w-20 rounded bg-black/10" />
+    </div>
   );
 }
 
@@ -61,46 +93,82 @@ export function MotiveTile({ size = 44 }: { size?: number }) {
 }
 
 // ---------- iPhone (Safari) ----------
+// Safari since iOS 26 hides Share inside the ••• menu next to the address,
+// and "Add to Home Screen" is often under "View More" in the share sheet.
 
-// Safari since iOS 26: the Share button is inside the ••• menu next to the address.
-export function IphoneSafari() {
+function SafariBar({ tapDots }: { tapDots: boolean }) {
+  return (
+    <div className="flex items-center gap-1.5 bg-[#f9f9fb] px-2 pt-2 pb-4">
+      <span className="grid size-7 shrink-0 place-items-center rounded-full bg-black/[0.07] text-black/50">‹</span>
+      <span className="flex-1 truncate rounded-full bg-black/[0.07] px-2 py-1.5 text-center">{MOTIVE_URL}</span>
+      {tapDots ? (
+        <Tap className="size-7 shrink-0"><Dots /></Tap>
+      ) : (
+        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-black/[0.07] text-black/60"><Dots /></span>
+      )}
+    </div>
+  );
+}
+
+export function IphoneDots() {
+  return (
+    <Screen>
+      <PageSketch className="h-20" />
+      <SafariBar tapDots />
+    </Screen>
+  );
+}
+
+export function IphoneMenu() {
   return (
     <Screen>
       <div className="relative h-24 bg-white p-2">
-        <div className="h-2 w-16 rounded bg-[#4338ca]/80" />
-        <div className="mt-2 h-1.5 w-24 rounded bg-black/10" />
-        <div className="mt-1 h-1.5 w-20 rounded bg-black/10" />
-        {/* The menu that opens from ••• */}
-        <div className="absolute right-2 bottom-1 w-[62%] overflow-hidden rounded-xl bg-white text-[10px] shadow-lg ring-1 ring-black/10">
-          <div className="m-1 flex items-center justify-between rounded-lg bg-brand px-2 py-1.5 font-bold text-white ring-4 ring-brand/30">
-            Share <ShareIcon className="size-3.5" />
-          </div>
-          <div className="px-2.5 py-1 text-black/60">Add to Favourites</div>
+        <div className="h-2 w-16 rounded bg-[#4338ca]/60" />
+        <div className="absolute right-2 bottom-1 w-[66%] rounded-xl bg-white py-1 text-[10px] shadow-lg ring-1 ring-black/10">
+          <TapRow>Share <ShareIcon className="size-3.5" /></TapRow>
+          <div className="px-2.5 pt-1.5 text-black/50">Add to Favourites</div>
         </div>
       </div>
-      <div className="flex items-center gap-1.5 bg-[#f9f9fb] px-2 py-2">
-        <span className="grid size-7 place-items-center rounded-full bg-black/[0.07] text-black/50">‹</span>
-        <span className="flex-1 truncate rounded-full bg-black/[0.07] px-2 py-1.5 text-center">{MOTIVE_URL}</span>
-        <Tap className="size-7"><Dots /></Tap>
+      <SafariBar tapDots={false} />
+    </Screen>
+  );
+}
+
+function ShareSheetTop() {
+  return (
+    <div className="flex items-center gap-2 px-2.5 pt-2.5 pb-2">
+      <MotiveTile size={22} />
+      <span className="font-semibold">Motive</span>
+    </div>
+  );
+}
+
+export function IphoneViewMore() {
+  const row = "flex items-center justify-between border-b border-black/5 px-2.5 py-1.5 text-black/60";
+  return (
+    <Screen>
+      <ShareSheetTop />
+      <div className="mx-2 mb-2 rounded-xl bg-white py-1">
+        <div className={row}><span>Copy</span><span className="text-black/30">⧉</span></div>
+        <div className={`${row} border-0`}><span>Add to Favourites</span><span className="text-black/30">☆</span></div>
+        <TapRow className="mt-1 justify-center">View More ⌄</TapRow>
       </div>
     </Screen>
   );
 }
 
 export function IphoneShareSheet() {
-  const row = "flex items-center justify-between border-b border-black/5 px-2.5 py-2";
+  const row = "flex items-center justify-between border-b border-black/5 px-2.5 py-1.5 text-black/60";
   return (
     <Screen>
-      <div className="space-y-1.5 p-2">
-        <div className="rounded-xl bg-white">
-          <div className={row}><span>Copy</span><span className="text-black/40">⧉</span></div>
-          <div className={row}><span>Add to Reading List</span><span className="text-black/40">∞</span></div>
-          <div className={`${row} rounded-lg border-0 bg-brand font-bold text-white ring-4 ring-brand/30`}>
-            <span>Add to Home Screen</span>
-            <AddSquareIcon className="size-4" />
-          </div>
-          <div className={`${row} border-0`}><span>Add Bookmark</span><span className="text-black/40">□</span></div>
-        </div>
+      <ShareSheetTop />
+      <div className="mx-2 mb-2 rounded-xl bg-white py-1">
+        <div className={row}><span>Add to Reading List</span><span className="text-black/30">∞</span></div>
+        <TapRow className="my-1">
+          <span>Add to Home Screen</span>
+          <AddSquareIcon className="size-4" />
+        </TapRow>
+        <div className={`${row} border-0`}><span>Add Bookmark</span><span className="text-black/30">□</span></div>
       </div>
     </Screen>
   );
@@ -136,9 +204,10 @@ export function HomeScreen() {
         {Array.from({ length: 6 }, (_, i) => (
           <span key={i} className="aspect-square rounded-[22%] bg-white/50" />
         ))}
-        <span className="flex flex-col items-center gap-0.5">
-          <span className="rounded-[22%] ring-4 ring-white/70"><MotiveTile size={28} /></span>
-          <span className="text-[9px] font-semibold text-white drop-shadow">Motive</span>
+        <span className="relative flex flex-col items-center gap-0.5">
+          <span className="rounded-[22%] ring-4 ring-[#f43f5e]"><MotiveTile size={28} /></span>
+          <span className="text-[9px] font-bold text-white drop-shadow">Motive</span>
+          <Finger className="-right-3 bottom-3" />
         </span>
       </div>
     </Screen>
@@ -154,11 +223,7 @@ export function AndroidChrome() {
         <span className="flex-1 truncate rounded-full bg-black/[0.07] px-2 py-1.5">{MOTIVE_URL}</span>
         <Tap className="size-7"><Dots vertical /></Tap>
       </div>
-      <div className="h-20 bg-white p-2">
-        <div className="h-2 w-16 rounded bg-[#4338ca]/80" />
-        <div className="mt-2 h-1.5 w-24 rounded bg-black/10" />
-        <div className="mt-1 h-1.5 w-20 rounded bg-black/10" />
-      </div>
+      <PageSketch className="h-20" />
     </Screen>
   );
 }
@@ -171,9 +236,9 @@ export function AndroidMenu() {
         <div className={row}>New tab</div>
         <div className={row}>History</div>
         <div className={row}>Share…</div>
-        <div className={`${row} mx-1 flex items-center gap-1.5 rounded-lg bg-brand font-bold text-white ring-4 ring-brand/30`}>
-          <AddSquareIcon className="size-4" /> Add to home screen
-        </div>
+        <TapRow>
+          <span className="flex items-center gap-1.5"><AddSquareIcon className="size-4" /> Add to home screen</span>
+        </TapRow>
         <div className={row}>Settings</div>
       </div>
       <p className="px-2 py-1.5 text-center text-[9px] text-black/50">May say &ldquo;Install app&rdquo; instead</p>
@@ -214,16 +279,28 @@ export type InstallStep = {
 
 export const IPHONE_STEPS: InstallStep[] = [
   {
-    title: "In Safari, tap ••• then Share",
-    titleHere: "Tap ••• then Share",
-    bodyHere: "Tap ••• at the bottom right, next to the web address, then tap Share. (Older iPhones: just tap the Share button at the bottom.)",
-    body: "Open the link below in Safari. Tap ••• at the bottom right, next to the web address, then tap Share. (Older iPhones: just tap the Share button at the bottom.)",
-    short: "••• is next to the web address.",
-    art: <IphoneSafari />,
+    title: "Open the link in Safari, tap •••",
+    titleHere: "Tap •••",
+    body: "Open the link below in Safari. The ••• is at the bottom right, next to the web address.",
+    bodyHere: "It's at the bottom right, next to the web address.",
+    short: "Bottom right, next to the address.",
+    art: <IphoneDots />,
   },
-  { title: "Tap “Add to Home Screen”", body: "Scroll down the list if you can't see it.", short: "Scroll down if you can't see it.", art: <IphoneShareSheet /> },
-  { title: "Tap Add", body: "Keep “Open as Web App” switched on.", short: "Keep “Open as Web App” on.", art: <IphoneAddDialog /> },
-  { title: "Open it from your home screen", body: "Log in once with your email code. You'll stay logged in.", short: "Log in once. You'll stay logged in.", art: <HomeScreen /> },
+  {
+    title: "Tap Share",
+    body: "On older iPhones, skip step 1: the Share button is right at the bottom of the screen.",
+    short: "In the menu that pops up.",
+    art: <IphoneMenu />,
+  },
+  {
+    title: "Tap “View More”",
+    body: "Only if you can't see “Add to Home Screen” yet. Then scroll down the list.",
+    short: "Only if you can't see step 4.",
+    art: <IphoneViewMore />,
+  },
+  { title: "Tap “Add to Home Screen”", body: "Scroll down the list if you need to.", short: "Scroll down if you need to.", art: <IphoneShareSheet /> },
+  { title: "Tap Add", body: "Keep “Open as Web App” switched on.", short: "Top right.", art: <IphoneAddDialog /> },
+  { title: "Open Motive from your home screen", body: "Log in once with your email code. You'll stay logged in.", short: "Log in once. That's it.", art: <HomeScreen /> },
 ];
 
 export const ANDROID_STEPS: InstallStep[] = [
