@@ -52,7 +52,11 @@ export async function uploadProfilePhoto(formData: FormData): Promise<{ error?: 
   const supabase = await createClient();
   const path = `${profile.id}/${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase.storage.from("avatars").upload(path, file, { contentType: file.type });
-  if (error) return { error: "The photo couldn't be uploaded. Please try again." };
+  if (error) {
+    console.error("Profile photo upload failed:", error.message);
+    // Supabase's reason (e.g. "Bucket not found") helps us fix setup problems.
+    return { error: `The photo couldn't be uploaded (${error.message}). Please try again.` };
+  }
   const url = supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl;
 
   await supabase.from("profiles").update({ avatar_url: url }).eq("id", profile.id);
