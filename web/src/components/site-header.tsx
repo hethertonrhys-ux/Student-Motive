@@ -23,11 +23,15 @@ export async function SiteHeader() {
   const tabs = profile
     ? [
         { href: "/map", label: "Map" },
+        { href: "/social", label: "Social" },
         { href: "/friends", label: "Friends", badge: requests },
         { href: "/chats", label: "Chats", badge: unread },
         { href: "/dashboard", label: "Me" },
       ]
-    : [{ href: "/map", label: "Map" }];
+    : [
+        { href: "/map", label: "Map" },
+        { href: "/social", label: "Social" },
+      ];
 
   return (
     <header className="relative z-40 border-b border-line bg-surface/80 backdrop-blur">

@@ -79,7 +79,7 @@ export function SettingsMenu({ signedInAs, isAdmin = false }: { signedInAs: stri
             </p>
           )}
           {signedInAs && <Link href="/account" className={item}>Edit your profile</Link>}
-          {signedInAs && <Link href="/host/new" className={item}>Host an event</Link>}
+          {signedInAs && <Link href="/social/new" className={item}>Host an event</Link>}
           {isAdmin && <Link href="/admin" className={item}>Admin</Link>}
           <Link href="/install" className={item}>Get the app on your phone</Link>
           <Link href="/support" className={item}>Help &amp; support</Link>
