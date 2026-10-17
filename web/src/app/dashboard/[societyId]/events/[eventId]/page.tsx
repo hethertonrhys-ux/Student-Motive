@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireManagedSociety } from "@/lib/society";
 import { getEventPeople, getLedger, type LedgerRowRecord, type Person } from "@/lib/event-people";
-import { formatEventTime, hasEnded } from "@/lib/time";
+import { formatEventTime, hasEnded, nowMs } from "@/lib/time";
 import { FORMATS, type EventTable, type MotiveEvent } from "@/lib/types";
 import { Avatar } from "@/components/avatar";
 import { LedgerEditor, type EditorRow } from "./ledger-editor";
@@ -22,6 +22,7 @@ import {
   savePositions,
   setResultsPublished,
   setTableBank,
+  setTableStarted,
 } from "./actions";
 
 export const metadata: Metadata = { title: "Manage event" };
@@ -77,7 +78,15 @@ export default async function ManageEventPage({ params }: PageProps<"/dashboard/
         </h2>
 
         {event.format === "tables" ? (
-          <TablesAdmin tables={tables} people={going} moveAction={(uid) => moveEntry.bind(null, societyId, eventId, uid)} removeAction={(uid) => removeEntry.bind(null, societyId, eventId, uid)} />
+          <TablesAdmin
+            tables={tables}
+            people={going}
+            moveAction={(uid) => moveEntry.bind(null, societyId, eventId, uid)}
+            removeAction={(uid) => removeEntry.bind(null, societyId, eventId, uid)}
+            eventStarted={new Date(event.starts_at).getTime() <= nowMs()}
+            finished={finished}
+            startAction={(tableId, started) => setTableStarted.bind(null, societyId, eventId, tableId, started)}
+          />
         ) : event.format === "entries" && finished ? (
           <form action={savePositions.bind(null, societyId, eventId)} className="card mt-3 space-y-3">
             <p className="text-sm text-muted">Enter finishing positions (1 = winner). Leave blank for anyone who didn&apos;t place.</p>
@@ -240,11 +249,17 @@ function TablesAdmin({
   people,
   moveAction,
   removeAction,
+  eventStarted,
+  finished,
+  startAction,
 }: {
   tables: EventTable[];
   people: Person[];
   moveAction: (uid: string) => (formData: FormData) => Promise<void>;
   removeAction: (uid: string) => () => Promise<void>;
+  eventStarted: boolean;
+  finished: boolean;
+  startAction: (tableId: string, started: boolean) => () => Promise<void>;
 }) {
   const groups = [...tables.map((t) => ({ table: t as EventTable | null, list: people.filter((p) => p.tableId === t.id) })), {
     table: null,
@@ -264,6 +279,25 @@ function TablesAdmin({
                 </span>
               )}
             </div>
+            {table && !finished && (
+              table.started_at ? (
+                <div className="mt-2 flex items-center gap-3 text-sm">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-live px-2 py-0.5 text-xs font-bold text-white">
+                    <span className="size-1.5 animate-pulse rounded-full bg-white" /> LIVE
+                  </span>
+                  <span className="text-muted">
+                    Started {new Date(table.started_at).toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                  <form action={startAction(table.id, false)}>
+                    <button className="font-semibold text-muted hover:text-danger">Undo</button>
+                  </form>
+                </div>
+              ) : !eventStarted ? (
+                <form action={startAction(table.id, true)} className="mt-2">
+                  <button className="btn py-1.5 text-sm">▶ Start table now</button>
+                </form>
+              ) : null
+            )}
             {table && (() => {
               const willing = people.filter((p) => p.tableId !== table.id && p.alsoTables.includes(table.id));
               return willing.length > 0 ? (

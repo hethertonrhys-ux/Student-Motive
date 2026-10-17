@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { parsePounds } from "@/lib/ledger";
 
@@ -77,4 +78,13 @@ export async function deleteMyPayment(eventId: string, paymentId: string): Promi
   const { error } = await supabase.rpc("delete_my_payment", { pid: paymentId });
   revalidatePath(`/e/${eventId}`);
   return error ? { error: friendly(error.message) } : {};
+}
+
+// Confirming your seat saves it as confirmed and takes you to your dashboard.
+export async function confirmSeat(eventId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("confirm_seat", { eid: eventId });
+  if (error) return;
+  revalidatePath(`/e/${eventId}`);
+  redirect(`/dashboard?confirmed=${eventId}`);
 }

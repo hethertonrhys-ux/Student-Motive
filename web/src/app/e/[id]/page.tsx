@@ -32,7 +32,8 @@ export default async function EventPage({ params }: PageProps<"/e/[id]">) {
   const event = await getPublicEvent(id);
   if (!event) notFound();
 
-  const live = !event.is_cancelled && isLive(event.starts_at, event.ends_at);
+  const earlyStart = (event.event_tables ?? []).some((t) => t.started_at) && !hasEnded(event.ends_at);
+  const live = !event.is_cancelled && (isLive(event.starts_at, event.ends_at) || earlyStart);
   const finished = hasEnded(event.ends_at);
   const venue = event.venues;
   const mapsUrl = venue ? `https://www.google.com/maps/search/?api=1&query=${venue.lat},${venue.lng}` : null;

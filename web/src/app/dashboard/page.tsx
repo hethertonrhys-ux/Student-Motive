@@ -26,7 +26,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     supabase.from("society_members").select("status, societies(id, name, slug)").eq("user_id", profile.id),
     supabase
       .from("event_entries")
-      .select("status, event_tables(name, level), events(id, title, starts_at, ends_at)")
+      .select("status, event_tables!event_entries_table_id_fkey(name, level), events(id, title, starts_at, ends_at)")
       .eq("user_id", profile.id),
   ]);
   const now = nowMs();

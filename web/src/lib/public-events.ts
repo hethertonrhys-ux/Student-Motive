@@ -6,6 +6,7 @@ import type { MotiveEvent, Society, Venue } from "@/lib/types";
 export type EventWithDetails = MotiveEvent & {
   societies: Pick<Society, "name" | "slug" | "logo_url"> | null;
   venues: Pick<Venue, "name" | "address" | "lat" | "lng"> | null;
+  event_tables: { started_at: string | null }[] | null;
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -16,7 +17,7 @@ export const getPublicEvent = cache(async (id: string): Promise<EventWithDetails
   const supabase = await createClient();
   const { data } = await supabase
     .from("events")
-    .select("*, societies(name, slug, logo_url), venues(name, address, lat, lng)")
+    .select("*, societies(name, slug, logo_url), venues(name, address, lat, lng), event_tables(started_at)")
     .eq("id", id)
     .maybeSingle();
   return data as EventWithDetails | null;

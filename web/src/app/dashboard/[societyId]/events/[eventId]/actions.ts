@@ -159,3 +159,15 @@ export async function setTableBank(societyId: string, eventId: string, tableId: 
   await supabase.from("event_tables").update({ bank_user_id: userId }).eq("id", tableId).eq("event_id", eventId);
   refresh(societyId, eventId);
 }
+
+// Start a table before the event's official start time (or undo it).
+export async function setTableStarted(societyId: string, eventId: string, tableId: string, started: boolean) {
+  const supabase = await managed(societyId, eventId);
+  await supabase
+    .from("event_tables")
+    .update({ started_at: started ? new Date().toISOString() : null })
+    .eq("id", tableId)
+    .eq("event_id", eventId);
+  refresh(societyId, eventId);
+  revalidatePath("/map");
+}

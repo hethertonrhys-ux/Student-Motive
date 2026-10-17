@@ -11,6 +11,7 @@ export type Person = {
   finishPosition: number | null;
   joinedAt: string;
   alsoTables: string[];
+  confirmedTableId: string | null;
 };
 
 // Everyone who's joined an event, with their names. The database decides what
@@ -19,7 +20,7 @@ export async function getEventPeople(supabase: SupabaseClient, eventId: string) 
   const [{ data: entries }, { data: tables }] = await Promise.all([
     supabase
       .from("event_entries")
-      .select("user_id, status, table_id, finish_position, created_at, also_tables")
+      .select("user_id, status, table_id, finish_position, created_at, also_tables, confirmed_table_id")
       .eq("event_id", eventId)
       .order("created_at"),
     supabase.from("event_tables").select("*").eq("event_id", eventId).order("position"),
@@ -40,6 +41,7 @@ export async function getEventPeople(supabase: SupabaseClient, eventId: string) 
     finishPosition: e.finish_position,
     joinedAt: e.created_at,
     alsoTables: (e.also_tables as string[] | null) ?? [],
+    confirmedTableId: (e.confirmed_table_id as string | null) ?? null,
   }));
 
   return { people, tables: (tables ?? []) as EventTable[] };

@@ -37,6 +37,7 @@ type Row = {
   location_note: string | null;
   venues: { name: string; lat: number; lng: number } | null;
   societies: { name: string } | null;
+  event_tables: { started_at: string | null }[] | null;
 };
 
 // Everything that's on from now until the end of tomorrow night.
@@ -51,7 +52,7 @@ export async function getMapEvents(): Promise<{ events: MapEvent[]; windows: Map
   const supabase = await createClient();
   const { data } = await supabase
     .from("events")
-    .select("id, title, category, free_food, starts_at, ends_at, going_count, lat, lng, location_note, venues(name, lat, lng), societies(name)")
+    .select("id, title, category, free_food, starts_at, ends_at, going_count, lat, lng, location_note, venues(name, lat, lng), societies(name), event_tables(started_at)")
     .eq("is_cancelled", false)
     .gt("ends_at", windows.now)
     .lt("starts_at", windows.tomorrowEnds)
@@ -68,7 +69,8 @@ export async function getMapEvents(): Promise<{ events: MapEvent[]; windows: Map
       title: row.title,
       category: row.category,
       freeFood: row.free_food,
-      startsAt: row.starts_at,
+      // A table the committee started early makes the event live early.
+      startsAt: [row.starts_at, ...(row.event_tables ?? []).map((t) => t.started_at).filter((x): x is string => !!x)].sort()[0],
       endsAt: row.ends_at,
       going: row.going_count,
       lat,

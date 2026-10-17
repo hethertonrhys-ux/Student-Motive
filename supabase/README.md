@@ -8,6 +8,7 @@ Project ID: `xrpbmcoptyrpgkdowfdt` (London region)
 - `migrations/20261017000000_members_formats_ledger.sql`: society members, event formats (sign-up lists, tables), results ledger.
 - `migrations/20261017120000_tables_flexibility_and_self_reporting.sql`: "also happy to play at", splitting a counting difference, players reporting their own result, committee adding late arrivals.
 - `migrations/20261018000000_table_bank.sql`: a "bank" player per table who records buy-ins and cash-outs.
+- `migrations/20261018120000_confirm_seat_and_start_tables.sql`: confirming your seat, and starting a table early.
 - `seed.sql`: starter data (LSE buildings, LSE halls, other universities, first society).
 
 ## Running them

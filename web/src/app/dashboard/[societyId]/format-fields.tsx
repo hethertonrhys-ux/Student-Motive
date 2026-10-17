@@ -18,7 +18,7 @@ export function FormatFields({ format: initialFormat = "standard", capacity, mem
   const [drafts, setDrafts] = useState<TableDraft[]>(
     tables.length > 0
       ? tables.map((t) => ({ id: t.id, name: t.name, level: t.level ?? "", seats: t.seats }))
-      : [{ name: "Table 1", level: "Free", seats: DEFAULT_SEATS }],
+      : [{ name: "Table 1", level: "", seats: DEFAULT_SEATS }],
   );
 
   function update(index: number, change: Partial<TableDraft>) {
@@ -28,7 +28,7 @@ export function FormatFields({ format: initialFormat = "standard", capacity, mem
   function addTable() {
     setDrafts((current) => [
       ...current,
-      { name: `Table ${current.length + 1}`, level: current.at(-1)?.level ?? "", seats: current.at(-1)?.seats ?? DEFAULT_SEATS },
+      { name: `Table ${current.length + 1}`, level: "", seats: current.at(-1)?.seats ?? DEFAULT_SEATS },
     ]);
   }
 
@@ -70,11 +70,6 @@ export function FormatFields({ format: initialFormat = "standard", capacity, mem
 
       {format === "tables" && (
         <div className="space-y-3">
-          <datalist id="table-levels">
-            {POKER_STAKES.map((s) => (
-              <option key={s} value={s} />
-            ))}
-          </datalist>
           {drafts.map((table, i) => (
             <div key={table.id ?? `new-${i}`} className="grid grid-cols-[1fr_1fr_5rem_auto] items-end gap-2">
               <div>
@@ -83,15 +78,7 @@ export function FormatFields({ format: initialFormat = "standard", capacity, mem
               </div>
               <div>
                 {i === 0 && <span className="label">Level / stakes</span>}
-                <input
-                  value={table.level}
-                  onChange={(e) => update(i, { level: e.target.value })}
-                  list="table-levels"
-                  maxLength={40}
-                  placeholder="e.g. 10p/20p"
-                  className="input"
-                  aria-label="Level or stakes"
-                />
+                <LevelPicker value={table.level} onChange={(level) => update(i, { level })} />
               </div>
               <div>
                 {i === 0 && <span className="label">Seats</span>}
@@ -135,5 +122,50 @@ export function FormatFields({ format: initialFormat = "standard", capacity, mem
         </span>
       </label>
     </fieldset>
+  );
+}
+
+// Stakes dropdown, with "Other…" for typing your own (e.g. for non-poker events).
+function LevelPicker({ value, onChange }: { value: string; onChange: (level: string) => void }) {
+  const isPreset = value === "" || POKER_STAKES.includes(value);
+  const [custom, setCustom] = useState(!isPreset);
+
+  if (custom) {
+    return (
+      <div className="flex gap-1">
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          maxLength={40}
+          placeholder="Type a level"
+          autoFocus
+          className="input"
+          aria-label="Level or stakes"
+        />
+        <button
+          type="button"
+          onClick={() => { setCustom(false); onChange(""); }}
+          className="shrink-0 px-1 text-sm font-semibold text-muted"
+          aria-label="Back to the list"
+        >
+          ↩
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <select
+      value={value}
+      onChange={(e) => {
+        if (e.target.value === "__other") { setCustom(true); onChange(""); } else onChange(e.target.value);
+      }}
+      className={`input ${value === "" ? "text-muted/70" : ""}`}
+      aria-label="Level or stakes"
+    >
+      <option value="" disabled hidden>e.g. 10p/20p</option>
+      {POKER_STAKES.map((stake) => <option key={stake} value={stake} className="text-ink">{stake}</option>)}
+      <option value="__other" className="text-ink">Other…</option>
+    </select>
   );
 }

@@ -73,6 +73,7 @@ export type EventTable = {
   seats: number;
   position: number;
   bank_user_id: string | null;
+  started_at: string | null;
 };
 
 export type EntryStatus = "going" | "waitlist";

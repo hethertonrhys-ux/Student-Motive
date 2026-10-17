@@ -9,7 +9,7 @@ import { Avatar } from "@/components/avatar";
 import { NameForm } from "@/components/name-form";
 import { saveName } from "@/app/account/actions";
 import { ActionButton } from "./action-button";
-import { chooseTable, deleteMyPayment, joinEvent, leaveEvent, recordMyPayment, recordMyResult } from "./actions";
+import { chooseTable, confirmSeat, deleteMyPayment, joinEvent, leaveEvent, recordMyPayment, recordMyResult } from "./actions";
 import { AlsoTables } from "./also-tables";
 import { SelfReport } from "./self-report";
 import { BankLedger } from "./bank-ledger";
@@ -89,7 +89,7 @@ export async function Participation({ event, society }: Props) {
 
       {me?.status === "going" &&
         !event.results_published &&
-        new Date(event.starts_at).getTime() <= nowMs() &&
+        (new Date(event.starts_at).getTime() <= nowMs() || Boolean(tables.find((t) => t.id === me.tableId)?.started_at)) &&
         (event.format !== "tables" || me.tableId) &&
         !tables.find((t) => t.id === me.tableId)?.bank_user_id && <MySelfReport event={event} me={me} people={people} />}
 
@@ -182,7 +182,14 @@ function TablesPicker({ event, tables, people, me }: { event: MotiveEvent; table
           return (
             <div key={table.id} className={`card ${mine ? "border-brand ring-2 ring-brand/30" : ""}`}>
               <div className="flex items-baseline justify-between gap-2">
-                <h3 className="font-display text-lg font-bold">{table.name}</h3>
+                <h3 className="flex items-center gap-2 font-display text-lg font-bold">
+                  {table.name}
+                  {table.started_at && !hasEnded(event.ends_at) && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-live px-2 py-0.5 font-sans text-[11px] font-bold text-white">
+                      <span className="size-1.5 animate-pulse rounded-full bg-white" /> LIVE
+                    </span>
+                  )}
+                </h3>
                 <span className="text-sm font-semibold text-muted">
                   {table.level && <span className="text-ink">{table.level} · </span>}
                   {seated.length}/{table.seats}
@@ -212,16 +219,16 @@ function TablesPicker({ event, tables, people, me }: { event: MotiveEvent; table
 
       {me && <AlsoTables eventId={event.id} tables={tables} myTableId={me.tableId} selected={me.alsoTables} />}
 
-      {me?.tableId && (
-        <div className="card flex flex-wrap items-center justify-between gap-3 border-brand bg-brand-soft">
+      {/* Only ask to confirm when there's something new to confirm. */}
+      {me?.tableId && me.confirmedTableId !== me.tableId && (
+        <form action={confirmSeat.bind(null, event.id)} className="card flex flex-wrap items-center justify-between gap-3 border-brand bg-brand-soft">
           <p className="font-semibold">
-            You&apos;re at {tables.find((t) => t.id === me.tableId)?.name}
+            {me.confirmedTableId ? "You've moved to " : "You're at "}
+            {tables.find((t) => t.id === me.tableId)?.name}
             {tables.find((t) => t.id === me.tableId)?.level ? ` · ${tables.find((t) => t.id === me.tableId)?.level}` : ""}
           </p>
-          <Link href={`/dashboard?confirmed=${event.id}`} className="btn">
-            Confirm my seat
-          </Link>
-        </div>
+          <button className="btn">{me.confirmedTableId ? "Confirm change" : "Confirm my seat"}</button>
+        </form>
       )}
 
       {!me && (
