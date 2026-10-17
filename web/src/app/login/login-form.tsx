@@ -38,13 +38,8 @@ export function LoginForm({ next }: { next: string }) {
   return (
     <div className="space-y-4">
       <p className="text-muted">
-        We&apos;ve emailed <strong className="text-ink">{emailState.email}</strong>. It can take a minute, so check
-        your junk folder too.
-      </p>
-      <p className="rounded-xl bg-brand-soft px-3.5 py-2.5 text-sm">
-        <strong>Got a link?</strong> Open it in this browser and you&apos;ll be logged in.
-        <br />
-        <strong>Got a code?</strong> Enter it below.
+        We&apos;ve emailed a login code to <strong className="text-ink">{emailState.email}</strong>. It can take a
+        minute, so check your junk folder too.
       </p>
       <form action={codeAction} className="space-y-4">
         <input type="hidden" name="email" value={emailState.email} />
