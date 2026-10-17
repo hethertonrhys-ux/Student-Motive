@@ -202,9 +202,21 @@ export function AndroidInstall() {
   );
 }
 
-export const IPHONE_STEPS = [
+export type InstallStep = {
+  title: string;
+  body: string;
+  // Step 1 only: what to say when they're already in the right browser.
+  titleHere?: string;
+  bodyHere?: string;
+  short: string;
+  art: ReactNode;
+};
+
+export const IPHONE_STEPS: InstallStep[] = [
   {
     title: "In Safari, tap ••• then Share",
+    titleHere: "Tap ••• then Share",
+    bodyHere: "Tap ••• at the bottom right, next to the web address, then tap Share. (Older iPhones: just tap the Share button at the bottom.)",
     body: "Open the link below in Safari. Tap ••• at the bottom right, next to the web address, then tap Share. (Older iPhones: just tap the Share button at the bottom.)",
     short: "••• is next to the web address.",
     art: <IphoneSafari />,
@@ -214,8 +226,15 @@ export const IPHONE_STEPS = [
   { title: "Open it from your home screen", body: "Log in once with your email code. You'll stay logged in.", short: "Log in once. You'll stay logged in.", art: <HomeScreen /> },
 ];
 
-export const ANDROID_STEPS: typeof IPHONE_STEPS = [
-  { title: "Open Motive in Chrome", body: "Open the link below in Chrome, then tap ⋮ in the top right.", short: "Then tap ⋮.", art: <AndroidChrome /> },
+export const ANDROID_STEPS: InstallStep[] = [
+  {
+    title: "Open Motive in Chrome",
+    body: "Open the link below in Chrome, then tap ⋮ in the top right.",
+    titleHere: "Tap ⋮",
+    bodyHere: "Tap ⋮ in the top right of Chrome.",
+    short: "Then tap ⋮.",
+    art: <AndroidChrome />,
+  },
   { title: "Tap “Add to home screen”", body: "On some phones it's called “Install app”.", short: "Or “Install app”.", art: <AndroidMenu /> },
   { title: "Tap Install", body: "Motive is added to your home screen and app drawer.", short: "", art: <AndroidInstall /> },
   { title: "Open it from your home screen", body: "Log in once with your email code. You'll stay logged in.", short: "", art: <HomeScreen /> },

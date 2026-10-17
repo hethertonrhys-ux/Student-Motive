@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { oneTapInstall, useCanOneTapInstall, useDevice } from "@/lib/install";
-import { ANDROID_STEPS, IPHONE_STEPS } from "./illustrations";
+import { ANDROID_STEPS, IPHONE_STEPS, type InstallStep } from "./illustrations";
 
 type Tab = "iphone" | "android";
 
@@ -92,15 +92,28 @@ export function InstallGuide() {
               <CopyLink />
             </div>
           )}
-          <Steps steps={IPHONE_STEPS} />
+          <Steps
+            steps={IPHONE_STEPS}
+            browserDone={
+              device?.platform === "iphone" && device.iphoneBrowser === "safari" && !device.inAppBrowser ? "Safari" : null
+            }
+          />
         </>
       )}
-      {tab === "android" && <Steps steps={ANDROID_STEPS} />}
+      {tab === "android" && (
+        <Steps
+          steps={ANDROID_STEPS}
+          browserDone={
+            device?.platform === "android" && device.androidBrowser === "chrome" && !device.inAppBrowser ? "Chrome" : null
+          }
+        />
+      )}
     </div>
   );
 }
 
-function Steps({ steps }: { steps: typeof IPHONE_STEPS }) {
+// browserDone: they're already in the right browser, so opening it is done.
+function Steps({ steps, browserDone }: { steps: InstallStep[]; browserDone: string | null }) {
   return (
     <ol role="tabpanel" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {steps.map((step, i) => (
@@ -108,11 +121,18 @@ function Steps({ steps }: { steps: typeof IPHONE_STEPS }) {
           <div className="flex items-start gap-2.5">
             <span className="grid size-7 shrink-0 place-items-center rounded-full bg-brand font-display text-sm font-extrabold text-brand-ink">{i + 1}</span>
             <div>
-              <h3 className="font-bold leading-snug">{step.title}</h3>
-              <p className="mt-0.5 text-sm text-muted">{step.body}</p>
+              <h3 className="font-bold leading-snug">{browserDone && step.titleHere ? step.titleHere : step.title}</h3>
+              <p className="mt-0.5 text-sm text-muted">{browserDone && step.bodyHere ? step.bodyHere : step.body}</p>
             </div>
           </div>
-          {i === 0 && <CopyLink />}
+          {i === 0 &&
+            (browserDone ? (
+              <p className="rounded-xl bg-ok/10 px-3 py-2 text-sm font-semibold text-ok">
+                ✓ You&apos;re already in {browserDone}, so you&apos;re in the right place.
+              </p>
+            ) : (
+              <CopyLink />
+            ))}
           <div className="mt-auto">{step.art}</div>
         </li>
       ))}

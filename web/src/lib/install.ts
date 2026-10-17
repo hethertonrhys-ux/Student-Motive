@@ -12,6 +12,8 @@ export type Device = {
   inAppBrowser: string | null;
   // On iPhone, Safari is easiest. Chrome/Edge/Firefox work too on newer iPhones.
   iphoneBrowser: "safari" | "other";
+  // On Android, our steps are for Chrome.
+  androidBrowser: "chrome" | "other";
   // Already opened from the home screen icon.
   installed: boolean;
 };
@@ -38,6 +40,7 @@ function detect(): Device {
     platform: iphone ? "iphone" : android ? "android" : "other",
     inAppBrowser: IN_APP.find(([re]) => re.test(ua))?.[1] ?? null,
     iphoneBrowser: /CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua) ? "other" : "safari",
+    androidBrowser: /Chrome\//.test(ua) && !/SamsungBrowser|EdgA|OPR|Firefox|; wv\)/i.test(ua) ? "chrome" : "other",
     installed,
   };
 }
