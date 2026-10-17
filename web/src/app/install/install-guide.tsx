@@ -83,10 +83,14 @@ export function InstallGuide() {
       {tab === "iphone" && (
         <>
           {device?.platform === "iphone" && device.iphoneBrowser === "other" && !device.inAppBrowser && (
-            <p className="rounded-xl bg-brand-soft px-4 py-3 text-sm">
-              Using Chrome or another browser? Tap the <strong>Share</strong> button in the address bar, then follow
-              step 2. If you can&apos;t see it, open this page in Safari.
-            </p>
+            <div className="card border-live/40 bg-live/10">
+              <p className="font-bold">This works best in Safari</p>
+              <p className="mt-1 text-sm">
+                You&apos;re not using Safari right now. Copy this link, open the <strong>Safari</strong> app, and
+                paste it into the address bar. Then follow the steps below.
+              </p>
+              <CopyLink />
+            </div>
           )}
           <Steps steps={IPHONE_STEPS} />
         </>
