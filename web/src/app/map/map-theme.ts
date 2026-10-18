@@ -10,20 +10,20 @@ const PALETTES = {
   day: {
     land: "#F7F6F2", park: "#CDEBC4", water: "#A8D8FF", waterText: "#3B6E9E",
     road: "#FFFFFF", roadCase: "#E2DED5", major: "#FFF0B3", majorCase: "#EFD37A", path: "#D9D5CC", pedestrian: "#F1EEE6", rail: "#C9C5BD",
-    building: "#ECE9E2", buildingSide: "#DAD5CA", campus: "#EEF0FF", lseZone: "#E3E6FF", lse: "#C7CCFF", lseSide: "#A5ADF7",
+    building: "#ECE9E2", buildingSide: "#DAD5CA", campus: "#EEF0FF", lse: "#C7CCFF", lseSide: "#A5ADF7",
     text: "#5A5E68", textStrong: "#2F333B", halo: "#F7F6F2", lseText: "#4338CA", station: "#B4233C", place: "#8A8E98",
   },
   night: {
     land: "#171C27", park: "#1B3226", water: "#0E2036", waterText: "#7FA6CC",
     road: "#2A3241", roadCase: "#1D2330", major: "#3F4658", majorCase: "#2C3242", path: "#323A4A", pedestrian: "#1E2430", rail: "#3A4150",
-    building: "#232A38", buildingSide: "#12161F", campus: "#1D2036", lseZone: "#22265A", lse: "#30346F", lseSide: "#22255A",
+    building: "#232A38", buildingSide: "#12161F", campus: "#1D2036", lse: "#30346F", lseSide: "#22255A",
     text: "#AEB6C4", textStrong: "#DDE3EE", halo: "#171C27", lseText: "#A5B4FC", station: "#FF8FA3", place: "#7D8596",
   },
 } as const;
 
-// The LSE campus area and its buildings: the real outlines, taken exactly as
-// they are from the same map data (public/lse-campus.geojson), so they
-// line up perfectly. Only their colour changes.
+// LSE's buildings: the real outlines, taken exactly as they are from the same
+// map data (public/lse-campus.geojson), so they line up perfectly. Only their
+// colour changes. The file also holds the building names for labels.
 const CAMPUS_DATA = "/lse-campus.geojson";
 const campusUrl = () => (typeof window === "undefined" ? CAMPUS_DATA : new URL(CAMPUS_DATA, window.location.origin).href);
 const isCampusBuilding = ["==", ["get", "kind"], "building"];
@@ -55,7 +55,6 @@ export function mapStyle(look: Look): StyleSpecification {
       { id: "park", type: "fill", source: "omt", "source-layer": "park", paint: { "fill-color": p.park } },
       { id: "pitch", type: "fill", source: "omt", "source-layer": "landuse", filter: ["in", ["get", "class"], ["literal", ["pitch", "playground"]]], paint: { "fill-color": p.park } },
       { id: "campus", type: "fill", source: "omt", "source-layer": "landuse", filter: ["in", ["get", "class"], ["literal", ["university", "college"]]], paint: { "fill-color": p.campus } },
-      { id: "lse-campus", type: "fill", source: "lse", filter: ["==", ["get", "kind"], "campus"], paint: { "fill-color": p.lseZone } },
       { id: "water", type: "fill", source: "omt", "source-layer": "water", paint: { "fill-color": p.water } },
       { id: "waterway", type: "line", source: "omt", "source-layer": "waterway", paint: { "line-color": p.water, "line-width": width([[12, 1], [18, 6]]) } },
 
@@ -109,6 +108,14 @@ export function mapStyle(look: Look): StyleSpecification {
         filter: ["any", ["in", ["get", "class"], ["literal", ["college", "theatre", "museum", "attraction", "town_hall"]]], ["==", ["get", "subclass"], "library"]],
         layout: { "text-field": ["get", "name:latin"], "text-font": ITALIC, "text-size": 11.5, "text-max-width": 9, "symbol-sort-key": ["get", "rank"] },
         paint: { "text-color": p.textStrong, "text-halo-color": p.halo, "text-halo-width": 1.6 },
+      },
+      // LSE building names (positions checked against Google Maps). The most
+      // important show first; the rest appear as you zoom in.
+      {
+        id: "lse-name", type: "symbol", source: "lse", minzoom: 15.5,
+        filter: ["all", ["==", ["get", "kind"], "label"], ["<=", ["get", "rank"], ["step", ["zoom"], 1, 16.3, 2, 16.8, 3, 17.3, 4]]],
+        layout: { "text-field": ["get", "name"], "text-font": BOLD, "text-size": ["interpolate", ["linear"], ["zoom"], 15.5, 11, 18, 13], "text-max-width": 7, "symbol-sort-key": ["get", "rank"] },
+        paint: { "text-color": p.lseText, "text-halo-color": p.halo, "text-halo-width": 1.8 },
       },
       {
         id: "station", type: "symbol", source: "omt", "source-layer": "poi", minzoom: 13,
