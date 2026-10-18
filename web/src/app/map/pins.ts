@@ -32,6 +32,10 @@ export const CATEGORY_STYLE: Record<MapCategory, { colour: string; icon: string 
     colour: "#0F766E",
     icon: "M12 6.5C10.3 5.3 7.9 4.8 5 4.8v13c2.9 0 5.3.5 7 1.7 1.7-1.2 4.1-1.7 7-1.7v-13c-2.9 0-5.3.5-7 1.7zM12 6.5v13",
   },
+  food: {
+    colour: "#B45309",
+    icon: "M7 3.5v6.5M4.5 3.5v4a2.5 2.5 0 005 0v-4M7 10v10.5M17 20.5V3.5c-2.2 0-3.5 2.4-3.5 6v3.5H17",
+  },
   other: {
     colour: "#475569",
     icon: "M12 3.5l2.2 5.3 5.8.5-4.4 3.8 1.3 5.6L12 15.8l-4.9 2.9 1.3-5.6L4 9.3l5.8-.5z",
