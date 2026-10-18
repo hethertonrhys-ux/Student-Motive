@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { ShareButton } from "@/components/share-button";
 import { getUserId } from "@/lib/auth";
+import { formatCost } from "@/lib/cost";
 import { getCards } from "@/lib/social";
 import { SOCIAL_EVENT_FIELDS, categoryInfo, formatWhen, spacesLeft, type MemberStatus, type SocialEvent } from "@/lib/social-events";
 import { SITE_URL } from "@/lib/site";
@@ -57,6 +58,7 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
   const left = spacesLeft(event);
   const finished = new Date(event.ends_at).getTime() < nowMs();
   const cat = categoryInfo(event.category);
+  const cost = formatCost(event.cost_pence);
   const pin = address?.lat != null && address?.lng != null ? address : null;
 
   return (
@@ -103,6 +105,12 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
             </a>
           )}
         </div>
+        {cost && (
+          <div>
+            <dt className="text-sm font-semibold text-muted">Cost</dt>
+            <dd className="font-semibold">{cost === "Free" ? "Free" : `${cost} per person`}</dd>
+          </div>
+        )}
         <div>
           <dt className="text-sm font-semibold text-muted">Spaces</dt>
           <dd className={`font-semibold ${left === 0 ? "text-danger" : ""}`}>

@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { CATEGORIES, type EventTable, type MotiveEvent, type Venue } from "@/lib/types";
+import { CostField } from "@/components/cost-field";
 import { FormatFields } from "./format-fields";
 import { WhereField } from "./where-field";
 import type { FormState } from "./actions";
@@ -56,6 +57,8 @@ export function EventForm({ action, venues, event, tables, startsAtInput, endsAt
       <p className="-mt-3 text-xs text-muted">UK time.</p>
 
       <WhereField venues={venues} event={event} />
+
+      <CostField pence={event?.cost_pence} />
 
       <FormatFields format={event?.format} capacity={event?.capacity} membersOnly={event?.members_only ?? true} tables={tables} />
 

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { readCost } from "@/lib/cost";
 import { requireManagedSociety } from "@/lib/society";
 import { uploadSocietyImage } from "@/lib/storage";
 import { londonInputToIso } from "@/lib/time";
@@ -89,6 +90,8 @@ function readEvent(formData: FormData) {
 
   const tables = readTables(formData, format);
   if ("error" in tables) return { error: tables.error };
+  const cost = readCost(formData);
+  if ("error" in cost) return { error: cost.error };
 
   return {
     tables: tables.list,
@@ -106,6 +109,7 @@ function readEvent(formData: FormData) {
       ends_at: endsAt,
       description: text(formData, "description", 5000),
       free_food: formData.get("free_food") === "on",
+      cost_pence: cost.value,
       ticket_url: ticket.value,
     },
   };

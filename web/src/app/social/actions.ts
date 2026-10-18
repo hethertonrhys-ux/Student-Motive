@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { SOCIAL_CATEGORIES, type SocialCategory } from "@/lib/social-events";
 import { createClient } from "@/lib/supabase/server";
+import { readCost } from "@/lib/cost";
 import { londonInputToIso } from "@/lib/time";
 
 export type FormState = { error?: string };
@@ -47,6 +48,9 @@ function read(formData: FormData) {
   if (!area) return { error: "Add the place name everyone sees, e.g. Powerleague Shoreditch." };
   if (!Number.isInteger(spaces) || spaces < 2 || spaces > 500) return { error: "Spaces must be a whole number from 2 to 500 (including you)." };
 
+  const cost = readCost(formData);
+  if ("error" in cost) return { error: cost.error };
+
   const rough = blur(lat, lng);
   return {
     event: {
@@ -59,6 +63,7 @@ function read(formData: FormData) {
       lat: rough.lat,
       lng: rough.lng,
       spaces,
+      cost_pence: cost.value,
       is_private: formData.get("privacy") === "private",
       friends_only: formData.get("friends_only") === "on",
     },

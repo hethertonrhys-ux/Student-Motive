@@ -11,6 +11,7 @@ import { HostedPanel } from "./hosted-panel";
 import { getCards } from "@/lib/social";
 import { createClient } from "@/lib/supabase/server";
 import { Avatar } from "@/components/avatar";
+import { formatCost } from "@/lib/cost";
 
 export async function generateMetadata({ params }: PageProps<"/e/[id]">): Promise<Metadata> {
   const { id } = await params;
@@ -56,6 +57,7 @@ export default async function EventPage({ params, searchParams }: PageProps<"/e/
   const live = !event.is_cancelled && (isLive(event.starts_at, event.ends_at) || earlyStart);
   const finished = hasEnded(event.ends_at);
   const venue = event.venues;
+  const cost = formatCost(event.cost_pence);
   // Either a listed venue, or a custom pin named by the location note.
   const pin = venue
     ? { lat: venue.lat, lng: venue.lng }
@@ -135,6 +137,12 @@ export default async function EventPage({ params, searchParams }: PageProps<"/e/
                 Open in Maps →
               </a>
             )}
+          </div>
+        )}
+        {cost && (
+          <div>
+            <dt className="text-sm font-semibold text-muted">Cost</dt>
+            <dd className="font-semibold">{cost === "Free" ? "Free" : `${cost} per person`}</dd>
           </div>
         )}
         <div>
