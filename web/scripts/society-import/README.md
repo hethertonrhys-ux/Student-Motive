@@ -83,6 +83,18 @@ and the key never leaves it:
 - It's safe to run again later (collect, review, import) to pick up new
   societies.
 
+## What each SU website allows (checked October 2026)
+
+| SU | Directory | Logos | Notes |
+|---|---|---|---|
+| LSESU | Readable: one page lists every society, another every sports club | **Not allowed**: robots.txt disallows `/asset/`, where logos live | Descriptions and Instagram handles come through |
+| Students' Union UCL | Readable: JSON pages of 80 cards each | **Not allowed**: robots.txt disallows `/sites/default/files/` | Descriptions and Instagram handles come through |
+| Imperial College Union | Readable: all groups on the A to Z page | Allowed; hosted on `sums-data-public.sums.digital` (about a quarter of groups have one) | The site doesn't say which groups are projects, so delete those rows from the CSV |
+| KCLSU | **Blocked**: every page, including robots.txt, answers with a bot check | – | Skipped and reported |
+
+Societies without an allowed logo show their initials in the app, as any
+society without a logo does.
+
 ## When an SU website changes
 
 Each SU's reading code is a small file in `sites/` (`lse.mjs`, `ucl.mjs`,

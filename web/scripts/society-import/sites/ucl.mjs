@@ -60,7 +60,9 @@ export default {
       out.push({
         name: textOf(c.card_title_field),
         category: textOf(c.body_box ?? ""),
-        description: textOf(body) || textOf(c.card_body_text_preview ?? ""),
+        // An empty page body sometimes holds a stray full stop; use the
+        // directory's one-line preview then.
+        description: /[a-z]{2}/i.test(textOf(body)) ? textOf(body) : textOf(c.card_body_text_preview ?? ""),
         suUrl: c.card_link,
         logoUrl: c.host_icon ? fullSize(c.host_icon) : banner,
         instagram,

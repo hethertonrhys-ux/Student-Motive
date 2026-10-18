@@ -50,7 +50,8 @@ export default {
       out.push({
         ...entry,
         name: textOf(/<h1[^>]*>([^<]*)/.exec(page)?.[1] ?? "") || entry.name,
-        description: textOf(about.replace(/<img[^>]*>/g, "")),
+        // The block starts with the page's own tab labels; drop those.
+        description: textOf(about.replace(/<img[^>]*>/g, "")).replace(/^(?:(?:Chat with us|About us)\s*[:!.]?\s*)+/i, ""),
         logoUrl: logo || "",
         instagram,
         website: websiteTag ? websiteTag[1] : "",
