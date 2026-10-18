@@ -7,6 +7,7 @@ import { PhotoPicker } from "./photo-picker";
 import { MyFive } from "./my-five";
 import { PromptsEditor } from "./prompts-editor";
 import { uniFromEmail } from "@/lib/prompts";
+import type { TwoTruthsOwn } from "@/lib/two-truths";
 import { ShowSocietiesToggle } from "./show-societies-toggle";
 import { getPhotos } from "@/lib/profile-photos";
 
@@ -15,11 +16,13 @@ export const metadata: Metadata = { title: "Your profile" };
 export default async function AccountPage() {
   const me = await requireProfile();
   const supabase = await createClient();
-  const [{ data }, photos, { data: settings }, { data: prompts }] = await Promise.all([
+  const [{ data }, photos, { data: settings }, { data: prompts }, { data: twoTruths }] = await Promise.all([
     supabase.from("profiles").select("display_name, course, avatar_url").eq("id", me.id).single(),
     getPhotos(supabase, me.id),
     supabase.from("profile_settings").select("show_societies").eq("user_id", me.id).maybeSingle(),
     supabase.from("profile_prompts").select("prompt_id, answer").eq("user_id", me.id).order("position"),
+    // Your own Two truths and a lie (only you can read the lie).
+    supabase.from("two_truths").select("s1, s2, s3, lie").eq("user_id", me.id).maybeSingle(),
   ]);
 
   return (
@@ -47,7 +50,7 @@ export default async function AccountPage() {
         <ShowSocietiesToggle initial={settings?.show_societies ?? true} />
       </div>
       <ProfileForm name={data?.display_name ?? ""} course={data?.course ?? ""} />
-      <PromptsEditor initial={prompts ?? []} uni={uniFromEmail(me.email)} />
+      <PromptsEditor initial={prompts ?? []} uni={uniFromEmail(me.email)} twoTruths={(twoTruths as TwoTruthsOwn | null) ?? null} />
     </div>
   );
 }

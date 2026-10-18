@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { getProfile } from "@/lib/auth";
-import { MAX_PROMPTS, promptById } from "@/lib/prompts";
+import { MAX_PROMPTS, TWO_TRUTHS_ID, promptById } from "@/lib/prompts";
+import { TWO_TRUTHS_ANSWER, TWO_TRUTHS_MAX, type TwoTruthsView } from "@/lib/two-truths";
 import { createClient } from "@/lib/supabase/server";
 
 export type NameState = { error?: string };
@@ -130,4 +131,38 @@ async function removeOldPhotos(supabase: Awaited<ReturnType<typeof createClient>
   const { data } = await supabase.storage.from("avatars").list(userId, { limit: 100 });
   const old = (data ?? []).map((f) => `${userId}/${f.name}`).filter((p) => !keep.includes(p));
   if (old.length) await supabase.storage.from("avatars").remove(old);
+}
+
+// ---------- Two truths and a lie ----------
+
+// Save your three statements and which is the lie (changing them clears
+// everyone's guesses), and make sure the prompt is on your profile.
+export async function saveTwoTruths(s: [string, string, string], lie: number, placeFirst = false): Promise<{ error?: string }> {
+  const profile = await getProfile();
+  if (!profile) return { error: "Log in first." };
+  const texts = s.map((t) => String(t).trim().replace(/\s+/g, " ").slice(0, TWO_TRUTHS_MAX));
+  if (texts.some((t) => !t)) return { error: "Fill in all three." };
+  if (![1, 2, 3].includes(lie)) return { error: "Choose which one is the lie." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("save_two_truths", { one_text: texts[0], two_text: texts[1], three_text: texts[2], lie_is: lie });
+  if (error) return { error: "Couldn't save. Please try again." };
+  const { data } = await supabase.from("profile_prompts").select("prompt_id, answer").eq("user_id", profile.id).order("position");
+  const current = (data ?? []) as { prompt_id: string; answer: string }[];
+  if (!current.some((a) => a.prompt_id === TWO_TRUTHS_ID)) {
+    if (current.length >= MAX_PROMPTS) return { error: `You can answer up to ${MAX_PROMPTS} prompts. Remove one first.` };
+    const mine = { prompt_id: TWO_TRUTHS_ID, answer: TWO_TRUTHS_ANSWER };
+    await supabase.rpc("save_profile_prompts", { answers: placeFirst ? [mine, ...current] : [...current, mine] });
+  }
+  revalidatePath("/account");
+  revalidatePath(`/u/${profile.id}`);
+  return {};
+}
+
+// Guess which statement is someone's lie (once). Returns the reveal.
+export async function guessTwoTruths(person: string, choice: number): Promise<TwoTruthsView | null> {
+  const profile = await getProfile();
+  if (!profile) return null;
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("guess_two_truths", { person, choice });
+  return (data as TwoTruthsView | null) ?? null;
 }

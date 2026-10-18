@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requireProfile } from "@/lib/auth";
 import { Avatar } from "@/components/avatar";
 import { FriendButton } from "@/components/friend-button";
-import { getFriendRequests, getSocietyPosts, getTableMoves } from "@/lib/notifications";
+import { getFriendRequests, getSocietyPosts, getTableMoves, getTwoTruthsDays, twoTruthsLine } from "@/lib/notifications";
 import { getCards } from "@/lib/social";
 import { createClient } from "@/lib/supabase/server";
 import { MarkSeen } from "./mark-seen";
@@ -20,16 +20,49 @@ function ago(iso: string) {
   return `${days} day${days === 1 ? "" : "s"} ago`;
 }
 
+// "today", "yesterday" or "on Mon 12 Oct" (UK dates).
+function dayWord(day: string) {
+  const uk = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(d);
+  if (day === uk(new Date())) return "today";
+  if (day === uk(new Date(Date.now() - 864e5))) return "yesterday";
+  return `on ${new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(day + "T12:00:00Z"))}`;
+}
+
 export default async function NotificationsPage() {
   const me = await requireProfile();
   const supabase = await createClient();
-  const [posts, requests, moves] = await Promise.all([getSocietyPosts(supabase, me.id), getFriendRequests(supabase, me.id), getTableMoves(supabase, me.id)]);
+  const [posts, requests, moves, plays] = await Promise.all([
+    getSocietyPosts(supabase, me.id),
+    getFriendRequests(supabase, me.id),
+    getTableMoves(supabase, me.id),
+    getTwoTruthsDays(supabase),
+  ]);
   const cards = await getCards(supabase, requests.map((r) => r.id));
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
       <MarkSeen />
       <h1 className="font-display text-3xl font-extrabold tracking-tight">Notifications</h1>
+
+      {plays.length > 0 && (
+        <ul className="mt-6 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
+          {plays.map((d) => {
+            const line = twoTruthsLine(d);
+            return (
+              <li key={d.day}>
+                <Link href={`/u/${me.id}`} className="flex items-start gap-3 px-4 py-3 transition hover:bg-brand-soft">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-full bg-brand-soft font-display text-sm font-extrabold text-brand">2+1</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm">
+                      <span className="font-bold">{line.played}</span> {dayWord(d.day)}. {line.right}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
       {moves.length > 0 && (
         <ul className="mt-6 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
@@ -74,7 +107,7 @@ export default async function NotificationsPage() {
 
       {posts.length > 0 && requests.length > 0 && <h2 className="mt-8 mb-2 text-sm font-bold text-muted">Society events</h2>}
       {posts.length === 0 ? (
-        requests.length === 0 && moves.length === 0 && (
+        requests.length === 0 && moves.length === 0 && plays.length === 0 && (
           <div className="card mt-6 space-y-1">
             <p className="font-semibold">Nothing new yet.</p>
             <p className="text-sm text-muted">Friend requests, and new events from societies you&apos;re a member of, show up here.</p>
