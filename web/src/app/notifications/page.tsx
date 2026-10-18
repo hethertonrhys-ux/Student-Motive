@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requireProfile } from "@/lib/auth";
 import { Avatar } from "@/components/avatar";
 import { FriendButton } from "@/components/friend-button";
-import { getFriendRequests, getSocietyPosts } from "@/lib/notifications";
+import { getFriendRequests, getSocietyPosts, getTableMoves } from "@/lib/notifications";
 import { getCards } from "@/lib/social";
 import { createClient } from "@/lib/supabase/server";
 import { MarkSeen } from "./mark-seen";
@@ -23,13 +23,28 @@ function ago(iso: string) {
 export default async function NotificationsPage() {
   const me = await requireProfile();
   const supabase = await createClient();
-  const [posts, requests] = await Promise.all([getSocietyPosts(supabase, me.id), getFriendRequests(supabase, me.id)]);
+  const [posts, requests, moves] = await Promise.all([getSocietyPosts(supabase, me.id), getFriendRequests(supabase, me.id), getTableMoves(supabase, me.id)]);
   const cards = await getCards(supabase, requests.map((r) => r.id));
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
       <MarkSeen />
       <h1 className="font-display text-3xl font-extrabold tracking-tight">Notifications</h1>
+
+      {moves.length > 0 && (
+        <ul className="mt-6 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
+          {moves.map((m) => (
+            <li key={m.id}>
+              <Link href={`/e/${m.eventId}`} className="block px-4 py-3 transition hover:bg-brand-soft">
+                <span className="block text-sm">
+                  A seat opened up: you&apos;ve been moved to <span className="font-bold">{m.table}</span> at <span className="font-semibold text-brand">{m.event}</span>
+                </span>
+                <span className="text-xs text-muted">{ago(m.at)}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {requests.length > 0 && (
         <section className="mt-6">
@@ -59,7 +74,7 @@ export default async function NotificationsPage() {
 
       {posts.length > 0 && requests.length > 0 && <h2 className="mt-8 mb-2 text-sm font-bold text-muted">Society events</h2>}
       {posts.length === 0 ? (
-        requests.length === 0 && (
+        requests.length === 0 && moves.length === 0 && (
           <div className="card mt-6 space-y-1">
             <p className="font-semibold">Nothing new yet.</p>
             <p className="text-sm text-muted">Friend requests, and new events from societies you&apos;re a member of, show up here.</p>
