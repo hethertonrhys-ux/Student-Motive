@@ -11,6 +11,7 @@ import { AvatarZoom } from "./avatar-zoom";
 import { ProfileMenu } from "./profile-menu";
 import { PhotoGallery } from "./photo-gallery";
 import { getPhotos, getProfileSocieties } from "@/lib/profile-photos";
+import { promptById } from "@/lib/prompts";
 
 export const metadata: Metadata = { title: "Profile" };
 
@@ -47,9 +48,18 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
         .limit(10);
 
   // Their current photos and societies (both empty if either of you has blocked the other).
-  const [photos, societies] = isBlocked
-    ? [[], []]
-    : await Promise.all([getPhotos(supabase, id, nowMs()), getProfileSocieties(supabase, id)]);
+  const [photos, societies, prompts] = isBlocked
+    ? [[], [], []]
+    : await Promise.all([
+        getPhotos(supabase, id),
+        getProfileSocieties(supabase, id),
+        supabase
+          .from("profile_prompts")
+          .select("prompt_id, answer")
+          .eq("user_id", id)
+          .order("position")
+          .then(({ data }) => (data ?? []) as { prompt_id: string; answer: string }[]),
+      ]);
   const currentPhotos = photos.filter((p) => p.current);
 
   // Friends in common.
@@ -63,7 +73,23 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
           <h1 className="font-display text-2xl font-extrabold">{person.name}</h1>
           {person.course && <p className="text-muted">{person.course}</p>}
         </div>
-        {person.bio && <p className="max-w-md whitespace-pre-line">{person.bio}</p>}
+        {/* Prompt answers, where "About me" used to be (the old text is kept, not shown). */}
+        {prompts.length > 0 && (
+          <ul className="w-full max-w-md space-y-2 text-left">
+            {prompts.map((p) => {
+              const prompt = promptById(p.prompt_id);
+              return prompt ? (
+                <li key={p.prompt_id} data-prompt className="rounded-xl bg-brand-soft px-3.5 py-2.5">
+                  <p className="text-xs font-semibold text-muted">{prompt.text}</p>
+                  <p className="font-semibold [overflow-wrap:anywhere]">{p.answer}</p>
+                </li>
+              ) : null;
+            })}
+          </ul>
+        )}
+        {relation === "self" && prompts.length === 0 && (
+          <Link href="/account#prompts" className="text-sm font-semibold text-brand">Answer a few prompts so people get a feel for you →</Link>
+        )}
         {theirFriends ? <p className="text-sm text-muted">{theirFriends} friend{theirFriends === 1 ? "" : "s"} in common</p> : null}
         {relation === "self" ? (
           <span className="flex flex-wrap justify-center gap-2">

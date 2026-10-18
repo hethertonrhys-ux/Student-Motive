@@ -8,6 +8,8 @@ export type MapCategory = EventCategory | Exclude<SocialCategory, "sport" | "soc
 export const MAP_CATEGORIES: { value: MapCategory; label: string }[] = [
   ...CATEGORIES,
   { value: "study", label: "Study" },
+  { value: "food", label: "Food" },
+  { value: "learn", label: "Learn" },
   { value: "other", label: "Other" },
 ];
 

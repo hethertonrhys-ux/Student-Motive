@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { PhotoCropper } from "@/components/photo-cropper";
 import { decodePhoto } from "@/lib/compress-photo";
-import { archivePhoto, deletePhoto, pinPhoto, recropMyFivePhoto, uploadMyFivePhoto, type Result } from "./my-five-actions";
+import { archivePhoto, recropMyFivePhoto, reorderPhotos, uploadMyFivePhoto, type Result } from "./my-five-actions";
+import { useDragOrder } from "./use-drag-order";
 
-type Photo = { id: string; url: string | null; pinned: boolean; daysLeft: number | null };
+type Photo = { id: string; url: string | null };
 
-// The owner's view of their 5 photos: add, pin, archive, delete.
+// The owner's view of their 5 photos: add, reorder and remove. Photos stay
+// until removed; removed ones go to the Archive (restore or delete them there).
 export function MyFive({ photos, archived }: { photos: Photo[]; archived: number }) {
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +43,19 @@ export function MyFive({ photos, archived }: { photos: Photo[]; archived: number
       const r = await fn();
       if (r.error) setError(r.error);
     });
+
+  // Hold and drag to change the order; the first is shown first on your profile.
+  const byId = new Map(photos.map((p) => [p.id, p]));
+  const { order, dragging, itemProps, reset } = useDragOrder(photos.map((p) => p.id), (ids) =>
+    start(async () => {
+      setError(null);
+      const r = await reorderPhotos(ids);
+      if (r.error) {
+        setError(r.error);
+        reset();
+      }
+    }),
+  );
 
   // Pick several at once (up to the free spaces), then crop each to the
   // shape it's shown in on your profile.
@@ -92,50 +107,53 @@ export function MyFive({ photos, archived }: { photos: Photo[]; archived: number
       <div className="flex items-baseline justify-between gap-3">
         <div>
           <h2 className="font-display text-xl font-bold">My 5</h2>
-          <p className="text-sm text-muted">Photos of things you like or get up to. Each lasts 30 days unless you pin it.</p>
+          <p className="text-sm text-muted">Photos of things you like or get up to. They stay until you remove them.</p>
         </div>
         <span className="shrink-0 text-sm font-bold text-muted">{photos.length}/5</span>
       </div>
 
       <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-        {photos.map((p) => (
-          <li key={p.id} className="overflow-hidden rounded-xl border border-line bg-surface">
-            <div className="relative aspect-square bg-line">
-              {p.url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.url} alt="" className="size-full object-cover" />
-              )}
-              <button
-                type="button"
-                disabled={busy || !p.url}
-                onClick={() => startRecrop(p)}
-                aria-label="Crop photo"
-                className="absolute right-1.5 bottom-1.5 grid size-7 place-items-center rounded-full bg-black/60 text-white shadow transition hover:bg-black/80"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5" aria-hidden>
-                  <path d="M6 2v14a2 2 0 002 2h14M18 22V8a2 2 0 00-2-2H2" />
-                </svg>
-              </button>
-              <span className={`absolute top-1.5 left-1.5 rounded-full px-2 py-0.5 text-[11px] font-bold ${p.pinned ? "bg-brand text-brand-ink" : "bg-black/60 text-white"}`}>
-                {p.pinned ? "📌 Pinned" : `${p.daysLeft} day${p.daysLeft === 1 ? "" : "s"} left`}
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-1 px-2 py-1.5 text-xs font-semibold">
-              <button type="button" disabled={busy} onClick={() => run(() => pinPhoto(p.id, !p.pinned))} className="text-brand">
-                {p.pinned ? "Unpin" : "Pin"}
-              </button>
-              <button type="button" disabled={busy} onClick={() => run(() => archivePhoto(p.id))} className="text-muted">Archive</button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => confirm("Delete this photo for good?") && run(() => deletePhoto(p.id))}
-                className="text-danger"
-                aria-label="Delete photo"
-                title="Delete"
-              >
-                🗑
-              </button>
-            </div>
+        {order.map((id) => byId.get(id)).filter((p): p is Photo => Boolean(p)).map((p, index) => (
+          <li
+            key={p.id}
+            {...itemProps(p.id)}
+            aria-label={`Photo ${index + 1}`}
+            className={`relative aspect-square cursor-grab touch-manipulation overflow-hidden rounded-xl border bg-line select-none [-webkit-touch-callout:none] ${
+              dragging === p.id ? "z-10 scale-105 border-brand opacity-80 shadow-xl" : "border-line"
+            } transition-transform`}
+          >
+            {p.url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={p.url} alt="" draggable={false} className="pointer-events-none size-full object-cover" />
+            )}
+            {index === 0 && photos.length > 1 && (
+              <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-bold text-white">First</span>
+            )}
+            <button
+              type="button"
+              disabled={busy || !p.url}
+              onClick={() => startRecrop(p)}
+              aria-label="Crop photo"
+              className="absolute right-1.5 bottom-1.5 grid size-7 place-items-center rounded-full bg-black/60 text-white shadow transition hover:bg-black/80"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5" aria-hidden>
+                <path d="M6 2v14a2 2 0 002 2h14M18 22V8a2 2 0 00-2-2H2" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                confirm("Remove this photo from your profile? It goes to your Archive, where you can put it back or delete it.") &&
+                run(() => archivePhoto(p.id))
+              }
+              aria-label="Remove photo"
+              className="absolute top-1.5 right-1.5 grid size-7 place-items-center rounded-full bg-black/60 text-white shadow transition hover:bg-black/80"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="size-3.5" aria-hidden>
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
           </li>
         ))}
         {!full && (
@@ -153,7 +171,8 @@ export function MyFive({ photos, archived }: { photos: Photo[]; archived: number
         )}
       </ul>
 
-      {full && <p className="text-sm font-medium text-muted">All 5 spaces are full. Archive or delete one to add another.</p>}
+      {photos.length > 1 && <p className="text-xs text-muted">Hold and drag a photo to change the order. The first one shows first on your profile.</p>}
+      {full && <p className="text-sm font-medium text-muted">All 5 spaces are full. Remove one to add another.</p>}
       {error && <p className="text-sm font-medium text-danger">{error}</p>}
       <Link href="/account/archive" className="inline-block text-sm font-semibold text-brand">
         Archive{archived ? ` (${archived})` : ""} →

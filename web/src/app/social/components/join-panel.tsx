@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useInstant } from "@/lib/use-instant";
 import type { MemberStatus } from "@/lib/social-events";
 import { cancelSocialEvent, joinSocialEvent, leaveSocialEvent } from "../actions";
@@ -19,6 +20,7 @@ export function JoinPanel({
   left,
   finished,
   hostName,
+  suggestPrompt = false,
 }: {
   eventId: string;
   isPrivate: boolean;
@@ -29,8 +31,11 @@ export function JoinPanel({
   left: number;
   finished: boolean;
   hostName: string;
+  // No profile prompts answered yet: suggest one before requesting to join.
+  suggestPrompt?: boolean;
 }) {
   const [state, run] = useInstant<State>({ mine, cancelled });
+  const [asking, setAsking] = useState(false);
   const box = "card flex flex-wrap items-center justify-between gap-3";
   const quiet = "text-sm font-semibold text-muted hover:text-danger";
 
@@ -102,10 +107,23 @@ export function JoinPanel({
       </div>
     );
   }
+  const join = () => run({ ...state, mine: isPrivate ? "pending" : "going" }, () => joinSocialEvent(eventId));
+  if (asking) {
+    return (
+      <div className="card space-y-3">
+        <p className="font-semibold">Add a prompt so the host knows who you are</p>
+        <p className="text-sm text-muted">{hostName} sees your profile when deciding. A quick answer or two helps.</p>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/account#prompts" className="btn">Add a prompt</Link>
+          <button type="button" className="btn-ghost" onClick={join}>Skip and send request</button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className={box}>
       <p className="font-semibold">{isPrivate ? `${hostName} approves who comes.` : "Coming?"}</p>
-      <button type="button" className="btn px-6" onClick={() => run({ ...state, mine: isPrivate ? "pending" : "going" }, () => joinSocialEvent(eventId))}>
+      <button type="button" className="btn px-6" onClick={() => (isPrivate && suggestPrompt ? setAsking(true) : join())}>
         {isPrivate ? "Request to join" : "I'm in"}
       </button>
     </div>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Avatar } from "@/components/avatar";
+import { formatCost } from "@/lib/cost";
 import { categoryInfo, formatWhen, spacesLeft, type MemberStatus, type SocialEvent } from "@/lib/social-events";
 
 const STATUS: Record<MemberStatus, { label: string; style: string }> = {
@@ -27,6 +28,7 @@ export function EventCard({
   const cat = categoryInfo(event.category);
   const left = spacesLeft(event);
   const full = left === 0;
+  const cost = formatCost(event.cost_pence);
 
   return (
     <Link
@@ -71,6 +73,7 @@ export function EventCard({
               {pending} request{pending === 1 ? "" : "s"}
             </span>
           )}
+          {cost && <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-bold text-brand">{cost}</span>}
           {status && <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${STATUS[status].style}`}>{STATUS[status].label}</span>}
           <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${full ? "bg-danger/10 text-danger" : "bg-ok/10 text-ok"}`}>
             {full ? "Full" : `${left} of ${event.spaces} spaces left`}

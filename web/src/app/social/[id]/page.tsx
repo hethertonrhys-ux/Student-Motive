@@ -5,12 +5,13 @@ import { notFound } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { ShareButton } from "@/components/share-button";
 import { getUserId } from "@/lib/auth";
+import { formatCost } from "@/lib/cost";
 import { getCards } from "@/lib/social";
 import { SOCIAL_EVENT_FIELDS, categoryInfo, formatWhen, spacesLeft, type MemberStatus, type SocialEvent } from "@/lib/social-events";
 import { SITE_URL } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 import { nowMs } from "@/lib/time";
-import { removeGuest, respondToRequest } from "../actions";
+import { messageHost, removeGuest, respondToRequest } from "../actions";
 import { Attendees } from "../components/attendees";
 import { InstantRow, JoinPanel } from "../components/join-panel";
 import { ReportLink } from "../components/report-link";
@@ -41,10 +42,14 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
   const myId = await getUserId();
   const me = myId ? { id: myId } : null;
   const supabase = await createClient();
-  const [event, { data: memberRows }, { data: address }] = await Promise.all([
+  const [event, { data: memberRows }, { data: address }, { data: chat }, { count: myPrompts }] = await Promise.all([
     load(id),
     me && UUID.test(id) ? supabase.from("social_event_members").select("user_id, status, created_at").eq("event_id", id).order("created_at") : Promise.resolve({ data: [] }),
     me && UUID.test(id) ? supabase.from("social_event_addresses").select("address, lat, lng").eq("event_id", id).maybeSingle() : Promise.resolve({ data: null }),
+    // The group chat: only the host and people going can see it.
+    me && UUID.test(id) ? supabase.from("threads").select("id").eq("social_event_id", id).maybeSingle() : Promise.resolve({ data: null }),
+    // Whether you've answered any profile prompts (for private events, the host sees your profile).
+    me ? supabase.from("profile_prompts").select("prompt_id", { count: "exact", head: true }).eq("user_id", me.id) : Promise.resolve({ count: null }),
   ]);
   if (!event) notFound();
   const isHost = me?.id === event.host_id;
@@ -57,6 +62,7 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
   const left = spacesLeft(event);
   const finished = new Date(event.ends_at).getTime() < nowMs();
   const cat = categoryInfo(event.category);
+  const cost = formatCost(event.cost_pence);
   const pin = address?.lat != null && address?.lng != null ? address : null;
 
   return (
@@ -74,10 +80,18 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
       <h1 className="mt-3 font-display text-3xl leading-tight font-extrabold tracking-tight sm:text-4xl">{event.title}</h1>
 
       {host && (
-        <Link href={`/u/${host.id}`} className="mt-3 inline-flex items-center gap-2 font-semibold">
-          <Avatar name={host.name} url={host.avatar_url} size={28} ring="host" />
-          <span>Hosted by <span className="text-brand">{host.name}</span></span>
-        </Link>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <Link href={`/u/${host.id}`} className="inline-flex items-center gap-2 font-semibold">
+            <Avatar name={host.name} url={host.avatar_url} size={28} ring="host" />
+            <span>Hosted by <span className="text-brand">{host.name}</span></span>
+          </Link>
+          {/* Anyone can ask the host something, friends or not. */}
+          {me && !isHost && (
+            <form action={messageHost.bind(null, event.id)}>
+              <button className="rounded-full border border-line bg-surface px-3 py-1 text-sm font-semibold text-brand hover:border-brand">Message host</button>
+            </form>
+          )}
+        </div>
       )}
 
       {created && isHost && (
@@ -103,6 +117,12 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
             </a>
           )}
         </div>
+        {cost && (
+          <div>
+            <dt className="text-sm font-semibold text-muted">Cost</dt>
+            <dd className="font-semibold">{cost === "Free" ? "Free" : `${cost} per person`}</dd>
+          </div>
+        )}
         <div>
           <dt className="text-sm font-semibold text-muted">Spaces</dt>
           <dd className={`font-semibold ${left === 0 ? "text-danger" : ""}`}>
@@ -136,7 +156,13 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
           left={left}
           finished={finished}
           hostName={host?.name ?? "The host"}
+          suggestPrompt={myPrompts === 0}
         />
+        {chat && (isHost || mine === "going") && (
+          <Link href={`/chats/${chat.id}`} prefetch={false} className="btn-ghost mt-3 w-full py-3">
+            Open group chat
+          </Link>
+        )}
       </div>
 
       {event.description && <p className="mt-6 text-lg leading-relaxed whitespace-pre-line">{event.description}</p>}

@@ -3,7 +3,7 @@
 
 import { londonInputToIso } from "./time";
 
-export type SocialCategory = "sport" | "social" | "study" | "nightlife" | "other";
+export type SocialCategory = "sport" | "social" | "study" | "nightlife" | "food" | "learn" | "other";
 export type MemberStatus = "going" | "pending" | "declined";
 
 export const SOCIAL_CATEGORIES: { value: SocialCategory; label: string }[] = [
@@ -11,10 +11,12 @@ export const SOCIAL_CATEGORIES: { value: SocialCategory; label: string }[] = [
   { value: "social", label: "Social" },
   { value: "study", label: "Study" },
   { value: "nightlife", label: "Nightlife" },
+  { value: "food", label: "Food" },
+  { value: "learn", label: "Learn" },
   { value: "other", label: "Other" },
 ];
 
-export const categoryInfo = (value: SocialCategory) => SOCIAL_CATEGORIES.find((c) => c.value === value) ?? SOCIAL_CATEGORIES[4];
+export const categoryInfo = (value: SocialCategory) => SOCIAL_CATEGORIES.find((c) => c.value === value) ?? SOCIAL_CATEGORIES[SOCIAL_CATEGORIES.length - 1];
 
 export type SocialEvent = {
   id: string;
@@ -32,10 +34,11 @@ export type SocialEvent = {
   friends_only: boolean;
   is_cancelled: boolean;
   going_count: number;
+  cost_pence: number | null;
 };
 
 export const SOCIAL_EVENT_FIELDS =
-  "id, host_id, title, category, description, starts_at, ends_at, area, lat, lng, spaces, is_private, friends_only, is_cancelled, going_count";
+  "id, host_id, title, category, description, starts_at, ends_at, area, lat, lng, spaces, is_private, friends_only, is_cancelled, going_count, cost_pence";
 
 // The host takes one space.
 export function spacesLeft(e: Pick<SocialEvent, "spaces" | "going_count">) {

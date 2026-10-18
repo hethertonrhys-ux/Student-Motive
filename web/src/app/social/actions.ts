@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { SOCIAL_CATEGORIES, type SocialCategory } from "@/lib/social-events";
 import { createClient } from "@/lib/supabase/server";
+import { readCost } from "@/lib/cost";
 import { londonInputToIso } from "@/lib/time";
 
 export type FormState = { error?: string };
@@ -47,6 +48,9 @@ function read(formData: FormData) {
   if (!area) return { error: "Add the place name everyone sees, e.g. Powerleague Shoreditch." };
   if (!Number.isInteger(spaces) || spaces < 2 || spaces > 500) return { error: "Spaces must be a whole number from 2 to 500 (including you)." };
 
+  const cost = readCost(formData);
+  if ("error" in cost) return { error: cost.error };
+
   const rough = blur(lat, lng);
   return {
     event: {
@@ -59,6 +63,7 @@ function read(formData: FormData) {
       lat: rough.lat,
       lng: rough.lng,
       spaces,
+      cost_pence: cost.value,
       is_private: formData.get("privacy") === "private",
       friends_only: formData.get("friends_only") === "on",
     },
@@ -68,6 +73,8 @@ function read(formData: FormData) {
 
 function refresh(id?: string) {
   revalidatePath("/social");
+  // Joining or leaving adds you to or takes you out of the event's group chat.
+  revalidatePath("/chats");
   if (id) revalidatePath(`/social/${id}`);
 }
 
@@ -147,4 +154,13 @@ export async function reportSocialEvent(id: string, reason: string): Promise<Act
   const supabase = await createClient();
   const { error } = await supabase.from("social_reports").insert({ event_id: id, reason: clean });
   return error ? { error: "Couldn't send the report. Please try again." } : {};
+}
+
+// Message the host privately (no need to be friends).
+export async function messageHost(eventId: string) {
+  await requireProfile();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("open_host_dm", { eid: eventId });
+  if (error || !data) redirect(`/social/${eventId}`);
+  redirect(`/chats/${data}`);
 }

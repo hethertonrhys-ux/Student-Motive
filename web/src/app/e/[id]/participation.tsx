@@ -10,7 +10,7 @@ import { InstantArea } from "@/components/instant";
 import { NameForm } from "@/components/name-form";
 import { saveName } from "@/app/account/actions";
 import { ActionButton } from "./action-button";
-import { chooseTable, confirmSeat, deleteMyPayment, joinEvent, leaveEvent, recordMyPayment, recordMyResult } from "./actions";
+import { chooseTable, confirmSeat, deleteMyPayment, joinEvent, joinTableWaitlist, leaveEvent, leaveTableWaitlist, markPaymentPaid, recordMyPayment, recordMyResult, undoPaymentMark } from "./actions";
 import { AlsoTables } from "./also-tables";
 import { SelfReport } from "./self-report";
 import { BankLedger } from "./bank-ledger";
@@ -18,6 +18,9 @@ import { saveBankLedger } from "./bank-actions";
 import { bankEditorRows } from "@/lib/bank-rows";
 
 type Props = { event: MotiveEvent; society: { name: string; slug: string } | null };
+
+// Waiting lists for full tables: how many are waiting, and your place (0 if not queued).
+type Queue = Map<string, { waiting: number; myPosition: number }>;
 
 // You, as you'll appear straight after tapping a button (before the database
 // confirms it). See InstantArea.
@@ -46,10 +49,14 @@ export async function Participation({ event, society }: Props) {
   }
 
   const supabase = await createClient();
-  const [{ data: isMember }, { people, tables }] = await Promise.all([
+  const [{ data: isMember }, { people, tables }, { data: queueRows }] = await Promise.all([
     supabase.rpc("is_society_member", { sid: event.society_id }),
     getEventPeople(supabase, event.id),
+    event.format === "tables" ? supabase.rpc("table_waitlist_summary", { eid: event.id }) : Promise.resolve({ data: [] }),
   ]);
+  const queue: Queue = new Map(
+    ((queueRows ?? []) as { table_id: string; waiting: number; my_position: number }[]).map((q) => [q.table_id, { waiting: Number(q.waiting), myPosition: Number(q.my_position) }]),
+  );
   const me = people.find((p) => p.userId === profile.id) ?? null;
   const you: You = { id: profile.id, name: profile.display_name || "You" };
   const canJoin = !event.members_only || isMember === true;
@@ -77,7 +84,7 @@ export async function Participation({ event, society }: Props) {
         </div>
       ) : event.format === "tables" ? (
         <InstantArea>
-          <TablesPicker event={event} tables={tables} people={people} me={me} you={you} />
+          <TablesPicker event={event} tables={tables} people={people} me={me} you={you} queue={queue} />
         </InstantArea>
       ) : event.format === "entries" ? (
         <InstantArea>
@@ -193,6 +200,7 @@ function TablesPicker({
   me,
   you,
   preview,
+  queue = new Map(),
 }: {
   event: MotiveEvent;
   tables: EventTable[];
@@ -200,14 +208,17 @@ function TablesPicker({
   me: Person | null;
   you: You;
   preview?: boolean;
+  queue?: Queue;
 }) {
+  // Waiting lists only move people before the event starts.
+  const started = new Date(event.starts_at).getTime() <= nowMs() || tables.some((t) => t.started_at);
   const unseated = people.filter((p) => p.status === "going" && (!p.tableId || !tables.some((t) => t.id === p.tableId)));
   // How the tables will look straight after a tap: you at a table, at none, or gone.
   const others = people.filter((p) => p.userId !== you.id);
   const after = (tableId: string | null | "leave") => {
     if (preview) return undefined;
     const next = tableId === "leave" ? null : me ? { ...me, tableId } : asPerson(you, "going", tableId);
-    return <TablesPicker event={event} tables={tables} people={next ? [...others, next] : others} me={next} you={you} preview />;
+    return <TablesPicker event={event} tables={tables} people={next ? [...others, next] : others} me={next} you={you} queue={queue} preview />;
   };
   return (
     <div className="space-y-4">
@@ -252,7 +263,19 @@ function TablesPicker({
                 {mine ? (
                   <ActionButton action={chooseTable.bind(null, event.id, null)} variant="ghost" className="py-2" after={after(null)}>Leave this table</ActionButton>
                 ) : full ? (
-                  <span className="py-2 text-sm font-semibold text-muted">Table full</span>
+                  <span className="flex flex-col items-center gap-1.5 text-center">
+                    <span className="text-sm font-semibold text-muted">
+                      Table full{queue.get(table.id)?.waiting ? ` · ${queue.get(table.id)!.waiting} waiting` : ""}
+                    </span>
+                    {me && queue.get(table.id)?.myPosition ? (
+                      <>
+                        <span className="text-sm font-bold text-brand">You&apos;re number {queue.get(table.id)!.myPosition} on the waiting list</span>
+                        {!started && <ActionButton action={leaveTableWaitlist.bind(null, event.id)} variant="link">Leave waiting list</ActionButton>}
+                      </>
+                    ) : me && !started ? (
+                      <ActionButton action={joinTableWaitlist.bind(null, event.id, table.id)} variant="ghost" className="py-2">Join waiting list</ActionButton>
+                    ) : null}
+                  </span>
                 ) : me ? (
                   <ActionButton action={chooseTable.bind(null, event.id, table.id)} className="py-2" after={after(table.id)}>{me.tableId ? "Move here" : "Sit here"}</ActionButton>
                 ) : (
@@ -264,6 +287,9 @@ function TablesPicker({
         })}
       </div>
 
+      {me && [...queue.values()].some((q) => q.myPosition) && !started && (
+        <p className="text-sm text-muted">If a seat opens on the table you&apos;re waiting for before the start, you&apos;ll be moved across automatically and told in Notifications.</p>
+      )}
       {me && <AlsoTables eventId={event.id} tables={tables} myTableId={me.tableId} selected={me.alsoTables} />}
 
       {/* Only ask to confirm when there's something new to confirm. */}
@@ -367,6 +393,7 @@ async function MyResults({ eventId, userId, tables }: { eventId: string; userId:
           payments.filter((p) => names.has(p.from_row)).map((p) => ({ fromId: p.from_row, toId: p.to_row, amountPence: p.amount_pence })),
         );
         const myTransfers = s.transfers.filter((t) => t.fromId === mine.id || t.toId === mine.id);
+        const myPayments = payments.filter((p) => p.from_row === mine.id || p.to_row === mine.id);
         const table = tables.find((t) => t.id === mine.table_id);
         if (table?.bank_user_id) {
           const payout = mine.cashout_pence === null ? null : mine.cashout_pence + mine.adjust_pence;
@@ -412,15 +439,40 @@ async function MyResults({ eventId, userId, tables }: { eventId: string; userId:
             {s.imbalancePence !== 0 ? (
               <p className="text-sm text-muted">The committee is still checking the numbers.</p>
             ) : myTransfers.length === 0 ? (
-              <p className="font-semibold">You&apos;re all square. Nothing to pay or collect.</p>
+              <p className="font-semibold">{myPayments.length ? "✓ All settled up. Nothing left to pay or collect." : "You're all square. Nothing to pay or collect."}</p>
             ) : (
               <ul className="space-y-1.5">
                 {myTransfers.map((t, i) => (
-                  <li key={i} className="flex items-center justify-between rounded-xl bg-brand-soft px-3 py-2">
+                  <li key={i} className="flex items-center justify-between gap-2 rounded-xl bg-brand-soft px-3 py-2">
                     <span>
                       {t.fromId === mine.id ? <>You pay <strong>{names.get(t.toId)}</strong></> : <><strong>{names.get(t.fromId)}</strong> pays you</>}
                     </span>
-                    <span className="font-display text-lg font-extrabold">{formatPounds(t.amountPence)}</span>
+                    <span className="flex items-center gap-3">
+                      <span className="font-display text-lg font-extrabold">{formatPounds(t.amountPence)}</span>
+                      <form action={markPaymentPaid.bind(null, eventId, t.fromId, t.toId, t.amountPence)}>
+                        <button className="rounded-lg bg-surface px-2.5 py-1 text-sm font-bold text-brand">
+                          {t.fromId === mine.id ? "I've paid" : "Got it"}
+                        </button>
+                      </form>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {/* Payments already made that involve you; you can undo your own marks. */}
+            {myPayments.length > 0 && (
+              <ul className="space-y-1 text-sm">
+                {myPayments.map((p) => (
+                  <li key={p.id} className="flex items-center justify-between gap-2">
+                    <span className="text-ok">
+                      ✓ {p.from_row === mine.id ? <>You paid <strong>{names.get(p.to_row)}</strong></> : <><strong>{names.get(p.from_row)}</strong> paid you</>}{" "}
+                      {formatPounds(p.amount_pence)}
+                    </span>
+                    {p.created_by === userId && (
+                      <form action={undoPaymentMark.bind(null, eventId, p.id)}>
+                        <button className="font-semibold text-muted hover:text-danger">Undo</button>
+                      </form>
+                    )}
                   </li>
                 ))}
               </ul>

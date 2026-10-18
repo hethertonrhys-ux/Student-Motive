@@ -159,13 +159,21 @@ export default async function ManageEventPage({ params }: PageProps<"/dashboard/
               return (
                 <div key={tableId ?? "event"} className="space-y-2">
                   {table && (
-                    <form action={setTableBank.bind(null, societyId, eventId, table.id)} className="flex flex-wrap items-center gap-2 text-sm">
-                      <span className="font-semibold">{table.name} settles:</span>
-                      <select name="bank_user_id" defaultValue={table.bank_user_id ?? ""} className="rounded-lg border border-line bg-surface px-2 py-1.5" aria-label={`Bank for ${table.name}`}>
-                        <option value="">Players pay each other (no bank)</option>
-                        {seated.map((p) => <option key={p.userId} value={p.userId}>{p.name} is the bank</option>)}
-                      </select>
-                      <button className="font-semibold text-brand">Set</button>
+                    // Step 1: how this table settles up.
+                    <form action={setTableBank.bind(null, societyId, eventId, table.id)} className="rounded-xl border border-line bg-surface p-3 text-sm">
+                      <p className="font-semibold">How {table.name} settles up</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <select name="bank_user_id" defaultValue={table.bank_user_id ?? ""} className="rounded-lg border border-line bg-surface px-2 py-1.5" aria-label={`Bank for ${table.name}`}>
+                          <option value="">Auto-settle (fewest payments)</option>
+                          {seated.map((p) => <option key={p.userId} value={p.userId}>{p.name} is the bank</option>)}
+                        </select>
+                        <button className="font-semibold text-brand">Set</button>
+                      </div>
+                      <p className="mt-1.5 text-xs text-muted">
+                        {table.bank_user_id
+                          ? "One player is the bank: they record buy-ins and cash-outs, and everyone pays or is paid by them."
+                          : "Auto-settle: enter everyone's result and the app works out the fewest payments between players."}
+                      </p>
                     </form>
                   )}
                   {table && table.bank_user_id ? (

@@ -52,6 +52,16 @@ export async function pinPhoto(id: string, pin: boolean): Promise<Result> {
   return error ? { error: friendly(error.message) } : {};
 }
 
+// Save the order of your profile photos (first to last).
+export async function reorderPhotos(ids: string[]): Promise<Result> {
+  const me = await getProfile();
+  if (!me) return { error: "Log in first." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("reorder_profile_photos", { ids: ids.slice(0, 5) });
+  refresh(me.id);
+  return error ? { error: "Couldn't save the new order. Please try again." } : {};
+}
+
 export async function archivePhoto(id: string): Promise<Result> {
   const me = await getProfile();
   if (!me) return { error: "Log in first." };
