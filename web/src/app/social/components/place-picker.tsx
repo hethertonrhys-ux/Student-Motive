@@ -142,8 +142,10 @@ export function PlacePicker({ pin, onPick }: { pin: Point | null; onPick: (point
           </ul>
         )}
       </div>
-      <div className="relative h-56 overflow-hidden rounded-xl bg-[#e9ebf0]">
-        <div ref={containerRef} className="absolute inset-0" />
+      {/* The map library sets its own position on the inner div (overriding
+          "absolute"), so the wrapper has the height and the map fills it. */}
+      <div className="h-56 overflow-hidden rounded-xl bg-[#e9ebf0]">
+        <div ref={containerRef} className="h-full w-full" />
       </div>
       <p className={`text-sm ${pin ? "font-semibold text-ok" : "text-muted"}`}>
         {pin ? "✓ Pin placed. Drag it to adjust." : "Search above, or tap the map to drop a pin."}
