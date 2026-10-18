@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Function brand colours: the website's tokens, with the brand in red. */
+:root {
+  --bg: #f7f7fb;
+  --surface: #ffffff;
+  --ink: #15142b;
+  --muted: #5e5d78;
+  --line: #e3e2ef;
+  --brand: #DA291C;
+  --brand-ink: #ffffff;
+  --brand-soft: #fdeceb;
+  --live: #f43f5e;
+  --danger: #be123c;
+  --ok: #047857;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d0c1d;
+    --surface: #17162c;
+    --ink: #f2f1fb;
+    --muted: #a3a2c2;
+    --line: #2b2a48;
+    --brand: #f0564a;
+    --brand-ink: #ffffff;
+    --brand-soft: #3a1512;
+    --live: #fb7185;
+    --danger: #fb7185;
+    --ok: #34d399;
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@function/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Types, config and query code shared by the Function website and app.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@supabase/supabase-js": "^2.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}

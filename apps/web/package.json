@@ -10,7 +10,8 @@
     "start": "next start",
     "lint": "eslint",
     "societies:collect": "node scripts/society-import/collect.mjs",
-    "societies:import": "node scripts/society-import/import.mjs"
+    "societies:import": "node scripts/society-import/import.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@heroicons/react": "2.2.0",

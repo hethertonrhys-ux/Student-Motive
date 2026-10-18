@@ -1,0 +1,21 @@
+# Typechecks the website, the app and the shared package on every push and
+# pull request. Free for a public repository.
+name: Checks
+on:
+  push:
+    branches: [main, expo-app]
+  pull_request:
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck --workspace packages/shared
+      - run: npm run typecheck --workspace apps/web
+      - run: npm run typecheck --workspace apps/mobile
+      - run: npm run lint --workspace apps/web
