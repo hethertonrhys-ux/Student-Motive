@@ -6,6 +6,7 @@ import { formatPounds, settle } from "@/lib/ledger";
 import { hasEnded, nowMs } from "@/lib/time";
 import type { EventTable, MotiveEvent } from "@/lib/types";
 import { Avatar } from "@/components/avatar";
+import { InstantArea } from "@/components/instant";
 import { NameForm } from "@/components/name-form";
 import { saveName } from "@/app/account/actions";
 import { ActionButton } from "./action-button";
@@ -17,6 +18,13 @@ import { saveBankLedger } from "./bank-actions";
 import { bankEditorRows } from "@/lib/bank-rows";
 
 type Props = { event: MotiveEvent; society: { name: string; slug: string } | null };
+
+// You, as you'll appear straight after tapping a button (before the database
+// confirms it). See InstantArea.
+type You = { id: string; name: string };
+function asPerson(you: You, status: Person["status"], tableId: string | null): Person {
+  return { userId: you.id, name: you.name, avatarUrl: null, status, tableId, finishPosition: null, joinedAt: new Date(0).toISOString(), alsoTables: [], confirmedTableId: null };
+}
 
 // The "join this event" part of an event page.
 export async function Participation({ event, society }: Props) {
@@ -43,6 +51,7 @@ export async function Participation({ event, society }: Props) {
     getEventPeople(supabase, event.id),
   ]);
   const me = people.find((p) => p.userId === profile.id) ?? null;
+  const you: You = { id: profile.id, name: profile.display_name || "You" };
   const canJoin = !event.members_only || isMember === true;
 
   // Members see each other's names, so ask for one before joining.
@@ -67,11 +76,17 @@ export async function Participation({ event, society }: Props) {
           {society && <Link href={`/s/${society.slug}`} className="btn">Become a member</Link>}
         </div>
       ) : event.format === "tables" ? (
-        <TablesPicker event={event} tables={tables} people={people} me={me} />
+        <InstantArea>
+          <TablesPicker event={event} tables={tables} people={people} me={me} you={you} />
+        </InstantArea>
       ) : event.format === "entries" ? (
-        <EntryPanel event={event} people={people} me={me} />
+        <InstantArea>
+          <EntryPanel event={event} people={people} me={me} you={you} />
+        </InstantArea>
       ) : (
-        <GoingPanel event={event} me={me} />
+        <InstantArea>
+          <GoingPanel event={event} me={me} you={you} />
+        </InstantArea>
       )}
 
       {/* Tables where this player is the bank: their bank screen. */}
@@ -101,29 +116,35 @@ export async function Participation({ event, society }: Props) {
   );
 }
 
-function GoingPanel({ event, me }: { event: MotiveEvent; me: Person | null }) {
+// "preview" draws the panel as it will look after a tap (no "after" of its own).
+function GoingPanel({ event, me, you, preview }: { event: MotiveEvent; me: Person | null; you: You; preview?: boolean }) {
+  const after = (next: Person | null) => (preview ? undefined : <GoingPanel event={event} me={next} you={you} preview />);
   return (
     <div className="card flex flex-wrap items-center justify-between gap-3">
       {me ? (
         <>
           <p className="font-semibold"><span className="text-ok">✓</span> You&apos;re going</p>
-          <ActionButton action={leaveEvent.bind(null, event.id)} variant="link">Can&apos;t make it</ActionButton>
+          <ActionButton action={leaveEvent.bind(null, event.id)} variant="link" after={after(null)}>Can&apos;t make it</ActionButton>
         </>
       ) : (
         <>
           <p className="font-semibold">Coming?</p>
-          <ActionButton action={joinEvent.bind(null, event.id, null)}>I&apos;m going</ActionButton>
+          <ActionButton action={joinEvent.bind(null, event.id, null)} after={after(asPerson(you, "going", null))}>I&apos;m going</ActionButton>
         </>
       )}
     </div>
   );
 }
 
-function EntryPanel({ event, people, me }: { event: MotiveEvent; people: Person[]; me: Person | null }) {
+function EntryPanel({ event, people, me, you, preview }: { event: MotiveEvent; people: Person[]; me: Person | null; you: You; preview?: boolean }) {
   const entered = event.going_count;
   const full = event.capacity !== null && entered >= event.capacity;
   const waitlist = people.filter((p) => p.status === "waitlist");
   const myWaitPosition = me?.status === "waitlist" ? waitlist.findIndex((p) => p.userId === me.userId) + 1 : 0;
+  // How the panel will look straight after a tap.
+  const others = people.filter((p) => p.userId !== you.id);
+  const after = (next: Person | null, count: number) =>
+    preview ? undefined : <EntryPanel event={{ ...event, going_count: count }} people={next ? [...others, next] : others} me={next} you={you} preview />;
 
   return (
     <div className="card space-y-3">
@@ -142,17 +163,22 @@ function EntryPanel({ event, people, me }: { event: MotiveEvent; people: Person[
         {me?.status === "going" ? (
           <>
             <p className="font-semibold"><span className="text-ok">✓</span> You&apos;re entered</p>
-            <ActionButton action={leaveEvent.bind(null, event.id)} variant="link" confirmText="Withdraw your entry? If there's a waiting list, your place goes to the next person.">
+            <ActionButton action={leaveEvent.bind(null, event.id)} variant="link" confirmText="Withdraw your entry? If there's a waiting list, your place goes to the next person." after={after(null, Math.max(0, entered - 1))}>
               Withdraw
             </ActionButton>
           </>
         ) : me?.status === "waitlist" ? (
           <>
             <p className="font-semibold">You&apos;re number {myWaitPosition} on the waiting list</p>
-            <ActionButton action={leaveEvent.bind(null, event.id)} variant="link">Leave waiting list</ActionButton>
+            <ActionButton action={leaveEvent.bind(null, event.id)} variant="link" after={after(null, entered)}>Leave waiting list</ActionButton>
           </>
         ) : (
-          <ActionButton action={joinEvent.bind(null, event.id, null)}>{full ? "Join the waiting list" : "Enter"}</ActionButton>
+          <ActionButton
+            action={joinEvent.bind(null, event.id, null)}
+            after={full ? after(asPerson(you, "waitlist", null), entered) : after(asPerson(you, "going", null), entered + 1)}
+          >
+            {full ? "Join the waiting list" : "Enter"}
+          </ActionButton>
         )}
       </div>
     </div>
@@ -160,14 +186,35 @@ function EntryPanel({ event, people, me }: { event: MotiveEvent; people: Person[
 }
 
 // Poker-style tables: pick a seat and your avatar appears there.
-function TablesPicker({ event, tables, people, me }: { event: MotiveEvent; tables: EventTable[]; people: Person[]; me: Person | null }) {
+function TablesPicker({
+  event,
+  tables,
+  people,
+  me,
+  you,
+  preview,
+}: {
+  event: MotiveEvent;
+  tables: EventTable[];
+  people: Person[];
+  me: Person | null;
+  you: You;
+  preview?: boolean;
+}) {
   const unseated = people.filter((p) => p.status === "going" && (!p.tableId || !tables.some((t) => t.id === p.tableId)));
+  // How the tables will look straight after a tap: you at a table, at none, or gone.
+  const others = people.filter((p) => p.userId !== you.id);
+  const after = (tableId: string | null | "leave") => {
+    if (preview) return undefined;
+    const next = tableId === "leave" ? null : me ? { ...me, tableId } : asPerson(you, "going", tableId);
+    return <TablesPicker event={event} tables={tables} people={next ? [...others, next] : others} me={next} you={you} preview />;
+  };
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-display text-xl font-bold">Pick your table</h2>
         {me && (
-          <ActionButton action={leaveEvent.bind(null, event.id)} variant="link" confirmText="Leave this event?">
+          <ActionButton action={leaveEvent.bind(null, event.id)} variant="link" confirmText="Leave this event?" after={after("leave")}>
             I can&apos;t make it
           </ActionButton>
         )}
@@ -203,13 +250,13 @@ function TablesPicker({ event, tables, people, me }: { event: MotiveEvent; table
               )}
               <div className="mt-3 flex justify-center">
                 {mine ? (
-                  <ActionButton action={chooseTable.bind(null, event.id, null)} variant="ghost" className="py-2">Leave this table</ActionButton>
+                  <ActionButton action={chooseTable.bind(null, event.id, null)} variant="ghost" className="py-2" after={after(null)}>Leave this table</ActionButton>
                 ) : full ? (
                   <span className="py-2 text-sm font-semibold text-muted">Table full</span>
                 ) : me ? (
-                  <ActionButton action={chooseTable.bind(null, event.id, table.id)} className="py-2">{me.tableId ? "Move here" : "Sit here"}</ActionButton>
+                  <ActionButton action={chooseTable.bind(null, event.id, table.id)} className="py-2" after={after(table.id)}>{me.tableId ? "Move here" : "Sit here"}</ActionButton>
                 ) : (
-                  <ActionButton action={joinEvent.bind(null, event.id, table.id)} className="py-2">Sit here</ActionButton>
+                  <ActionButton action={joinEvent.bind(null, event.id, table.id)} className="py-2" after={after(table.id)}>Sit here</ActionButton>
                 )}
               </div>
             </div>
@@ -234,7 +281,7 @@ function TablesPicker({ event, tables, people, me }: { event: MotiveEvent; table
       {!me && (
         <p className="text-sm text-muted">
           Not sure which table yet?{" "}
-          <ActionButton action={joinEvent.bind(null, event.id, null)} variant="link">Just say I&apos;m going</ActionButton>
+          <ActionButton action={joinEvent.bind(null, event.id, null)} variant="link" after={after(null)}>Just say I&apos;m going</ActionButton>
         </p>
       )}
       {unseated.length > 0 && (

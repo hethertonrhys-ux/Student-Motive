@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/auth";
 import { JoinForm } from "./join-form";
 import { leaveSociety, requestToJoin } from "./actions";
+import { InstantArea, InstantFormButton } from "@/components/instant";
 import { formatEventTime, isLive } from "@/lib/time";
 import { categoryLabel, type MotiveEvent, type Society } from "@/lib/types";
 
@@ -127,29 +128,33 @@ async function Membership({ societyId, slug, name }: { societyId: string; slug: 
       </div>
     );
   }
-  if (membership?.status === "approved") {
-    return (
-      <div className="card mt-6 flex flex-wrap items-center justify-between gap-3">
-        <p className="font-semibold"><span className="text-ok">✓</span> You&apos;re a member of {name}</p>
-        <form action={leaveSociety.bind(null, societyId, slug)}>
-          <button className="text-sm font-semibold text-muted hover:text-danger">Leave</button>
-        </form>
-      </div>
-    );
-  }
-  if (membership?.status === "pending") {
-    return (
-      <div className="card mt-6">
-        <p className="font-semibold">Request sent</p>
-        <p className="text-sm text-muted">The committee will approve you once they&apos;ve checked your membership.</p>
-      </div>
-    );
-  }
-  return (
+  // Each card, so a tap can switch straight to the next one (see InstantArea).
+  const requestSent = (
+    <div className="card mt-6">
+      <p className="font-semibold">Request sent</p>
+      <p className="text-sm text-muted">The committee will approve you once they&apos;ve checked your membership.</p>
+    </div>
+  );
+  const joinCard = (after?: React.ReactNode) => (
     <div className="card mt-6 space-y-2">
       <p className="font-semibold">Are you a member of {name}?</p>
       <p className="text-sm text-muted">Join to enter events and pick your table. The committee approves members.</p>
-      <JoinForm action={requestToJoin.bind(null, societyId, slug)} defaultName={profile.display_name ?? ""} />
+      <JoinForm action={requestToJoin.bind(null, societyId, slug)} defaultName={profile.display_name ?? ""} after={after} />
     </div>
   );
+
+  if (membership?.status === "approved") {
+    return (
+      <InstantArea>
+        <div className="card mt-6 flex flex-wrap items-center justify-between gap-3">
+          <p className="font-semibold"><span className="text-ok">✓</span> You&apos;re a member of {name}</p>
+          <InstantFormButton action={leaveSociety.bind(null, societyId, slug)} after={joinCard()} className="text-sm font-semibold text-muted hover:text-danger">
+            Leave
+          </InstantFormButton>
+        </div>
+      </InstantArea>
+    );
+  }
+  if (membership?.status === "pending") return requestSent;
+  return <InstantArea>{joinCard(requestSent)}</InstantArea>;
 }

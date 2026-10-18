@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Avatar } from "@/components/avatar";
+import { HIDE, InstantArea, InstantFormButton } from "@/components/instant";
 import { NameForm } from "@/components/name-form";
 import { PersonRow } from "@/components/person-row";
 import { saveName } from "@/app/account/actions";
@@ -72,40 +73,9 @@ export async function HostedPanel({ event, host }: { event: MotiveEvent; host: P
       ) : finished ? null : !profile.display_name && !mine ? (
         <NameForm action={saveName.bind(null, `/e/${event.id}`)} />
       ) : (
-        <div className="card flex flex-wrap items-center justify-between gap-3">
-          {mine?.status === "going" ? (
-            <>
-              <p className="font-semibold"><span className="text-ok">✓</span> You&apos;re going</p>
-              <span className="flex flex-wrap items-center gap-3">
-                <form action={openEventChat.bind(null, event.id)}>
-                  <button className="btn py-2">Event chat</button>
-                </form>
-                <ActionButton action={leaveEvent.bind(null, event.id)} variant="link" confirmText="Can't make it? You'll lose your place.">
-                  Can&apos;t make it
-                </ActionButton>
-              </span>
-            </>
-          ) : mine?.status === "requested" ? (
-            <>
-              <p className="font-semibold">Request sent. {host?.name ?? "The host"} will let you know.</p>
-              <ActionButton action={leaveEvent.bind(null, event.id)} variant="link">Cancel request</ActionButton>
-            </>
-          ) : mine?.status === "waitlist" ? (
-            <>
-              <p className="font-semibold">You&apos;re on the waiting list</p>
-              <ActionButton action={leaveEvent.bind(null, event.id)} variant="link">Leave waiting list</ActionButton>
-            </>
-          ) : (
-            <>
-              <p className="font-semibold">
-                {event.join_mode === "approval" ? `${host?.name ?? "The host"} approves who comes.` : full ? "It's full." : "Coming?"}
-              </p>
-              <ActionButton action={joinEvent.bind(null, event.id, null)}>
-                {event.join_mode === "approval" ? "Ask to join" : full ? "Join the waiting list" : "I'm going"}
-              </ActionButton>
-            </>
-          )}
-        </div>
+        <InstantArea>
+          <JoinCard event={event} mine={mine?.status ?? null} hostName={host?.name ?? "The host"} full={full} />
+        </InstantArea>
       )}
 
       {/* The host answers requests. */}
@@ -114,16 +84,14 @@ export async function HostedPanel({ event, host }: { event: MotiveEvent; host: P
           {requests.map((e) => {
             const p = cards.get(e.user_id);
             return (
-              <PersonRow key={e.user_id} id={e.user_id} name={p?.name ?? "Member"} avatarUrl={p?.avatar_url} detail={p?.course}>
-                <span className="flex gap-2">
-                  <form action={respondToJoinRequest.bind(null, event.id, e.user_id, true)}>
-                    <button className="btn px-3 py-1.5 text-sm">Accept</button>
-                  </form>
-                  <form action={respondToJoinRequest.bind(null, event.id, e.user_id, false)}>
-                    <button className="btn-ghost px-3 py-1.5 text-sm">Decline</button>
-                  </form>
-                </span>
-              </PersonRow>
+              <InstantArea key={e.user_id}>
+                <PersonRow id={e.user_id} name={p?.name ?? "Member"} avatarUrl={p?.avatar_url} detail={p?.course}>
+                  <span className="flex gap-2">
+                    <InstantFormButton action={respondToJoinRequest.bind(null, event.id, e.user_id, true)} after={HIDE} className="btn px-3 py-1.5 text-sm">Accept</InstantFormButton>
+                    <InstantFormButton action={respondToJoinRequest.bind(null, event.id, e.user_id, false)} after={HIDE} className="btn-ghost px-3 py-1.5 text-sm">Decline</InstantFormButton>
+                  </span>
+                </PersonRow>
+              </InstantArea>
             );
           })}
         </Section>
@@ -138,13 +106,13 @@ export async function HostedPanel({ event, host }: { event: MotiveEvent; host: P
           {going.map((e) => {
             const p = cards.get(e.user_id);
             return (
-              <PersonRow key={e.user_id} id={e.user_id} name={p?.name ?? "Member"} avatarUrl={p?.avatar_url} detail={p?.course}>
-                {isHost && !finished && (
-                  <form action={removeGuest.bind(null, event.id, e.user_id)}>
-                    <button className="text-sm font-semibold text-muted hover:text-danger">Remove</button>
-                  </form>
-                )}
-              </PersonRow>
+              <InstantArea key={e.user_id}>
+                <PersonRow id={e.user_id} name={p?.name ?? "Member"} avatarUrl={p?.avatar_url} detail={p?.course}>
+                  {isHost && !finished && (
+                    <InstantFormButton action={removeGuest.bind(null, event.id, e.user_id)} after={HIDE} className="text-sm font-semibold text-muted hover:text-danger">Remove</InstantFormButton>
+                  )}
+                </PersonRow>
+              </InstantArea>
             );
           })}
         </Section>
@@ -172,5 +140,59 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h2 className="font-display text-xl font-bold">{title}</h2>
       <ul className="mt-3 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">{children}</ul>
     </section>
+  );
+}
+
+// Your status and the join button. "preview" draws it as it will look
+// straight after a tap (see InstantArea).
+function JoinCard({
+  event,
+  mine,
+  hostName,
+  full,
+  preview,
+}: {
+  event: MotiveEvent;
+  mine: Entry["status"] | null;
+  hostName: string;
+  full: boolean;
+  preview?: boolean;
+}) {
+  const after = (next: Entry["status"] | null) => (preview ? undefined : <JoinCard event={event} mine={next} hostName={hostName} full={full} preview />);
+  return (
+    <div className="card flex flex-wrap items-center justify-between gap-3">
+      {mine === "going" ? (
+        <>
+          <p className="font-semibold"><span className="text-ok">✓</span> You&apos;re going</p>
+          <span className="flex flex-wrap items-center gap-3">
+            <form action={openEventChat.bind(null, event.id)}>
+              <button className="btn py-2">Event chat</button>
+            </form>
+            <ActionButton action={leaveEvent.bind(null, event.id)} variant="link" confirmText="Can't make it? You'll lose your place." after={after(null)}>
+              Can&apos;t make it
+            </ActionButton>
+          </span>
+        </>
+      ) : mine === "requested" ? (
+        <>
+          <p className="font-semibold">Request sent. {hostName} will let you know.</p>
+          <ActionButton action={leaveEvent.bind(null, event.id)} variant="link" after={after(null)}>Cancel request</ActionButton>
+        </>
+      ) : mine === "waitlist" ? (
+        <>
+          <p className="font-semibold">You&apos;re on the waiting list</p>
+          <ActionButton action={leaveEvent.bind(null, event.id)} variant="link" after={after(null)}>Leave waiting list</ActionButton>
+        </>
+      ) : (
+        <>
+          <p className="font-semibold">
+            {event.join_mode === "approval" ? `${hostName} approves who comes.` : full ? "It's full." : "Coming?"}
+          </p>
+          <ActionButton action={joinEvent.bind(null, event.id, null)} after={after(event.join_mode === "approval" ? "requested" : full ? "waitlist" : "going")}>
+            {event.join_mode === "approval" ? "Ask to join" : full ? "Join the waiting list" : "I'm going"}
+          </ActionButton>
+        </>
+      )}
+    </div>
   );
 }

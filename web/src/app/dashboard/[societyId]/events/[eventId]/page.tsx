@@ -4,8 +4,10 @@ import { notFound } from "next/navigation";
 import { requireManagedSociety } from "@/lib/society";
 import { getEventPeople, getLedger, type LedgerRowRecord, type Person } from "@/lib/event-people";
 import { formatEventTime, hasEnded, nowMs } from "@/lib/time";
-import { FORMATS, type EventTable, type MotiveEvent } from "@/lib/types";
+import { FORMATS, type MotiveEvent } from "@/lib/types";
 import { Avatar } from "@/components/avatar";
+import { HIDE, InstantArea, InstantFormButton } from "@/components/instant";
+import { TablesAdmin } from "./tables-admin";
 import { LedgerEditor, type EditorRow } from "./ledger-editor";
 import { LateArrivalForm } from "./late-arrival-form";
 import { BankLedger } from "@/app/e/[id]/bank-ledger";
@@ -81,11 +83,14 @@ export default async function ManageEventPage({ params }: PageProps<"/dashboard/
           <TablesAdmin
             tables={tables}
             people={going}
-            moveAction={(uid) => moveEntry.bind(null, societyId, eventId, uid)}
-            removeAction={(uid) => removeEntry.bind(null, societyId, eventId, uid)}
+            startedLabel={Object.fromEntries(
+              tables.map((t) => [t.id, t.started_at ? new Date(t.started_at).toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit" }) : ""]),
+            )}
+            move={moveEntry.bind(null, societyId, eventId)}
+            remove={removeEntry.bind(null, societyId, eventId)}
+            setStarted={setTableStarted.bind(null, societyId, eventId)}
             eventStarted={new Date(event.starts_at).getTime() <= nowMs()}
             finished={finished}
-            startAction={(tableId, started) => setTableStarted.bind(null, societyId, eventId, tableId, started)}
           />
         ) : event.format === "entries" && finished ? (
           <form action={savePositions.bind(null, societyId, eventId)} className="card mt-3 space-y-3">
@@ -118,17 +123,19 @@ export default async function ManageEventPage({ params }: PageProps<"/dashboard/
             <h3 className="font-semibold">Waiting list ({waitlist.length})</h3>
             <ul className="mt-2 space-y-2">
               {waitlist.map((p, i) => (
-                <li key={p.userId} className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-3 py-2">
-                  <span className="flex items-center gap-3">
-                    <span className="w-5 text-sm text-muted">{i + 1}</span>
-                    <Avatar name={p.name} url={p.avatarUrl} size={28} />
-                    <span className="font-semibold">{p.name}</span>
-                  </span>
-                  <span className="flex gap-3 text-sm font-semibold">
-                    <form action={promoteEntry.bind(null, societyId, eventId, p.userId)}><button className="text-brand">Move to entries</button></form>
-                    <form action={removeEntry.bind(null, societyId, eventId, p.userId)}><button className="text-danger">Remove</button></form>
-                  </span>
-                </li>
+                <InstantArea key={p.userId}>
+                  <li className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-3 py-2">
+                    <span className="flex items-center gap-3">
+                      <span className="w-5 text-sm text-muted">{i + 1}</span>
+                      <Avatar name={p.name} url={p.avatarUrl} size={28} />
+                      <span className="font-semibold">{p.name}</span>
+                    </span>
+                    <span className="flex gap-3 text-sm font-semibold">
+                      <InstantFormButton action={promoteEntry.bind(null, societyId, eventId, p.userId)} after={HIDE} className="text-brand">Move to entries</InstantFormButton>
+                      <InstantFormButton action={removeEntry.bind(null, societyId, eventId, p.userId)} after={HIDE} className="text-danger">Remove</InstantFormButton>
+                    </span>
+                  </li>
+                </InstantArea>
               ))}
             </ul>
           </div>
@@ -138,21 +145,9 @@ export default async function ManageEventPage({ params }: PageProps<"/dashboard/
       {/* ---------- Results ledger ---------- */}
       {event.format !== "entries" && (
         <section className="mt-12">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="font-display text-xl font-bold">Results &amp; who pays who</h2>
-              <p className="text-sm text-muted">
-                {event.results_published
-                  ? "Players who came can see the results and who they pay."
-                  : "Only the committee can see this until you share it."}
-              </p>
-            </div>
-            <form action={setResultsPublished.bind(null, societyId, eventId, !event.results_published)}>
-              <button className={event.results_published ? "btn-ghost" : "btn"}>
-                {event.results_published ? "Hide from players" : "Share with players"}
-              </button>
-            </form>
-          </div>
+          <InstantArea>
+            <ResultsHeader published={event.results_published} action={setResultsPublished.bind(null, societyId, eventId, !event.results_published)} />
+          </InstantArea>
 
           <div className="mt-4 space-y-4">
             {(event.format === "tables" ? tables : [null]).map((table) => {
@@ -229,133 +224,35 @@ function PeopleList({ people, numbered, removeAction }: { people: Person[]; numb
   return (
     <ul className="mt-3 grid gap-2 sm:grid-cols-2">
       {people.map((p, i) => (
-        <li key={p.userId} className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-3 py-2">
-          <span className="flex items-center gap-3">
-            {numbered && <span className="w-5 text-sm text-muted">{i + 1}</span>}
-            <Avatar name={p.name} url={p.avatarUrl} size={28} />
-            <span className="font-semibold">{p.name}</span>
-          </span>
-          <form action={removeAction(p.userId)}>
-            <button className="text-sm font-semibold text-danger hover:underline">Remove</button>
-          </form>
-        </li>
+        <InstantArea key={p.userId}>
+          <li className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-3 py-2">
+            <span className="flex items-center gap-3">
+              {numbered && <span className="w-5 text-sm text-muted">{i + 1}</span>}
+              <Avatar name={p.name} url={p.avatarUrl} size={28} />
+              <span className="font-semibold">{p.name}</span>
+            </span>
+            <InstantFormButton action={removeAction(p.userId)} after={HIDE} className="text-sm font-semibold text-danger hover:underline">Remove</InstantFormButton>
+          </li>
+        </InstantArea>
       ))}
     </ul>
   );
 }
 
-function TablesAdmin({
-  tables,
-  people,
-  moveAction,
-  removeAction,
-  eventStarted,
-  finished,
-  startAction,
-}: {
-  tables: EventTable[];
-  people: Person[];
-  moveAction: (uid: string) => (formData: FormData) => Promise<void>;
-  removeAction: (uid: string) => () => Promise<void>;
-  eventStarted: boolean;
-  finished: boolean;
-  startAction: (tableId: string, started: boolean) => () => Promise<void>;
-}) {
-  const groups = [...tables.map((t) => ({ table: t as EventTable | null, list: people.filter((p) => p.tableId === t.id) })), {
-    table: null,
-    list: people.filter((p) => !p.tableId || !tables.some((t) => t.id === p.tableId)),
-  }];
-
+// The "share results" switch. "preview" draws it as it will look straight
+// after the tap (see InstantArea).
+function ResultsHeader({ published, action, preview }: { published: boolean; action: () => Promise<void>; preview?: boolean }) {
   return (
-    <div className="mt-3 grid gap-4 sm:grid-cols-2">
-      {groups.map(({ table, list }) =>
-        !table && list.length === 0 ? null : (
-          <div key={table?.id ?? "none"} className="card">
-            <div className="flex items-baseline justify-between">
-              <h3 className="font-display text-lg font-bold">{table ? table.name : "No table yet"}</h3>
-              {table && (
-                <span className={`text-sm font-semibold ${list.length >= table.seats ? "text-danger" : "text-muted"}`}>
-                  {table.level ? `${table.level} · ` : ""}{list.length}/{table.seats}
-                </span>
-              )}
-            </div>
-            {table && !finished && (
-              table.started_at ? (
-                <div className="mt-2 flex items-center gap-3 text-sm">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-live px-2 py-0.5 text-xs font-bold text-white">
-                    <span className="size-1.5 animate-pulse rounded-full bg-white" /> LIVE
-                  </span>
-                  <span className="text-muted">
-                    Started {new Date(table.started_at).toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                  <form action={startAction(table.id, false)}>
-                    <button className="font-semibold text-muted hover:text-danger">Undo</button>
-                  </form>
-                </div>
-              ) : !eventStarted ? (
-                <form action={startAction(table.id, true)} className="mt-2">
-                  <button className="btn py-1.5 text-sm">▶ Start table now</button>
-                </form>
-              ) : null
-            )}
-            {table && (() => {
-              const willing = people.filter((p) => p.tableId !== table.id && p.alsoTables.includes(table.id));
-              return willing.length > 0 ? (
-                <div className="mt-3 rounded-xl bg-brand-soft p-2.5">
-                  <p className="mb-1.5 text-xs font-bold text-brand">Also happy to play here</p>
-                  <ul className="space-y-1.5">
-                    {willing.map((p) => (
-                      <li key={p.userId} className="flex items-center justify-between gap-2 text-sm">
-                        <span className="flex items-center gap-2">
-                          <Avatar name={p.name} url={p.avatarUrl} size={22} />
-                          <span className="font-semibold">{p.name}</span>
-                          <span className="text-xs text-muted">{tables.find((t) => t.id === p.tableId)?.name ?? "no table"}</span>
-                        </span>
-                        <MoveHere action={moveAction(p.userId)} tableId={table.id} />
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null;
-            })()}
-            {list.length === 0 ? (
-              <p className="mt-2 text-sm text-muted">Empty</p>
-            ) : (
-              <ul className="mt-3 space-y-2">
-                {list.map((p) => (
-                  <li key={p.userId} className="flex items-center justify-between gap-2">
-                    <span className="flex min-w-0 items-center gap-2">
-                      <Avatar name={p.name} url={p.avatarUrl} size={28} />
-                      <span className="truncate font-semibold">{p.name}</span>
-                    </span>
-                    <span className="flex shrink-0 items-center gap-2">
-                      <form action={moveAction(p.userId)} className="flex items-center gap-1">
-                        <select name="table_id" defaultValue={p.tableId ?? ""} className="rounded-lg border border-line bg-surface px-2 py-1 text-sm" aria-label={`Move ${p.name}`}>
-                          <option value="">No table</option>
-                          {tables.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                        </select>
-                        <button className="text-sm font-semibold text-brand">Move</button>
-                      </form>
-                      <form action={removeAction(p.userId)}>
-                        <button className="text-sm font-semibold text-danger" aria-label={`Remove ${p.name}`}>✕</button>
-                      </form>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        ),
-      )}
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h2 className="font-display text-xl font-bold">Results &amp; who pays who</h2>
+        <p className="text-sm text-muted">
+          {published ? "Players who came can see the results and who they pay." : "Only the committee can see this until you share it."}
+        </p>
+      </div>
+      <InstantFormButton action={action} after={preview ? null : <ResultsHeader published={!published} action={action} preview />} className={published ? "btn-ghost" : "btn"}>
+        {published ? "Hide from players" : "Share with players"}
+      </InstantFormButton>
     </div>
-  );
-}
-
-function MoveHere({ action, tableId }: { action: (formData: FormData) => Promise<void>; tableId: string }) {
-  return (
-    <form action={action}>
-      <input type="hidden" name="table_id" value={tableId} />
-      <button className="text-xs font-bold text-brand hover:underline">Move here</button>
-    </form>
   );
 }

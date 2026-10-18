@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { HIDE, InstantArea, InstantFormButton } from "@/components/instant";
 import { requireManagedSociety } from "@/lib/society";
 import { InviteForm } from "./invite-form";
 import { approveMember, inviteMembers, removeInvite, removeMember } from "./actions";
@@ -32,16 +33,18 @@ export default async function MembersPage({ params }: PageProps<"/dashboard/[soc
           <h2 className="font-display text-xl font-bold">Asking to join</h2>
           <ul className="mt-3 space-y-2">
             {pending.map((m) => (
-              <li key={m.user_id} className="card flex flex-wrap items-center justify-between gap-3 py-3">
-                <div>
-                  <p className="font-semibold">{m.name}</p>
-                  <p className="text-sm text-muted">{m.email}</p>
-                </div>
-                <div className="flex gap-2">
-                  <form action={approveMember.bind(null, societyId, m.user_id!)}><button className="btn py-2">Approve</button></form>
-                  <form action={removeMember.bind(null, societyId, m.user_id!)}><button className="btn-ghost py-2">Decline</button></form>
-                </div>
-              </li>
+              <InstantArea key={m.user_id}>
+                <li className="card flex flex-wrap items-center justify-between gap-3 py-3">
+                  <div>
+                    <p className="font-semibold">{m.name}</p>
+                    <p className="text-sm text-muted">{m.email}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <InstantFormButton action={approveMember.bind(null, societyId, m.user_id!)} after={HIDE} className="btn py-2">Approve</InstantFormButton>
+                    <InstantFormButton action={removeMember.bind(null, societyId, m.user_id!)} after={HIDE} className="btn-ghost py-2">Decline</InstantFormButton>
+                  </div>
+                </li>
+              </InstantArea>
             ))}
           </ul>
         </section>
@@ -58,14 +61,16 @@ export default async function MembersPage({ params }: PageProps<"/dashboard/[soc
         ) : (
           <ul className="mt-3 divide-y divide-line rounded-2xl border border-line bg-surface">
             {approved.map((m) => (
-              <li key={m.user_id} className="flex items-center justify-between gap-3 px-4 py-2.5">
-                <span className="min-w-0">
-                  <span className="font-semibold">{m.name}</span> <span className="text-sm text-muted">{m.email}</span>
-                </span>
-                <form action={removeMember.bind(null, societyId, m.user_id!)}>
-                  <button className="text-sm font-semibold text-danger hover:underline">Remove</button>
-                </form>
-              </li>
+              <InstantArea key={m.user_id}>
+                <li className="flex items-center justify-between gap-3 px-4 py-2.5">
+                  <span className="min-w-0">
+                    <span className="font-semibold">{m.name}</span> <span className="text-sm text-muted">{m.email}</span>
+                  </span>
+                  <InstantFormButton action={removeMember.bind(null, societyId, m.user_id!)} after={HIDE} className="text-sm font-semibold text-danger hover:underline">
+                    Remove
+                  </InstantFormButton>
+                </li>
+              </InstantArea>
             ))}
           </ul>
         )}
@@ -77,12 +82,14 @@ export default async function MembersPage({ params }: PageProps<"/dashboard/[soc
           <p className="mt-1 text-sm text-muted">They&apos;ll become members automatically when they log in and join.</p>
           <ul className="mt-3 divide-y divide-line rounded-2xl border border-line bg-surface">
             {invited.map((m) => (
-              <li key={m.email} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
-                <span>{m.email}</span>
-                <form action={removeInvite.bind(null, societyId, m.email)}>
-                  <button className="font-semibold text-danger hover:underline">Remove</button>
-                </form>
-              </li>
+              <InstantArea key={m.email}>
+                <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+                  <span>{m.email}</span>
+                  <InstantFormButton action={removeInvite.bind(null, societyId, m.email)} after={HIDE} className="font-semibold text-danger hover:underline">
+                    Remove
+                  </InstantFormButton>
+                </li>
+              </InstantArea>
             ))}
           </ul>
         </section>
