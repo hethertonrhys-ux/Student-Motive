@@ -246,6 +246,28 @@ The full list is in `PROJECT_NOTES.md` under "Tests". Live `main` (the last live
 
 ---
 
+## Follow-up (after your phone test)
+
+**Live now**
+- **Location map:** the blank map was on the older "Host an event" page (from the home screen) and a society's "Somewhere else" box, which still used an old copy. All three now share one fixed picker: the map shows, the pin is visible and draggable, and the chosen place stays in the search box (outlined in green).
+- **LSE buildings in the search:** 45 LSE buildings, theatres, halls and spots come up first. Short names work too, e.g. "SAW", "NAB"/"CKK", "32L", "Tuns". The usual address search follows.
+- **Home → "+ Host an event"** now opens the same Social hosting form as the Social tab.
+- **Host colour:** the host has a gold ring and a gold "Host" label on Social event pages.
+- **Profile pictures:** tap one on someone's profile to see it big; tap anywhere to close.
+- **Crop photos already uploaded:** each My 5 photo has a small crop button (bottom right). It keeps its place.
+
+**Waiting (SQL)**
+- **"Learn" category:** added to the `item-4-food-category` branch. Extra SQL file `20261024000001_learn_category.sql`:
+  `alter type public.social_category add value if not exists 'learn';`
+- **Message the host without being friends:** "Message host" next to "Hosted by" opens a private chat. Blocking still stops it.
+  - Branch `followup-message-host`, built on the group-chats branch.
+  - SQL file `20261102000000_message_the_host.sql`; run it after the group-chats one.
+- **Reordering photos** still needs the item 12 and 14 SQL plus a merge (section 3). It isn't live yet, which is why you couldn't move photos.
+
+`all-waiting-items` now includes all of the above. Its SQL list is the 9 files in section 3 plus the 2 above, run in filename order (11 in total). After today's changes I re-ran the full test suite on it, everything at once: all **34 checks passed**, including the 4 Societies tests.
+
+---
+
 ## Appendix: detailed notes per item
 
 Test files mentioned below live in my scratch area, not in the repo; PROJECT_NOTES.md describes them.
