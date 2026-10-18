@@ -36,6 +36,10 @@ export const CATEGORY_STYLE: Record<MapCategory, { colour: string; icon: string 
     colour: "#B45309",
     icon: "M7 3.5v6.5M4.5 3.5v4a2.5 2.5 0 005 0v-4M7 10v10.5M17 20.5V3.5c-2.2 0-3.5 2.4-3.5 6v3.5H17",
   },
+  learn: {
+    colour: "#CA8A04",
+    icon: "M9.5 18h5M10 21h4M12 3a6 6 0 00-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0012 3z",
+  },
   other: {
     colour: "#475569",
     icon: "M12 3.5l2.2 5.3 5.8.5-4.4 3.8 1.3 5.6L12 15.8l-4.9 2.9 1.3-5.6L4 9.3l5.8-.5z",
