@@ -77,7 +77,7 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
 
       {host && (
         <Link href={`/u/${host.id}`} className="mt-3 inline-flex items-center gap-2 font-semibold">
-          <Avatar name={host.name} url={host.avatar_url} size={28} />
+          <Avatar name={host.name} url={host.avatar_url} size={28} ring="host" />
           <span>Hosted by <span className="text-brand">{host.name}</span></span>
         </Link>
       )}
@@ -186,7 +186,7 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
           <ul className="mt-3 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
             {host && (
               <li className="flex items-center gap-3 px-4 py-3">
-                <Avatar name={host.name} url={host.avatar_url} size={40} />
+                <Avatar name={host.name} url={host.avatar_url} size={40} ring="host" />
                 <span className="flex-1 font-semibold">{host.name}</span>
                 <span className="text-xs font-bold text-muted">Host</span>
               </li>

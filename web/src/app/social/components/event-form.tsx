@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { CostField } from "@/components/cost-field";
 import { SOCIAL_CATEGORIES, type SocialEvent } from "@/lib/social-events";
 import type { FormState } from "../actions";
-import { PlacePicker, type Point } from "./place-picker";
+import { PlacePicker, type Point } from "@/components/place-picker";
 
 type Props = {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
