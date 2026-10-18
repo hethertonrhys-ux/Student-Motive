@@ -30,8 +30,8 @@ export function Attendees({ host, people, guests }: { host: Person | null; peopl
       <div className="flex items-start gap-4">
         {host && (
           <Link href={`/u/${host.id}`} className="flex w-14 shrink-0 flex-col items-center gap-1 text-center">
-            <Avatar name={host.name} url={host.avatar_url} size={48} />
-            <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-bold text-brand">Host</span>
+            <Avatar name={host.name} url={host.avatar_url} size={48} ring="host" />
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">Host</span>
           </Link>
         )}
         <div className="min-w-0 flex-1 border-l border-line pl-4">
@@ -83,9 +83,9 @@ export function Attendees({ host, people, guests }: { host: Person | null; peopl
               {host && (
                 <li>
                   <Link href={`/u/${host.id}`} className="flex items-center gap-3 py-2.5">
-                    <Avatar name={host.name} url={host.avatar_url} size={40} />
+                    <Avatar name={host.name} url={host.avatar_url} size={40} ring="host" />
                     <span className="flex-1 truncate font-semibold">{host.name}</span>
-                    <span className="text-xs font-bold text-muted">Host</span>
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">Host</span>
                   </Link>
                 </li>
               )}
