@@ -88,3 +88,18 @@ export async function confirmSeat(eventId: string) {
   revalidatePath(`/e/${eventId}`);
   redirect(`/dashboard?confirmed=${eventId}`);
 }
+
+// Waiting list for a full table (before the event starts).
+export async function joinTableWaitlist(eventId: string, tableId: string): Promise<JoinResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("join_table_waitlist", { eid: eventId, tid: tableId });
+  revalidatePath(`/e/${eventId}`);
+  return error ? { error: friendly(error.message) } : {};
+}
+
+export async function leaveTableWaitlist(eventId: string): Promise<JoinResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("leave_table_waitlist", { eid: eventId });
+  revalidatePath(`/e/${eventId}`);
+  return error ? { error: friendly(error.message) } : {};
+}

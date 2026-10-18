@@ -42,3 +42,24 @@ export async function getFriendRequests(supabase: SupabaseClient, me: string): P
     .filter((r) => !blocked.has(r.requester_id))
     .map((r) => ({ id: r.requester_id, at: r.created_at }));
 }
+
+export type TableMove = { id: string; eventId: string; event: string; table: string; at: string };
+
+// Times you were moved off a poker table's waiting list onto the table.
+export async function getTableMoves(supabase: SupabaseClient, me: string): Promise<TableMove[]> {
+  const { data } = await supabase
+    .from("table_moves")
+    .select("id, event_id, created_at, events(title), event_tables!table_moves_to_table_fkey(name)")
+    .eq("user_id", me)
+    .gte("created_at", new Date(Date.now() - DAYS * 864e5).toISOString())
+    .order("created_at", { ascending: false })
+    .limit(20);
+  type Row = { id: string; event_id: string; created_at: string; events: { title: string } | null; event_tables: { name: string } | null };
+  return ((data ?? []) as unknown as Row[]).map((r) => ({
+    id: r.id,
+    eventId: r.event_id,
+    event: r.events?.title ?? "your event",
+    table: r.event_tables?.name ?? "your table",
+    at: r.created_at,
+  }));
+}
