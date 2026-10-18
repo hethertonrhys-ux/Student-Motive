@@ -11,6 +11,7 @@ import { SITE_URL } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 import { nowMs } from "@/lib/time";
 import { removeGuest, respondToRequest } from "../actions";
+import { Attendees } from "../components/attendees";
 import { InstantRow, JoinPanel } from "../components/join-panel";
 import { ReportLink } from "../components/report-link";
 
@@ -110,6 +111,19 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
         </div>
       </dl>
 
+      <Attendees
+        host={host ? { id: host.id, name: host.name, avatar_url: host.avatar_url } : null}
+        people={
+          isHost || mine === "going"
+            ? going.map((g) => {
+                const p = cards.get(g.user_id);
+                return { id: g.user_id, name: p?.name ?? "Member", avatar_url: p?.avatar_url ?? null };
+              })
+            : null
+        }
+        guests={event.going_count}
+      />
+
       {/* The main button */}
       <div className="mt-5">
         <JoinPanel
@@ -157,8 +171,8 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
         </section>
       )}
 
-      {/* Who's going: the host and people going can see it */}
-      {(isHost || mine === "going") && (
+      {/* The host's guest list, with Remove (everyone else uses the faces above) */}
+      {isHost && going.length > 0 && (
         <section className="mt-8">
           <h2 className="font-display text-xl font-bold">Going ({going.length + 1})</h2>
           <ul className="mt-3 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
