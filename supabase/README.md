@@ -15,6 +15,7 @@ Project ID: `xrpbmcoptyrpgkdowfdt` (London region)
 - `migrations/20261022000000_social_section.sql`: the Social section (students hosting their own events), in its own tables: `social_events`, `social_event_members`, `social_event_addresses`, `social_reports`.
 - `migrations/20261023000000_profile_upgrade.sql`: profile upgrade. Societies on profiles (a read-only `profile_societies` function, no Societies changes), "My 5" photos (`profile_photos`, private `profile-photos` bucket), `profile_settings`, and `profile_photo_reports`.
 - `migrations/20261104000000_london_unis.sql`: London expansion. A `universities` table (LSE, UCL, King's, Imperial and their email domains), `profiles.university`, sign-up for all four unis, societies only for their own uni's students, and `events.audience` (members / uni / london) for who can see a society's event.
+- `migrations/20261105000000_society_search.sql`: society search across all London unis (`search_societies`, own uni first), and `search_events`, which counts taps on "Search all London unis" (readable by the Function team only).
 - `seed.sql`: starter data (LSE buildings, LSE halls, other universities, first society).
 
 ## Running them

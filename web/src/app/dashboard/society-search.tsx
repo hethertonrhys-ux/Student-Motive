@@ -1,21 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import type { OrgKind } from "@/lib/types";
-import { UNIVERSITIES, uniShort } from "@/lib/universities";
+import { uniShort } from "@/lib/universities";
+import { logSearchAllUnis, searchAllSocieties, type FoundSociety } from "@/app/societies/search-actions";
 
-export type SearchableSociety = {
-  id: string;
-  name: string;
-  slug: string;
-  kind: OrgKind;
-  logo_url: string | null;
-  university: string;
-  // Your link to it, if any.
-  relation: "runs" | "member" | "pending" | null;
-};
+export type SearchableSociety = FoundSociety;
+// Your link to a society, if any.
+export type Relation = "runs" | "member" | "pending";
 
 const KIND_LABEL: Record<OrgKind, string> = {
   society: "Society",
@@ -25,6 +19,7 @@ const KIND_LABEL: Record<OrgKind, string> = {
 };
 
 // Lower case, no accents or punctuation, so "Fintech" finds "LSE FinTech Society".
+// (search_societies in the database does the same for all-unis searches.)
 const normalise = (text: string) =>
   text
     .normalize("NFD")
@@ -34,25 +29,61 @@ const normalise = (text: string) =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
-// myUni: searches start with that uni's societies (the chips switch uni).
-// Without it (the committee dashboard) every uni is searched.
-export function SocietySearch({ societies, myUni }: { societies: SearchableSociety[]; myUni?: string }) {
+// Searches your own uni's societies (loaded with the page, so results are
+// instant). A row at the bottom widens the same search to every London uni,
+// which the server does. Without a uni (logged out) it always searches every
+// uni. Widening lasts until the box is cleared or you leave the page.
+export function SocietySearch({
+  societies,
+  myUni,
+  relations = {},
+}: {
+  societies: SearchableSociety[];
+  myUni?: string;
+  relations?: Record<string, Relation>;
+}) {
   const [query, setQuery] = useState("");
-  const [uni, setUni] = useState(myUni);
+  const [widened, setWidened] = useState(false);
+  const [found, setFound] = useState<{ query: string; list: FoundSociety[] } | null>(null);
   const searching = query.trim().length > 0;
+  const allUnis = !myUni || widened;
+  const mine = uniShort(myUni);
 
-  const results = useMemo(() => {
+  const ownResults = useMemo(() => {
     const words = normalise(query).split(" ").filter(Boolean);
     if (words.length === 0) return [];
     return societies
-      .filter((s) => !uni || s.university === uni)
       .map((s) => ({ s, name: normalise(s.name) }))
       .filter(({ name }) => words.every((w) => name.includes(w)))
       // Names that start with what you typed come first.
       .sort((a, b) => Number(b.name.startsWith(words[0])) - Number(a.name.startsWith(words[0])) || a.name.localeCompare(b.name))
       .slice(0, 12)
       .map(({ s }) => s);
-  }, [societies, query, uni]);
+  }, [societies, query]);
+
+  // All unis: ask the server a moment after typing stops.
+  useEffect(() => {
+    const q = query.trim();
+    if (!allUnis || !q) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const list = await searchAllSocieties(q);
+      if (!cancelled) setFound({ query: q, list });
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [allUnis, query]);
+
+  const loading = allUnis && searching && found?.query !== query.trim();
+  // While a new search loads, keep showing the last one.
+  const results = allUnis ? (found?.list ?? []) : ownResults;
+
+  function widen() {
+    setWidened(true);
+    void logSearchAllUnis(query);
+  }
 
   return (
     <section className="mt-8">
@@ -65,58 +96,85 @@ export function SocietySearch({ societies, myUni }: { societies: SearchableSocie
         <input
           type="search"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={uni ? `Search ${uniShort(uni)} societies, e.g. Poker, Economics, Law` : "Search societies, e.g. Poker, Economics, Law"}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            // A new search starts at your own uni again.
+            if (!e.target.value.trim()) setWidened(false);
+          }}
+          placeholder={allUnis ? "Search societies, e.g. Poker, Economics, Law" : `Search ${mine} societies, e.g. Poker, Economics, Law`}
           aria-label="Search societies"
           autoComplete="off"
           className="input pl-11"
         />
       </div>
 
-      {myUni && (
-        <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="University">
-          {UNIVERSITIES.map((u) => (
-            <button
-              key={u.id}
-              type="button"
-              aria-pressed={uni === u.id}
-              onClick={() => setUni(u.id)}
-              className={`rounded-full border px-3 py-1 text-xs font-bold transition ${uni === u.id ? "border-brand bg-brand-soft text-brand" : "border-line bg-surface text-muted hover:border-brand"}`}
-            >
-              {u.short}
-            </button>
-          ))}
-        </div>
-      )}
-
       {searching && (
-        <ul className="mt-2 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
-          {results.map((s) => (
-            <li key={s.id}>
-              <Link href={`/s/${s.slug}`} className="flex items-center gap-3 px-4 py-3 transition hover:bg-brand-soft">
-                <Avatar name={s.name} url={s.logo_url} size={36} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold">{s.name}</span>
-                  <span className="text-xs text-muted">{KIND_LABEL[s.kind]} · {uniShort(s.university)}</span>
-                </span>
-                {s.relation && (
-                  <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ${s.relation === "pending" ? "bg-brand-soft text-brand" : "bg-ok/10 text-ok"}`}>
-                    {s.relation === "runs" ? "You run this" : s.relation === "member" ? "Member" : "Awaiting approval"}
-                  </span>
-                )}
-                <span className="shrink-0 text-muted" aria-hidden>›</span>
-              </Link>
-            </li>
-          ))}
-          {results.length === 0 && (
-            <li className="px-4 py-4 text-sm text-muted">
-              No society called &ldquo;{query.trim()}&rdquo; on Function yet.{" "}
-              <Link href="/dashboard/claim" className="font-semibold text-brand">
-                Run one? Ask to add it →
-              </Link>
-            </li>
-          )}
-        </ul>
+        <>
+          <p className="mt-2 flex flex-wrap items-center gap-x-2 text-xs font-semibold text-muted" aria-live="polite">
+            {allUnis ? "Showing societies from all London unis" : `Showing ${mine} societies`}
+            {widened && (
+              <button type="button" onClick={() => setWidened(false)} className="font-semibold text-brand">
+                Back to {mine} only
+              </button>
+            )}
+          </p>
+          <ul className="mt-1.5 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
+            {results.map((s) => {
+              const relation = relations[s.id];
+              return (
+                <li key={s.id}>
+                  <Link href={`/s/${s.slug}`} className="flex items-center gap-3 px-4 py-3 transition hover:bg-brand-soft">
+                    <Avatar name={s.name} url={s.logo_url} size={36} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold">{s.name}</span>
+                      <span className="text-xs text-muted">{KIND_LABEL[s.kind]}</span>
+                    </span>
+                    {allUnis && (
+                      <span className="shrink-0 rounded-full border border-line px-2 py-0.5 text-[11px] font-bold text-muted" data-uni-tag>
+                        {uniShort(s.university)}
+                      </span>
+                    )}
+                    {relation && (
+                      <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ${relation === "pending" ? "bg-brand-soft text-brand" : "bg-ok/10 text-ok"}`}>
+                        {relation === "runs" ? "You run this" : relation === "member" ? "Member" : "Awaiting approval"}
+                      </span>
+                    )}
+                    <span className="shrink-0 text-muted" aria-hidden>›</span>
+                  </Link>
+                </li>
+              );
+            })}
+            {loading && results.length === 0 && <li className="px-4 py-3 text-sm text-muted">Searching…</li>}
+
+            {/* Own uni: always offer to look further, louder when nothing matched. */}
+            {!allUnis &&
+              (results.length > 0 ? (
+                <li>
+                  <button type="button" onClick={widen} className="block w-full px-4 py-3 text-left text-sm text-muted transition hover:bg-brand-soft">
+                    Society not from {mine}? <span className="font-semibold text-brand">Search all London unis</span>
+                  </button>
+                </li>
+              ) : (
+                <li>
+                  <button type="button" onClick={widen} className="block w-full px-4 py-4 text-left transition hover:bg-brand-soft">
+                    <span className="font-semibold">
+                      No {mine} societies match &ldquo;{query.trim()}&rdquo;.
+                    </span>{" "}
+                    <span className="font-semibold text-brand">Search all London unis?</span>
+                  </button>
+                </li>
+              ))}
+
+            {(allUnis ? !loading && results.length === 0 : results.length === 0) && (
+              <li className="px-4 py-3 text-sm text-muted">
+                {allUnis ? <>No society called &ldquo;{query.trim()}&rdquo; on Function yet. </> : "Not on Function yet? "}
+                <Link href="/dashboard/claim" className="font-semibold text-brand">
+                  Run one? Ask to add it →
+                </Link>
+              </li>
+            )}
+          </ul>
+        </>
       )}
     </section>
   );
