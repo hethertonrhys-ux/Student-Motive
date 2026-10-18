@@ -27,7 +27,7 @@ export function Landing({ uni }: { uni?: University }) {
           {uni ? <>Function at <span style={{ color: uni.accent }}>{uni.short}</span></> : `Now at ${ALL_UNIS_TEXT}`}
         </p>
         <h1 className="max-w-3xl font-display text-5xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl">
-          {uni ? `${uni.short}'s student social life, all in one place.` : "London's student social life, all in one place."}
+          {uni ? `${possessive(uni.short)} student social life, all in one place.` : "London's student social life, all in one place."}
         </h1>
         <p className="mt-5 max-w-2xl text-lg font-semibold">
           {uni ? `Societies, events and socials at ${uni.short}, plus open socials across London.` : `For students at ${ALL_UNIS_TEXT}.`}
@@ -81,10 +81,13 @@ export function Landing({ uni }: { uni?: University }) {
   );
 }
 
+// "LSE's", but "King's" stays "King's" (not "King's's").
+const possessive = (name: string) => (name.endsWith("'s") ? name : `${name}'s`);
+
 // Title and description for a uni's page.
 export function uniLandingMetadata(uni: University) {
   return {
     title: { absolute: `Function at ${uni.short}` },
-    description: `${uni.short}'s student social life, all in one place. Societies, events and socials at ${uni.short}, plus open socials across London.`,
+    description: `${possessive(uni.short)} student social life, all in one place. Societies, events and socials at ${uni.short}, plus open socials across London.`,
   };
 }
