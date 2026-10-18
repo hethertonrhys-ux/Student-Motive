@@ -5,7 +5,7 @@ import type { GeoJSONSource, GeolocateControl, Map as MapLibreMap, Marker, Popup
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { MapEvent, MapWindows } from "@/lib/map-events";
 import { LSE, distanceMetres, howFar } from "@/lib/map-style";
-import { categoryLabel } from "@/lib/types";
+import { mapCategoryLabel as categoryLabel } from "@/lib/map-categories";
 import { loadMapEvents } from "./actions";
 import { FilterButton, FilterPanel, SearchBar, SearchButton, normalise, useSavedCategories } from "./map-controls";
 import { type Look, applyLook, heatColours, isDark, mapStyle } from "./map-theme";
@@ -54,7 +54,7 @@ function el(tag: string, className: string, text?: string) {
 function eventCard(event: MapEvent, now: number, me: [number, number] | null) {
   const s = status(event, now);
   const card = el("a", "motive-pop") as HTMLAnchorElement;
-  card.href = `/e/${event.id}`;
+  card.href = event.href;
   const top = el("div", "motive-pop-top");
   if (s === "live") top.append(el("span", "motive-pop-live", "LIVE"));
   const chip = el("span", "fn-chip");

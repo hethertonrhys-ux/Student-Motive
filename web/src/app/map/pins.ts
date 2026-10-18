@@ -1,9 +1,9 @@
-import type { EventCategory } from "@/lib/types";
+import type { MapCategory } from "@/lib/map-categories";
 
 // Each category has its own colour AND its own icon, so pins can be told
 // apart without relying on colour. Icons are drawn on a 24px grid with
 // rounded strokes, in the same style as the rest of the app.
-export const CATEGORY_STYLE: Record<EventCategory, { colour: string; icon: string }> = {
+export const CATEGORY_STYLE: Record<MapCategory, { colour: string; icon: string }> = {
   social: {
     colour: "#DB2777",
     icon: "M9 11a3 3 0 100-6 3 3 0 000 6zM3.5 20c0-3 2.5-5.5 5.5-5.5s5.5 2.5 5.5 5.5M17 11.4a2.4 2.4 0 100-4.8 2.4 2.4 0 000 4.8zM16.5 14.4c2.6.3 4.5 2.5 4.5 5.6",
@@ -28,13 +28,21 @@ export const CATEGORY_STYLE: Record<EventCategory, { colour: string; icon: strin
     colour: "#BE123C",
     icon: "M12 3a3 3 0 013 3v5a3 3 0 01-6 0V6a3 3 0 013-3zM5.5 11a6.5 6.5 0 0013 0M12 17.5V21M9 21h6",
   },
+  study: {
+    colour: "#0F766E",
+    icon: "M12 6.5C10.3 5.3 7.9 4.8 5 4.8v13c2.9 0 5.3.5 7 1.7 1.7-1.2 4.1-1.7 7-1.7v-13c-2.9 0-5.3.5-7 1.7zM12 6.5v13",
+  },
+  other: {
+    colour: "#475569",
+    icon: "M12 3.5l2.2 5.3 5.8.5-4.4 3.8 1.3 5.6L12 15.8l-4.9 2.9 1.3-5.6L4 9.3l5.8-.5z",
+  },
 };
 
-export const CATEGORY_ORDER = Object.keys(CATEGORY_STYLE) as EventCategory[];
+export const CATEGORY_ORDER = Object.keys(CATEGORY_STYLE) as MapCategory[];
 
 const SVG = "http://www.w3.org/2000/svg";
 
-export function iconSvg(category: EventCategory, size: number, colour: string) {
+export function iconSvg(category: MapCategory, size: number, colour: string) {
   const svg = document.createElementNS(SVG, "svg");
   svg.setAttribute("viewBox", "0 0 24 24");
   svg.setAttribute("width", String(size));
@@ -58,7 +66,7 @@ function div(className: string) {
 }
 
 // A "lollipop" pin: a round head with the category icon on a short stem.
-export function pinElement(category: EventCategory, live: boolean, label: string) {
+export function pinElement(category: MapCategory, live: boolean, label: string) {
   const { colour } = CATEGORY_STYLE[category];
   const root = div("fn-pin");
   root.style.setProperty("--c", colour);

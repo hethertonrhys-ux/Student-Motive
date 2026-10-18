@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
-import { CATEGORIES, type EventCategory } from "@/lib/types";
+import { MAP_CATEGORIES, type MapCategory } from "@/lib/map-categories";
 
 // The classic "filter" icon: three centred lines, each shorter than the one
 // above. Heroicons doesn't include this shape, so it's drawn here with the
@@ -19,7 +19,7 @@ export function FilterIcon(props: React.SVGProps<SVGSVGElement>) {
 
 const KEY = "function-map-categories";
 const listeners = new Set<() => void>();
-const VALID = new Set(CATEGORIES.map((c) => c.value));
+const VALID = new Set(MAP_CATEGORIES.map((c) => c.value));
 
 function read(): string {
   try {
@@ -29,7 +29,7 @@ function read(): string {
   }
 }
 
-export function useSavedCategories(): [EventCategory[], (next: EventCategory[]) => void] {
+export function useSavedCategories(): [MapCategory[], (next: MapCategory[]) => void] {
   const raw = useSyncExternalStore(
     (l) => {
       listeners.add(l);
@@ -38,11 +38,11 @@ export function useSavedCategories(): [EventCategory[], (next: EventCategory[]) 
     read,
     () => "[]",
   );
-  let parsed: EventCategory[] = [];
+  let parsed: MapCategory[] = [];
   try {
-    parsed = (JSON.parse(raw) as EventCategory[]).filter((c) => VALID.has(c));
+    parsed = (JSON.parse(raw) as MapCategory[]).filter((c) => VALID.has(c));
   } catch {}
-  const set = (next: EventCategory[]) => {
+  const set = (next: MapCategory[]) => {
     try {
       localStorage.setItem(KEY, JSON.stringify(next));
     } catch {}
@@ -79,8 +79,8 @@ export function FilterPanel({
   onChange,
   onClose,
 }: {
-  selected: EventCategory[];
-  onChange: (next: EventCategory[]) => void;
+  selected: MapCategory[];
+  onChange: (next: MapCategory[]) => void;
   onClose: () => void;
 }) {
   const panel = useRef<HTMLDivElement>(null);
@@ -91,7 +91,7 @@ export function FilterPanel({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const toggle = (value: EventCategory) =>
+  const toggle = (value: MapCategory) =>
     onChange(selected.includes(value) ? selected.filter((c) => c !== value) : [...selected, value]);
 
   return (
@@ -107,12 +107,12 @@ export function FilterPanel({
         <div className="flex items-center justify-between px-2 pt-1 pb-2">
           <p className="font-display font-bold">Categories</p>
           <span className="flex gap-3 text-sm font-semibold">
-            <button type="button" onClick={() => onChange(CATEGORIES.map((c) => c.value))} className="text-brand">Select all</button>
+            <button type="button" onClick={() => onChange(MAP_CATEGORIES.map((c) => c.value))} className="text-brand">Select all</button>
             <button type="button" onClick={() => onChange([])} className="text-muted hover:text-ink">Clear</button>
           </span>
         </div>
         <ul className="border-y border-line py-1">
-          {CATEGORIES.map((c) => (
+          {MAP_CATEGORIES.map((c) => (
             <li key={c.value}>
               <label className="flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2.5 hover:bg-brand-soft">
                 <input
