@@ -14,7 +14,7 @@ export async function requestToJoin(societyId: string, slug: string, _prev: Join
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("request_membership", { sid: societyId, your_name: name });
-  if (error) return { error: "Couldn't send your request. Please try again." };
+  if (error) return { error: error.message.startsWith("This society is for") ? `${error.message}.` : "Couldn't send your request. Please try again." };
   revalidatePath(`/s/${slug}`);
   return {};
 }

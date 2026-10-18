@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { GeoJSONSource, GeolocateControl, Map as MapLibreMap, Marker, Popup } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { MapEvent, MapWindows } from "@/lib/map-events";
-import { LSE, distanceMetres, howFar } from "@/lib/map-style";
+import { distanceMetres, howFar } from "@/lib/map-style";
 import { mapCategoryLabel as categoryLabel } from "@/lib/map-categories";
 import { loadMapEvents } from "./actions";
 import { clearWalk, drawWalk, mapsLink, walkText, walkingRoute, whereAmI } from "./directions";
@@ -13,8 +13,8 @@ import { type Look, applyLook, heatColours, isDark, mapStyle } from "./map-theme
 import { CATEGORY_ORDER, CATEGORY_STYLE, clusterElement, iconSvg, pinElement } from "./pins";
 
 const SOON_MS = 60 * 60 * 1000;
-// Zoomed in at LSE, the map tilts slightly so buildings look 3D.
-const LSE_VIEW = { center: LSE, zoom: 16.2, pitch: 35 };
+// Zoomed in at a campus, the map tilts slightly so buildings look 3D.
+const campusView = (centre: [number, number]) => ({ center: centre, zoom: 16.2, pitch: 35 });
 
 type When = "now" | "tonight" | "tomorrow";
 const WHEN_OPTIONS: { value: When; label: string }[] = [
@@ -134,7 +134,8 @@ function eventPopup(event: MapEvent, now: number, me: [number, number] | null) {
 
 type WalkInfo = { title: string; text: string; note: string | null; maps: string };
 
-type Props = { events: MapEvent[]; windows: MapWindows; forceLook?: Look };
+// home: your uni (LSE when logged out), where the map opens.
+type Props = { events: MapEvent[]; windows: MapWindows; forceLook?: Look; home: { short: string; centre: [number, number] } };
 
 // The map is kept between visits, so going back to the Map tab is instant
 // instead of rebuilding it. While you're on another tab it waits, unseen.
@@ -160,7 +161,7 @@ const shared: {
   onWalk: (walk: WalkInfo | null) => void;
 } = { byId: new Map(), now: 0, me: null, popup: null, onReady() {}, onMe() {}, onLocateError() {}, onMapError() {}, onWalk() {} };
 
-export function LiveMap({ events: firstEvents, windows: firstWindows, forceLook }: Props) {
+export function LiveMap({ events: firstEvents, windows: firstWindows, forceLook, home }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const [ready, setReady] = useState(() => Boolean(kept?.loaded));
@@ -275,7 +276,7 @@ export function LiveMap({ events: firstEvents, windows: firstWindows, forceLook 
       const map = new maplibre.Map({
         container: element,
         style: mapStyle(startLook),
-        ...LSE_VIEW,
+        ...campusView(home.centre),
         minZoom: 9,
         maxZoom: 19,
         attributionControl: { compact: true },
@@ -449,8 +450,8 @@ export function LiveMap({ events: firstEvents, windows: firstWindows, forceLook 
     map.setPaintProperty("heat", "heatmap-color", heatColours(look));
   }, [ready, look]);
 
-  function flyTo(view: "lse" | "london") {
-    mapRef.current?.flyTo(view === "lse" ? LSE_VIEW : { center: [-0.118, 51.512], zoom: 11.6, pitch: 0 });
+  function flyTo(view: "uni" | "london") {
+    mapRef.current?.flyTo(view === "uni" ? campusView(home.centre) : { center: [-0.145, 51.512], zoom: 11.6, pitch: 0 });
   }
 
   const liveCount = visible.filter((e) => status(e, now) === "live").length;
@@ -619,8 +620,8 @@ export function LiveMap({ events: firstEvents, windows: firstWindows, forceLook 
         </div>
         )}
         <div className="pointer-events-auto mr-12 flex gap-2">
-          <button type="button" onClick={() => flyTo("lse")} className="rounded-xl border border-line bg-surface px-3 py-2 text-sm font-bold shadow-lg">
-            LSE
+          <button type="button" onClick={() => flyTo("uni")} className="rounded-xl border border-line bg-surface px-3 py-2 text-sm font-bold shadow-lg">
+            {home.short}
           </button>
           <button type="button" onClick={() => flyTo("london")} className="rounded-xl border border-line bg-surface px-3 py-2 text-sm font-bold shadow-lg">
             London

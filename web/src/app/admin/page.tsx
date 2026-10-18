@@ -16,7 +16,7 @@ type ClaimRow = {
   committee_role: string | null;
   message: string | null;
   created_at: string;
-  societies: { name: string } | null;
+  societies: { name: string; university: string } | null;
   profiles: { email: string } | null;
 };
 
@@ -40,7 +40,7 @@ export default async function AdminPage() {
   const [{ data: claims }, { data: reports }, { data: societies }, { data: allowed }] = await Promise.all([
     supabase
       .from("society_claims")
-      .select("id, committee_role, message, created_at, societies(name), profiles(email)")
+      .select("id, committee_role, message, created_at, societies(name, university), profiles(email)")
       .eq("status", "pending")
       .order("created_at"),
     supabase
@@ -71,7 +71,7 @@ export default async function AdminPage() {
           {((claims ?? []) as unknown as ClaimRow[]).map((claim) => (
             <li key={claim.id} className="card flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0">
-                <p className="font-bold">{claim.societies?.name}</p>
+                <p className="font-bold">{claim.societies?.name} <span className="text-sm font-semibold text-muted">· {claim.societies?.university}</span></p>
                 <p className="text-sm">{claim.profiles?.email} · {claim.committee_role}</p>
                 {claim.message && <p className="mt-1 text-sm text-muted">&ldquo;{claim.message}&rdquo;</p>}
               </div>
@@ -133,8 +133,8 @@ export default async function AdminPage() {
       <section className="mt-10">
         <h2 className="font-display text-xl font-bold">Who can join</h2>
         <p className="mt-1 text-sm text-muted">
-          Anyone with an @lse.ac.uk email can log in. Add other emails here, one person at a time, or a whole
-          university with its domain (e.g. @kcl.ac.uk).
+          Anyone with an LSE, UCL, King&apos;s or Imperial email can log in. Add other emails here, one person at a
+          time, or a whole domain (e.g. @qmul.ac.uk).
         </p>
         <div className="card mt-3">
           <AllowEmailForm />

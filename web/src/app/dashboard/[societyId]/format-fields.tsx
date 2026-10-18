@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { DEFAULT_SEATS, FORMATS, POKER_STAKES, type EventFormat, type EventTable } from "@/lib/types";
+import { AUDIENCES, audienceLabel, uniShort, type Audience } from "@/lib/universities";
 
 type TableDraft = { id?: string; name: string; level: string; seats: number };
 
@@ -9,12 +10,21 @@ type Props = {
   format?: EventFormat;
   capacity?: number | null;
   membersOnly?: boolean;
+  audience?: Audience;
+  uni: string;
   tables?: EventTable[];
 };
 
+const AUDIENCE_HELP: Record<Audience, (uni: string) => string> = {
+  members: () => "Only your approved members can see and join it.",
+  uni: (uni) => `Every ${uni} student can see it.`,
+  london: () => "Students from LSE, UCL, King's and Imperial can see and join it.",
+};
+
 // The "How do people join?" part of the event form.
-export function FormatFields({ format: initialFormat = "standard", capacity, membersOnly = true, tables = [] }: Props) {
+export function FormatFields({ format: initialFormat = "standard", capacity, membersOnly = true, audience: initialAudience = "uni", uni, tables = [] }: Props) {
   const [format, setFormat] = useState<EventFormat>(initialFormat);
+  const [audience, setAudience] = useState<Audience>(initialAudience);
   const [drafts, setDrafts] = useState<TableDraft[]>(
     tables.length > 0
       ? tables.map((t) => ({ id: t.id, name: t.name, level: t.level ?? "", seats: t.seats }))
@@ -114,13 +124,30 @@ export function FormatFields({ format: initialFormat = "standard", capacity, mem
 
       <input type="hidden" name="tables_json" value={format === "tables" ? JSON.stringify(drafts) : "[]"} />
 
-      <label className="flex items-start gap-3">
-        <input type="checkbox" name="members_only" defaultChecked={membersOnly} className="mt-1 size-4 accent-[var(--brand)]" />
-        <span>
-          <span className="font-semibold">Members only</span>
-          <span className="block text-xs text-muted">Anyone can see the event, but only approved members can join.</span>
-        </span>
-      </label>
+      <div role="radiogroup" aria-label="Who can see this event" className="space-y-2">
+        <p className="font-semibold">Who can see this event</p>
+        {AUDIENCES.map((a) => (
+          <label key={a} className="flex items-start gap-3">
+            <input type="radio" name="audience" value={a} checked={audience === a} onChange={() => setAudience(a)} className="mt-1 size-4 accent-[var(--brand)]" />
+            <span>
+              <span className="font-semibold">{audienceLabel(a, uni)}</span>
+              <span className="block text-xs text-muted">{AUDIENCE_HELP[a](uniShort(uni))}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+
+      {audience === "members" ? (
+        <input type="hidden" name="members_only" value="on" />
+      ) : (
+        <label className="flex items-start gap-3">
+          <input type="checkbox" name="members_only" defaultChecked={membersOnly} className="mt-1 size-4 accent-[var(--brand)]" />
+          <span>
+            <span className="font-semibold">Only members can join</span>
+            <span className="block text-xs text-muted">Others can see the event, but only approved members can join.</span>
+          </span>
+        </label>
+      )}
     </fieldset>
   );
 }

@@ -5,9 +5,13 @@
 // - Never change or reuse an id: answers are saved against it.
 // - To stop offering a prompt, mark it "retired" instead of deleting it:
 //   existing answers keep showing on profiles, but it's no longer offered.
-// - "uni" limits a prompt to students at that university (from their email).
+// - "uni" limits a prompt to students at that university. To add one for
+//   King's or Imperial, give it uni: "KCL" or uni: "Imperial" (the ids in
+//   lib/universities.ts). "examples" takes per-uni versions the same way.
 
-export type Uni = "LSE" | "UCL";
+import type { UniId } from "@/lib/universities";
+
+export type Uni = UniId;
 
 export type Prompt = {
   id: string;
@@ -109,14 +113,6 @@ export const PROMPTS: Prompt[] = [
 ];
 
 export const promptById = (id: string) => PROMPTS.find((p) => p.id === id);
-
-// The uni someone is at, from their email (unknown for anything else).
-export function uniFromEmail(email: string | null | undefined): Uni | null {
-  const domain = (email ?? "").toLowerCase().split("@")[1] ?? "";
-  if (domain === "lse.ac.uk" || domain.endsWith(".lse.ac.uk")) return "LSE";
-  if (domain === "ucl.ac.uk" || domain.endsWith(".ucl.ac.uk")) return "UCL";
-  return null;
-}
 
 // Prompts someone can pick: not retired, and either for everyone or for their uni.
 export function promptsFor(uni: Uni | null): Prompt[] {

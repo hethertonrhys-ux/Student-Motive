@@ -36,6 +36,7 @@ export default async function EditEventPage({ params }: PageProps<"/dashboard/[s
         <EventForm
           action={updateEvent.bind(null, societyId, eventId)}
           venues={venues}
+          uni={society.university}
           event={event}
           tables={(tables ?? []) as EventTable[]}
           startsAtInput={isoToLondonInput(event.starts_at)}

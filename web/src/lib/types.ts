@@ -1,6 +1,8 @@
 // Shapes of the database rows the website uses.
 // Matches supabase/migrations/20261015000000_initial_schema.sql.
 
+import type { Audience, UniId } from "@/lib/universities";
+
 export type OrgKind = "society" | "hall" | "university" | "promoter";
 export type EventCategory = "social" | "nightlife" | "careers" | "sport" | "arts" | "talks";
 export type VenueKind = "campus" | "hall" | "university" | "club" | "other";
@@ -10,6 +12,8 @@ export type Profile = {
   email: string;
   display_name: string | null;
   is_admin: boolean;
+  // "LSE", "UCL", "KCL" or "Imperial" (see lib/universities.ts).
+  university: UniId;
 };
 
 export type Society = {
@@ -63,6 +67,8 @@ export type MotiveEvent = {
   format: EventFormat;
   capacity: number | null;
   members_only: boolean;
+  // Who can see it (society events only).
+  audience: Audience;
   results_published: boolean;
 };
 

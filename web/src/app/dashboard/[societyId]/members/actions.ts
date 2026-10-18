@@ -2,11 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { requireManagedSociety } from "@/lib/society";
+import { uniFromEmail, uniShort } from "@/lib/universities";
 
-export type InviteState = { error?: string; added?: number };
+// skipped: emails from another uni (societies are for their own uni's students).
+export type InviteState = { error?: string; added?: number; skipped?: string[]; uni?: string };
 
 export async function inviteMembers(societyId: string, _prev: InviteState, formData: FormData): Promise<InviteState> {
-  const { supabase } = await requireManagedSociety(societyId);
+  const { supabase, society } = await requireManagedSociety(societyId);
   // Accept emails separated by new lines, commas, semicolons or spaces (e.g. pasted from a spreadsheet).
   const emails = String(formData.get("emails") ?? "")
     .split(/[\s,;]+/)
@@ -15,10 +17,14 @@ export async function inviteMembers(societyId: string, _prev: InviteState, formD
   if (emails.length === 0) return { error: "Paste at least one email address." };
   if (emails.length > 2000) return { error: "That's over 2,000 emails. Add them in smaller batches." };
 
+  const skipped = emails.filter((e) => {
+    const uni = uniFromEmail(e);
+    return uni && uni.id !== society.university;
+  });
   const { data, error } = await supabase.rpc("invite_members", { sid: societyId, emails });
   if (error) return { error: "Couldn't add those members. Please try again." };
   revalidatePath(`/dashboard/${societyId}/members`);
-  return { added: data as number };
+  return { added: data as number, skipped, uni: uniShort(society.university) };
 }
 
 export async function approveMember(societyId: string, userId: string) {

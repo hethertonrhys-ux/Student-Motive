@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { MotiveEvent, Society, Venue } from "@/lib/types";
 
 export type EventWithDetails = MotiveEvent & {
-  societies: Pick<Society, "name" | "slug" | "logo_url"> | null;
+  societies: Pick<Society, "name" | "slug" | "logo_url" | "university"> | null;
   venues: Pick<Venue, "name" | "address" | "lat" | "lng"> | null;
   event_tables: { started_at: string | null }[] | null;
 };
@@ -17,7 +17,7 @@ export const getPublicEvent = cache(async (id: string): Promise<EventWithDetails
   const supabase = await createClient();
   const { data } = await supabase
     .from("events")
-    .select("*, societies(name, slug, logo_url), venues(name, address, lat, lng), event_tables(started_at)")
+    .select("*, societies(name, slug, logo_url, university), venues(name, address, lat, lng), event_tables(started_at)")
     .eq("id", id)
     .maybeSingle();
   return data as EventWithDetails | null;

@@ -6,14 +6,15 @@ import { InstallBanner } from "@/components/install-banner";
 import { MainNav } from "@/components/main-nav";
 import { Toaster } from "@/components/toast";
 import "./globals.css";
+import { SITE_DESCRIPTION } from "@/lib/site";
 
 const bricolage = Bricolage_Grotesque({ variable: "--font-bricolage", subsets: ["latin"] });
 const figtree = Figtree({ variable: "--font-figtree", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
-  title: { default: "Function: what's on at LSE", template: "%s · Function" },
-  description: "Every LSE society and event in one place, on a live map.",
+  title: { default: "Function: London's student social life", template: "%s · Function" },
+  description: SITE_DESCRIPTION,
   // When added to an iPhone home screen, open full screen like an app.
   appleWebApp: { capable: true, title: "Function", statusBarStyle: "default" },
 };

@@ -6,16 +6,14 @@ import { logSignupEvent } from "@/lib/signup-events";
 import { WELCOMED_COOKIE } from "@/app/welcome/constants";
 import { createClient } from "@/lib/supabase/server";
 import { SITE_URL } from "@/lib/site";
+import { applyArrivalUni } from "@/lib/arrival-uni";
+import { ARRIVAL_UNI_COOKIE, uniFromEmail } from "@/lib/universities";
 
 export type LoginState = {
   step: "email" | "code";
   email?: string;
   error?: string;
 };
-
-function isLseEmail(email: string) {
-  return email.endsWith("@lse.ac.uk");
-}
 
 export async function sendCode(_prev: LoginState, formData: FormData): Promise<LoginState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
@@ -41,11 +39,11 @@ export async function sendCode(_prev: LoginState, formData: FormData): Promise<L
     }
     // Other emails only work if the Function team has allowed them (Admin page).
     // Otherwise the database refuses to create the account.
-    if (!isLseEmail(email)) {
+    if (!uniFromEmail(email)) {
       return {
         step: "email",
         email,
-        error: "Function is for @lse.ac.uk emails. If you've been invited with a different email, check it's typed exactly.",
+        error: "Function is for students at LSE, UCL, King's and Imperial. Use your uni email, or the email you were invited with.",
       };
     }
     // While building on your own computer, show the real reason to help fix it.
@@ -80,8 +78,10 @@ export async function verifyCode(_prev: LoginState, formData: FormData): Promise
   // A brand-new account: one optional "pick a prompt" screen, then on to the app.
   // (The account already exists at this point; that screen can be skipped.)
   const created = data.user?.created_at ? new Date(data.user.created_at).getTime() : 0;
-  if (Date.now() - created < NEW_ACCOUNT_MS && !(await cookies()).get(WELCOMED_COOKIE)) {
+  const jar = await cookies();
+  if (Date.now() - created < NEW_ACCOUNT_MS && !jar.get(WELCOMED_COOKIE)) {
     await logSignupEvent(supabase, "signup_finished");
+    await applyArrivalUni(supabase, data.user!.id, data.user!.email, jar.get(ARRIVAL_UNI_COOKIE)?.value);
     const { count } = await supabase.from("profile_prompts").select("prompt_id", { count: "exact", head: true }).eq("user_id", data.user!.id);
     if (!count) redirect(`/welcome?next=${encodeURIComponent(target)}`);
   }

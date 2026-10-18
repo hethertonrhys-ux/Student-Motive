@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { ARRIVAL_UNI_COOKIE, uniBySlug } from "@/lib/universities";
 
 // Runs before every page: keeps the login session fresh and
 // sends logged-out visitors from private pages to /login.
@@ -38,6 +39,11 @@ export async function proxy(request: NextRequest) {
     url.search = `?next=${encodeURIComponent(path)}`;
     return NextResponse.redirect(url);
   }
+
+  // Arrived on a uni's page (e.g. /kings): remember it, so sign-up starts
+  // with that uni. (Their email decides in the end.)
+  const arrivedAt = uniBySlug(path.slice(1));
+  if (arrivedAt) response.cookies.set(ARRIVAL_UNI_COOKIE, arrivedAt.id, { maxAge: 60 * 60 * 24 * 30, path: "/", sameSite: "lax" });
 
   return response;
 }

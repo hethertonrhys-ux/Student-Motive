@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { WELCOMED_COOKIE } from "@/app/welcome/constants";
 import { logSignupEvent } from "@/lib/signup-events";
 import { createClient } from "@/lib/supabase/server";
+import { applyArrivalUni } from "@/lib/arrival-uni";
+import { ARRIVAL_UNI_COOKIE } from "@/lib/universities";
 
 // The login link in the email lands here. We swap the one-time code in the
 // URL for a login session, then send the user on to where they were going.
@@ -19,6 +21,7 @@ export async function GET(request: NextRequest) {
       const created = data.user?.created_at ? new Date(data.user.created_at).getTime() : 0;
       if (Date.now() - created < 15 * 60 * 1000 && !request.cookies.get(WELCOMED_COOKIE)) {
         await logSignupEvent(supabase, "signup_finished");
+        await applyArrivalUni(supabase, data.user!.id, data.user!.email, request.cookies.get(ARRIVAL_UNI_COOKIE)?.value);
         const { count } = await supabase.from("profile_prompts").select("prompt_id", { count: "exact", head: true }).eq("user_id", data.user!.id);
         if (!count) return NextResponse.redirect(`${origin}/welcome?next=${encodeURIComponent(next)}`);
       }

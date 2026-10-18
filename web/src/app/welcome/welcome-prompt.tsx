@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { TwoTruthsForm } from "@/components/two-truths-form";
 import { MAX_ANSWER, exampleFor, type Prompt, type Uni } from "@/lib/prompts";
 import { finishWelcome, saveWelcomePrompt, welcomeReached } from "./actions";
@@ -9,7 +9,20 @@ import { finishWelcome, saveWelcomePrompt, welcomeReached } from "./actions";
 // The one optional step after signing up. Nothing here is required: "Skip
 // for now" is as easy to hit as "Continue", and the account already exists.
 // The answer saves as you type, so nothing is lost if they leave.
-export function WelcomePrompt({ prompts, uni, next }: { prompts: Prompt[]; uni: Uni | null; next: string }) {
+export function WelcomePrompt({
+  prompts,
+  uni,
+  next,
+  intro,
+  after,
+}: {
+  prompts: Prompt[];
+  uni: Uni | null;
+  next: string;
+  // The hello from their uni (above), and what's coming up (below).
+  intro: ReactNode;
+  after?: ReactNode;
+}) {
   const router = useRouter();
   const [chosen, setChosen] = useState<Prompt | null>(null);
   const [text, setText] = useState("");
@@ -71,8 +84,7 @@ export function WelcomePrompt({ prompts, uni, next }: { prompts: Prompt[]; uni: 
 
   return (
     <div className="mx-auto max-w-md px-4 pt-8 pb-40">
-      <h1 className="font-display text-3xl font-extrabold tracking-tight">You&apos;re in!</h1>
-      <p className="mt-2 text-lg">Pick one prompt so people have something to say hi about.</p>
+      {intro}
       <p className="mt-1 text-sm text-muted">Optional. You can add more later (up to 3).</p>
 
       {game && (
@@ -130,6 +142,8 @@ export function WelcomePrompt({ prompts, uni, next }: { prompts: Prompt[]; uni: 
           </li>
         ))}
       </ul>
+
+      {after}
 
       {/* Both choices always in reach, equally easy to tap. */}
       <div className="fixed inset-x-0 bottom-[var(--tabbar-h)] z-40 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur">

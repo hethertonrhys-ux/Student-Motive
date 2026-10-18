@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { uniById, uniFromEmail } from "@/lib/universities";
 
 // Every action re-checks that the caller is a Function admin.
 // The database security rules check again, so both must agree.
@@ -68,6 +69,8 @@ export async function addSociety(_prev: AddSocietyState, formData: FormData): Pr
   const kind = String(formData.get("kind") ?? "society");
   if (!name) return { error: "Enter a name." };
   if (!["society", "hall", "university", "promoter"].includes(kind)) return { error: "Choose a type." };
+  const university = uniById(String(formData.get("university") ?? ""))?.id;
+  if (!university) return { error: "Choose a uni." };
 
   const slug = name
     .toLowerCase()
@@ -77,7 +80,7 @@ export async function addSociety(_prev: AddSocietyState, formData: FormData): Pr
   if (!slug) return { error: "That name needs some letters or numbers." };
 
   const supabase = await createClient();
-  const { error } = await supabase.from("societies").insert({ name, slug, kind, is_verified: true });
+  const { error } = await supabase.from("societies").insert({ name, slug, kind, university, is_verified: true });
   if (error) {
     if (error.code === "23505") return { error: `There's already a society with the link /s/${slug}.` };
     return { error: "Couldn't add it. Please try again." };
@@ -86,7 +89,7 @@ export async function addSociety(_prev: AddSocietyState, formData: FormData): Pr
   return { added: name };
 }
 
-// ---- Who can join: emails (or whole domains) allowed besides @lse.ac.uk ----
+// ---- Who can join: emails (or whole domains) allowed besides the four unis' emails ----
 
 export type AllowEmailState = { error?: string; added?: string };
 
@@ -100,7 +103,7 @@ export async function allowEmail(_prev: AllowEmailState, formData: FormData): Pr
   if (!/^([^@\s]+)?@[^@\s]+\.[^@\s]+$/.test(email)) {
     return { error: "Enter an email like jo@gmail.com, or a whole domain like @kcl.ac.uk." };
   }
-  if (email.endsWith("@lse.ac.uk")) return { error: "LSE emails can already join." };
+  if (uniFromEmail(email.replace(/^@/, "x@"))) return { error: "University emails can already join." };
 
   const supabase = await createClient();
   const { error } = await supabase.from("allowed_emails").upsert({ email, note });

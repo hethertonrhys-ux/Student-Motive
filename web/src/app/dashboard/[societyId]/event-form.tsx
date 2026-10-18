@@ -6,6 +6,7 @@ import { CostField } from "@/components/cost-field";
 import { FormatFields } from "./format-fields";
 import { WhereField } from "./where-field";
 import type { FormState } from "./actions";
+import { uniById } from "@/lib/universities";
 
 type Props = {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
@@ -15,9 +16,11 @@ type Props = {
   // Times already converted to "YYYY-MM-DDTHH:mm" UK time.
   startsAtInput?: string;
   endsAtInput?: string;
+  // The society's uni ("LSE", "UCL"…), for who can see the event.
+  uni: string;
 };
 
-export function EventForm({ action, venues, event, tables, startsAtInput, endsAtInput }: Props) {
+export function EventForm({ action, venues, event, tables, startsAtInput, endsAtInput, uni }: Props) {
   const [state, formAction, pending] = useActionState(action, {});
   const isEdit = Boolean(event);
 
@@ -56,11 +59,11 @@ export function EventForm({ action, venues, event, tables, startsAtInput, endsAt
       </div>
       <p className="-mt-3 text-xs text-muted">UK time.</p>
 
-      <WhereField venues={venues} event={event} />
+      <WhereField venues={venues} event={event} centre={uniById(uni)?.centre} />
 
       <CostField pence={event?.cost_pence} />
 
-      <FormatFields format={event?.format} capacity={event?.capacity} membersOnly={event?.members_only ?? true} tables={tables} />
+      <FormatFields format={event?.format} capacity={event?.capacity} membersOnly={event?.members_only ?? true} audience={event?.audience} uni={uni} tables={tables} />
 
       <div>
         <label htmlFor="description" className="label">

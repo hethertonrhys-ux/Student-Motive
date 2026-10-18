@@ -1,6 +1,6 @@
 # Motive website
 
-The society side of Motive: landing page, LSE login, society dashboard, admin page and public event pages.
+The society side of Motive: landing pages (London-wide, plus /lse, /ucl, /kings and /imperial), uni email login, society dashboard, admin page and public event pages.
 Built with Next.js (App Router) and Supabase.
 
 ## Run it on your computer
@@ -18,7 +18,8 @@ Press `Ctrl + C` in PowerShell to stop it.
 | Page | What it is |
 |---|---|
 | `/` | Landing page |
-| `/login` | Log in with an @lse.ac.uk email and a code |
+| `/lse`, `/ucl`, `/kings`, `/imperial` | Each uni's landing page (remembers the uni for sign-up) |
+| `/login` | Log in with an LSE, UCL, King's or Imperial email and a code |
 | `/dashboard` | Societies you manage |
 | `/dashboard/claim` | Ask to manage a society |
 | `/dashboard/[id]` | A society's events, "going" numbers, and details |

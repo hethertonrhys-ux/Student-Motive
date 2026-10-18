@@ -11,13 +11,13 @@ type Result = { label: string; detail: string; point: Point };
 
 // LSE buildings, halls and theatres first (from our own list, instantly),
 // then addresses from Photon (built on OpenStreetMap): free, no key, with
-// results near LSE first.
+// results near the uni first.
 function lseResults(query: string): Result[] {
   return searchLsePlaces(query).map((p) => ({ label: p.name, detail: p.detail, point: { lng: p.at[0], lat: p.at[1] } }));
 }
 
-async function searchAddresses(query: string, signal: AbortSignal): Promise<Result[]> {
-  const url = `https://photon.komoot.io/api/?limit=5&lang=en&lat=${LSE[1]}&lon=${LSE[0]}&q=${encodeURIComponent(query)}`;
+async function searchAddresses(query: string, near: [number, number], signal: AbortSignal): Promise<Result[]> {
+  const url = `https://photon.komoot.io/api/?limit=5&lang=en&lat=${near[1]}&lon=${near[0]}&q=${encodeURIComponent(query)}`;
   const res = await fetch(url, { signal });
   if (!res.ok) throw new Error(String(res.status));
   const data = (await res.json()) as {
@@ -33,21 +33,25 @@ async function searchAddresses(query: string, signal: AbortSignal): Promise<Resu
 
 // Search for a place and/or tap the map to drop a pin, then drag the pin to
 // adjust. Used when hosting a Social event, on society event forms
-// ("Somewhere else") and on the older hosting page.
+// ("Somewhere else") and on the older hosting page. "centre" is where the
+// map starts (the uni's campus); LSE if not given.
 export function PlacePicker({
   pin,
   onPick,
   label,
+  centre = LSE,
 }: {
   pin: Point | null;
   onPick: (point: Point, name?: string, detail?: string) => void;
   label?: string;
+  centre?: [number, number];
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markerRef = useRef<Marker | null>(null);
   const onPickRef = useRef(onPick);
   const initialPin = useRef(pin);
+  const startCentre = useRef(centre);
   const [query, setQuery] = useState("");
   // The place chosen from the list stays in the box, so it's clear it's set.
   const [chosen, setChosen] = useState<string | null>(null);
@@ -70,7 +74,7 @@ export function PlacePicker({
       const map = new maplibre.Map({
         container: containerRef.current,
         style: MAP_STYLE,
-        center: start ? [start.lng, start.lat] : LSE,
+        center: start ? [start.lng, start.lat] : startCentre.current,
         zoom: start ? 16 : 15,
         attributionControl: { compact: true },
       });
@@ -115,7 +119,7 @@ export function PlacePicker({
       setSearching(true);
       setSearchError(false);
       try {
-        setAddresses(await searchAddresses(q, controller.signal));
+        setAddresses(await searchAddresses(q, startCentre.current, controller.signal));
       } catch {
         if (!controller.signal.aborted) setSearchError(true);
       } finally {
@@ -167,7 +171,7 @@ export function PlacePicker({
               if (typing && results[0]) choose(results[0]);
             }
           }}
-          placeholder="Search an LSE building, place, address or postcode"
+          placeholder="Search a building, place, address or postcode"
           aria-label="Search for the place"
           autoComplete="off"
           className={`input ${chosen ? "border-ok font-semibold" : ""}`}
