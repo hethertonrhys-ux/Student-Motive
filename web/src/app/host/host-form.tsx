@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { PlacePicker, type Point } from "@/app/dashboard/[societyId]/where-field";
+import { PlacePicker, type Point } from "@/components/place-picker";
 import { CATEGORIES, type MotiveEvent } from "@/lib/types";
 import type { HostState } from "./actions";
 
@@ -61,7 +61,9 @@ export function HostForm({ action, event, exact, startsAtInput, endsAtInput }: P
           onPick={(point, name, detail) => {
             setPin(point);
             if (!address.trim() && name) setAddress([name, detail].filter(Boolean).join(", "));
-            if (!area.trim()) {
+            // An LSE building is public, so its name is a fine area to show.
+            if (!area.trim() && name && detail?.startsWith("LSE")) setArea(name);
+            else if (!area.trim()) {
               const district = detail?.split(",").map((s) => s.trim()).find((s) => s && !/^\d/.test(s) && s !== name && s !== "London");
               if (district) setArea(`Near ${district}`);
             }
