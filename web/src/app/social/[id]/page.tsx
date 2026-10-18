@@ -11,7 +11,7 @@ import { SOCIAL_EVENT_FIELDS, categoryInfo, formatWhen, spacesLeft, type MemberS
 import { SITE_URL } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 import { nowMs } from "@/lib/time";
-import { removeGuest, respondToRequest } from "../actions";
+import { messageHost, removeGuest, respondToRequest } from "../actions";
 import { Attendees } from "../components/attendees";
 import { InstantRow, JoinPanel } from "../components/join-panel";
 import { ReportLink } from "../components/report-link";
@@ -80,10 +80,18 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
       <h1 className="mt-3 font-display text-3xl leading-tight font-extrabold tracking-tight sm:text-4xl">{event.title}</h1>
 
       {host && (
-        <Link href={`/u/${host.id}`} className="mt-3 inline-flex items-center gap-2 font-semibold">
-          <Avatar name={host.name} url={host.avatar_url} size={28} ring="host" />
-          <span>Hosted by <span className="text-brand">{host.name}</span></span>
-        </Link>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <Link href={`/u/${host.id}`} className="inline-flex items-center gap-2 font-semibold">
+            <Avatar name={host.name} url={host.avatar_url} size={28} ring="host" />
+            <span>Hosted by <span className="text-brand">{host.name}</span></span>
+          </Link>
+          {/* Anyone can ask the host something, friends or not. */}
+          {me && !isHost && (
+            <form action={messageHost.bind(null, event.id)}>
+              <button className="rounded-full border border-line bg-surface px-3 py-1 text-sm font-semibold text-brand hover:border-brand">Message host</button>
+            </form>
+          )}
+        </div>
       )}
 
       {created && isHost && (
