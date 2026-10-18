@@ -1,22 +1,62 @@
-// LSESU's public society directory. Each SU's site is laid out differently
-// and changes over time, so its reading code lives here on its own.
+// LSESU's public directories (an MSL website).
 //
-// collect(fetcher, log) returns one record per society (see lib/common.mjs).
-// Use fetcher.text(url) for every page: it checks robots.txt, waits a
-// second between requests and caches pages.
+// Lists: /communities/societies/search/ lists every society on one page,
+// and /communities/clubs/ every sports club. Each entry is
+//   <li data-msl-organisation-id=".." data-msl-grouping-id="ID">
+//     <a class="msl-gl-link" href="/communities/societies/group/SLUG/">Name</a>
+//     <dl class="msl-gl-attributes">...<dd class="msl-gl-attribute">Category</dd>
+// Group page: <h1>Name</h1>, the description inside <div id="organisation">,
+// social links as <a class="msl-icon msl_instagram" href="//instagram.com/x">.
+//
+// Logos: the site's robots.txt disallows /asset/, where every logo lives,
+// so logos can't be downloaded (the fetcher refuses and the CSV says so).
 
-import { NotReady } from "../lib/common.mjs";
+import { attr, between, linkTo, textOf } from "../lib/html.mjs";
+
+const ORIGIN = "https://www.lsesu.com";
 
 export default {
   id: "lse",
   uni: "LSE",
   su: "LSESU",
-  directory: "https://www.lsesu.com/communities/societies/",
+  directory: `${ORIGIN}/communities/societies/search/`,
+  lists: [
+    { url: `${ORIGIN}/communities/societies/search/`, fallbackCategory: "" },
+    { url: `${ORIGIN}/communities/clubs/`, fallbackCategory: "Sports club" },
+  ],
 
-  async collect(fetcher) {
-    // Checks robots.txt now, so a refusal is reported even before this
-    // site's reader is written.
-    if (!(await fetcher.allowed(this.directory))) throw new NotReady("robots.txt doesn't allow the society directory");
-    throw new NotReady("this site's page layout hasn't been checked yet, so there's no reader for it");
+  async collect(fetcher, log = () => {}) {
+    const seen = new Map();
+    for (const list of this.lists) {
+      const page = await fetcher.text(list.url);
+      const items = page.matchAll(/<li data-msl-organisation-id="[^"]*" data-msl-grouping-id="(\d+)">\s*<a class="msl-gl-link" href="([^"]+)">([^<]*)<\/a>([\s\S]*?)<\/li>/g);
+      let count = 0;
+      for (const [, groupId, href, name, rest] of items) {
+        if (seen.has(groupId)) continue;
+        const category = textOf(/<dd class="msl-gl-attribute">([^<]*)/.exec(rest)?.[1] ?? "") || list.fallbackCategory;
+        seen.set(groupId, { name: textOf(name), category, suUrl: new URL(href, ORIGIN).href });
+        count++;
+      }
+      log(`${count} groups listed at ${list.url}`);
+    }
+
+    const out = [];
+    for (const entry of seen.values()) {
+      const page = await fetcher.text(entry.suUrl);
+      const about = between(page, /<div id="organisation">/, /<hr|<footer|<!-- *(Events|Products|Committee)/i);
+      const instagram = linkTo(page.match(/<a class="msl-icon msl_instagram"[^>]*>/)?.[0] ?? "", ["instagram.com"]);
+      const websiteTag = /<a class="msl-icon msl_website" href="([^"]*)"/.exec(page);
+      const logo = attr(/<meta property="og:image"[^>]*>/.exec(page)?.[0] ?? "", "content");
+      out.push({
+        ...entry,
+        name: textOf(/<h1[^>]*>([^<]*)/.exec(page)?.[1] ?? "") || entry.name,
+        // The block starts with the page's own tab labels; drop those.
+        description: textOf(about.replace(/<img[^>]*>/g, "")).replace(/^(?:(?:Chat with us|About us)\s*[:!.]?\s*)+/i, ""),
+        logoUrl: logo || "",
+        instagram,
+        website: websiteTag ? websiteTag[1] : "",
+      });
+    }
+    return out;
   },
 };

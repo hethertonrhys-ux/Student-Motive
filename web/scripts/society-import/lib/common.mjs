@@ -68,6 +68,7 @@ export function cleanDescription(text) {
     .split(/(?<=[.!?])\s+/)
     .filter((sentence) => !new RegExp(EMAIL.source, "i").test(sentence) && !new RegExp(PHONE.source).test(sentence))
     .join(" ");
+  if (!/[a-z]{2}/i.test(s)) return "";
   return s.length > 600 ? s.slice(0, 597).replace(/\s+\S*$/, "") + "…" : s;
 }
 

@@ -43,20 +43,23 @@ for (const file of readdirSync(sitesDir).filter((f) => f.endsWith(".mjs")).sort(
 
 const rows = [];
 const report = [];
-for (const site of sites) {
-  console.log(`\n${site.su} (${site.uni}): ${site.directory}`);
+// Each site is read in turn, but the sites run side by side: the one
+// request a second limit is per website, so they don't slow each other.
+await Promise.all(sites.map((site) => readSite(site)));
+async function readSite(site) {
+  console.log(`${site.su} (${site.uni}): ${site.directory}`);
   let found;
   try {
-    found = await site.collect(fetcher);
+    found = await site.collect(fetcher, (m) => console.log(`  [${site.id}] ${m}`));
   } catch (e) {
     const why =
       e instanceof NotReady ? e.message
       : e instanceof RobotsDisallowed ? `robots.txt doesn't allow ${e.url}`
       : e instanceof FetchFailed ? e.message
       : `couldn't read the site (${e.message})`;
-    console.log(`  SKIPPED: ${why}`);
+    console.log(`  [${site.id}] SKIPPED: ${why}`);
     report.push({ site, skipped: why });
-    continue;
+    return;
   }
 
   const logoDir = join(outDir, "logos", site.id);
@@ -115,6 +118,8 @@ for (const site of sites) {
   });
 }
 
+rows.sort((a, b) => a.uni.localeCompare(b.uni) || a.name.localeCompare(b.name));
+report.sort((a, b) => a.site.uni.localeCompare(b.site.uni));
 mkdirSync(outDir, { recursive: true });
 const csvPath = join(outDir, "societies.csv");
 writeFileSync(csvPath, "﻿" + toCsv(rows.map((r) => ({ ...r, issues: r.issues.join("; ") }))));
