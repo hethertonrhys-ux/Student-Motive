@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { PhotoCropper } from "@/components/photo-cropper";
 import { decodePhoto } from "@/lib/compress-photo";
-import { archivePhoto, deletePhoto, pinPhoto, uploadMyFivePhoto, type Result } from "./my-five-actions";
+import { archivePhoto, uploadMyFivePhoto, type Result } from "./my-five-actions";
 
-type Photo = { id: string; url: string | null; pinned: boolean; daysLeft: number | null };
+type Photo = { id: string; url: string | null };
 
-// The owner's view of their 5 photos: add, pin, archive, delete.
+// The owner's view of their 5 photos: add and remove. Photos stay until
+// removed; removed ones go to the Archive (restore or delete them there).
 export function MyFive({ photos, archived }: { photos: Photo[]; archived: number }) {
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -75,39 +76,32 @@ export function MyFive({ photos, archived }: { photos: Photo[]; archived: number
       <div className="flex items-baseline justify-between gap-3">
         <div>
           <h2 className="font-display text-xl font-bold">My 5</h2>
-          <p className="text-sm text-muted">Photos of things you like or get up to. Each lasts 30 days unless you pin it.</p>
+          <p className="text-sm text-muted">Photos of things you like or get up to. They stay until you remove them.</p>
         </div>
         <span className="shrink-0 text-sm font-bold text-muted">{photos.length}/5</span>
       </div>
 
       <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5">
         {photos.map((p) => (
-          <li key={p.id} className="overflow-hidden rounded-xl border border-line bg-surface">
-            <div className="relative aspect-square bg-line">
-              {p.url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.url} alt="" className="size-full object-cover" />
-              )}
-              <span className={`absolute top-1.5 left-1.5 rounded-full px-2 py-0.5 text-[11px] font-bold ${p.pinned ? "bg-brand text-brand-ink" : "bg-black/60 text-white"}`}>
-                {p.pinned ? "📌 Pinned" : `${p.daysLeft} day${p.daysLeft === 1 ? "" : "s"} left`}
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-1 px-2 py-1.5 text-xs font-semibold">
-              <button type="button" disabled={busy} onClick={() => run(() => pinPhoto(p.id, !p.pinned))} className="text-brand">
-                {p.pinned ? "Unpin" : "Pin"}
-              </button>
-              <button type="button" disabled={busy} onClick={() => run(() => archivePhoto(p.id))} className="text-muted">Archive</button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => confirm("Delete this photo for good?") && run(() => deletePhoto(p.id))}
-                className="text-danger"
-                aria-label="Delete photo"
-                title="Delete"
-              >
-                🗑
-              </button>
-            </div>
+          <li key={p.id} className="relative aspect-square overflow-hidden rounded-xl border border-line bg-line">
+            {p.url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={p.url} alt="" className="size-full object-cover" />
+            )}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                confirm("Remove this photo from your profile? It goes to your Archive, where you can put it back or delete it.") &&
+                run(() => archivePhoto(p.id))
+              }
+              aria-label="Remove photo"
+              className="absolute top-1.5 right-1.5 grid size-7 place-items-center rounded-full bg-black/60 text-white shadow transition hover:bg-black/80"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="size-3.5" aria-hidden>
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
           </li>
         ))}
         {!full && (
@@ -125,7 +119,7 @@ export function MyFive({ photos, archived }: { photos: Photo[]; archived: number
         )}
       </ul>
 
-      {full && <p className="text-sm font-medium text-muted">All 5 spaces are full. Archive or delete one to add another.</p>}
+      {full && <p className="text-sm font-medium text-muted">All 5 spaces are full. Remove one to add another.</p>}
       {error && <p className="text-sm font-medium text-danger">{error}</p>}
       <Link href="/account/archive" className="inline-block text-sm font-semibold text-brand">
         Archive{archived ? ` (${archived})` : ""} →

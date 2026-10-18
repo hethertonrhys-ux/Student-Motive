@@ -48,7 +48,7 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
   // Their current photos and societies (both empty if either of you has blocked the other).
   const [photos, societies] = isBlocked
     ? [[], []]
-    : await Promise.all([getPhotos(supabase, id, nowMs()), getProfileSocieties(supabase, id)]);
+    : await Promise.all([getPhotos(supabase, id), getProfileSocieties(supabase, id)]);
   const currentPhotos = photos.filter((p) => p.current);
 
   // Friends in common.
