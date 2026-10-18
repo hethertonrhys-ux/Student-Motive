@@ -6,12 +6,17 @@ export function initials(name: string) {
   return ((parts[0]?.[0] ?? "?") + (parts.length > 1 ? parts.at(-1)![0] : "")).toUpperCase();
 }
 
-export function Avatar({ name, url, size = 36, ring = false }: { name: string; url?: string | null; size?: number; ring?: boolean }) {
+// ring: "live" (pink, e.g. you) or "host" (gold, the host of an event).
+export function Avatar({ name, url, size = 36, ring = false }: { name: string; url?: string | null; size?: number; ring?: boolean | "live" | "host" }) {
   let hash = 2166136261;
   for (const ch of name) hash = Math.imul(hash ^ ch.charCodeAt(0), 16777619);
   const colour = COLOURS[(hash >>> 0) % COLOURS.length];
   const style = { width: size, height: size, fontSize: size * 0.38 };
-  const ringClass = ring ? "ring-2 ring-live ring-offset-2 ring-offset-[var(--surface)]" : "";
+  const ringClass = !ring
+    ? ""
+    : ring === "host"
+      ? "ring-[3px] ring-amber-400 ring-offset-2 ring-offset-[var(--surface)]"
+      : "ring-2 ring-live ring-offset-2 ring-offset-[var(--surface)]";
   if (url) {
     // If the photo can't load, this shows a plain coloured circle rather than broken-image text.
     // eslint-disable-next-line @next/next/no-img-element

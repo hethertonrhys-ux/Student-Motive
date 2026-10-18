@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getProfile } from "@/lib/auth";
 import { Logo } from "./logo";
+import { NotificationBell } from "./notification-bell";
 import { SettingsMenu } from "./header-nav";
 
 // A slim top bar: the logo and the ⚙️ menu. The main tabs are in the bottom bar.
@@ -18,6 +19,7 @@ export async function SiteHeader() {
               Log in
             </Link>
           )}
+          {profile && <NotificationBell />}
           <SettingsMenu
             signedInAs={profile ? profile.display_name || profile.email : null}
             isAdmin={Boolean(profile?.is_admin)}

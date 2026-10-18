@@ -2,47 +2,65 @@
 
 import { useRef, useState, useTransition } from "react";
 import { Avatar } from "@/components/avatar";
-import { removeProfilePhoto, uploadProfilePhoto } from "./actions";
+import { PhotoCropper } from "@/components/photo-cropper";
+import { compressPhoto, decodePhoto } from "@/lib/compress-photo";
+import { getProfilePhotoOriginal, removeProfilePhoto, uploadProfilePhoto } from "./actions";
 
 const SIZE = 512;
 
-// Crop the middle square of a photo and shrink it to 512px, in the browser,
-// so uploads are small and quick even on mobile data.
-async function squareJpeg(file: File): Promise<Blob> {
-  const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-  const side = Math.min(bitmap.width, bitmap.height);
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = Math.min(SIZE, side);
-  const ctx = canvas.getContext("2d")!;
-  ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("resize"))), "image/jpeg", 0.85));
-}
-
+// The profile picture: pick a photo and fit it in the circle (zoom and
+// drag), or re-fit the current one later without uploading it again.
 export function PhotoPicker({ name, url }: { name: string; url: string | null }) {
   const input = useRef<HTMLInputElement>(null);
   const [current, setCurrent] = useState(url);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  // The photo being fitted, and (for a new photo) the file it came from.
+  const [crop, setCrop] = useState<{ image: ImageBitmap; file: File | null } | null>(null);
 
   function choose(file: File | undefined) {
+    if (input.current) input.current.value = "";
     if (!file) return;
+    setError(null);
+    decodePhoto(file).then(
+      (image) => setCrop({ image, file }),
+      () => setError("That file isn't a photo we can use. Try another."),
+    );
+  }
+
+  // Re-crop: start from the whole original photo if we have it, otherwise
+  // from the current picture (which can then only be zoomed in further).
+  function adjust() {
     setError(null);
     start(async () => {
       try {
-        const blob = await squareJpeg(file);
-        setPreview(URL.createObjectURL(blob));
+        const source = (await getProfilePhotoOriginal()) ?? current;
+        if (!source) return;
+        const res = await fetch(source, { cache: "no-store" });
+        if (!res.ok) throw new Error("load");
+        setCrop({ image: await createImageBitmap(await res.blob()), file: null });
+      } catch {
+        setError("Couldn't open your photo. Please try again.");
+      }
+    });
+  }
+
+  function save(circle: File, original: File | null) {
+    start(async () => {
+      try {
+        setPreview(URL.createObjectURL(circle));
         const form = new FormData();
-        form.append("photo", new File([blob], "photo.jpg", { type: "image/jpeg" }));
+        form.append("photo", circle);
+        // Keep the whole photo too, so it can be re-cropped later.
+        if (original) form.append("original", await compressPhoto(original));
         const result = await uploadProfilePhoto(form);
         if (result.error) setError(result.error);
         else setCurrent(result.url ?? null);
       } catch {
-        setError("That file isn't a photo we can use. Try another.");
+        setError("That photo couldn't be saved. Please try again.");
       } finally {
         setPreview(null);
-        if (input.current) input.current.value = "";
       }
     });
   }
@@ -56,27 +74,51 @@ export function PhotoPicker({ name, url }: { name: string; url: string | null })
       <div className="space-y-1.5">
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => input.current?.click()} disabled={pending} className="btn py-2">
-            {pending ? "Uploading…" : current ? "Change photo" : "Add a photo"}
+            {pending ? "Working…" : current ? "Change photo" : "Add a photo"}
           </button>
           {current && !pending && (
-            <button
-              type="button"
-              onClick={() =>
-                start(async () => {
-                  await removeProfilePhoto();
-                  setCurrent(null);
-                })
-              }
-              className="btn-ghost py-2"
-            >
-              Remove
-            </button>
+            <>
+              <button type="button" onClick={adjust} className="btn-ghost py-2">
+                Adjust
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  start(async () => {
+                    await removeProfilePhoto();
+                    setCurrent(null);
+                  })
+                }
+                className="btn-ghost py-2"
+              >
+                Remove
+              </button>
+            </>
           )}
         </div>
         <p className="text-xs text-muted">A clear photo of you helps friends find you.</p>
         {error && <p className="text-sm font-medium text-danger">{error}</p>}
       </div>
-      <input ref={input} type="file" accept="image/*" className="hidden" onChange={(e) => choose(e.target.files?.[0])} />
+      <input ref={input} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={(e) => choose(e.target.files?.[0])} />
+      {crop && (
+        <PhotoCropper
+          image={crop.image}
+          shape="circle"
+          output={SIZE}
+          title={crop.file ? "Fit your photo in the circle" : "Adjust your profile picture"}
+          doneLabel="Save"
+          onDone={(circle) => {
+            const original = crop.file;
+            crop.image.close();
+            setCrop(null);
+            save(circle, original);
+          }}
+          onCancel={() => {
+            crop.image.close();
+            setCrop(null);
+          }}
+        />
+      )}
     </div>
   );
 }

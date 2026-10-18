@@ -18,10 +18,15 @@ async function decode(file: File): Promise<ImageBitmap> {
   }
 }
 
-export async function compressPhoto(file: File): Promise<File> {
+// A chosen photo, ready to show or crop (e.g. in PhotoCropper).
+export async function decodePhoto(file: File): Promise<ImageBitmap> {
   if (file.size > MAX_ORIGINAL_BYTES) throw new Error("too-big");
   if (!file.type.startsWith("image/") && !isHeic(file)) throw new Error("not-image");
-  const bitmap = await decode(file);
+  return decode(file);
+}
+
+export async function compressPhoto(file: File): Promise<File> {
+  const bitmap = await decodePhoto(file);
   const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(bitmap.width * scale);
