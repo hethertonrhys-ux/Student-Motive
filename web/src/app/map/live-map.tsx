@@ -2,16 +2,18 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { GeoJSONSource, GeolocateControl, Map as MapLibreMap, MapLayerMouseEvent, Popup } from "maplibre-gl";
+import type { GeoJSONSource, GeolocateControl, Map as MapLibreMap, Marker, Popup } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { MapEvent, MapWindows } from "@/lib/map-events";
-import { LSE, MAP_STYLE, distanceMetres, howFar } from "@/lib/map-style";
+import { LSE, distanceMetres, howFar } from "@/lib/map-style";
 import { categoryLabel } from "@/lib/types";
 import { FilterButton, FilterPanel, SearchBar, SearchButton, normalise, useSavedCategories } from "./map-controls";
+import { type Look, applyLook, heatColours, isDark, mapStyle } from "./map-theme";
+import { CATEGORY_ORDER, CATEGORY_STYLE, clusterElement, iconSvg, pinElement } from "./pins";
 
-const BRAND = "#4338ca";
-const LIVE = "#f43f5e";
 const SOON_MS = 60 * 60 * 1000;
+// Zoomed in at LSE, the map tilts slightly so buildings look 3D.
+const LSE_VIEW = { center: LSE, zoom: 16.2, pitch: 35 };
 
 type When = "now" | "tonight" | "tomorrow";
 const WHEN_OPTIONS: { value: When; label: string }[] = [
@@ -55,7 +57,10 @@ function eventCard(event: MapEvent, now: number, me: [number, number] | null) {
   card.href = `/e/${event.id}`;
   const top = el("div", "motive-pop-top");
   if (s === "live") top.append(el("span", "motive-pop-live", "LIVE"));
-  top.append(el("span", "motive-pop-cat", categoryLabel(event.category) + (event.freeFood ? " · Free food" : "")));
+  const chip = el("span", "fn-chip");
+  chip.style.setProperty("--c", CATEGORY_STYLE[event.category].colour);
+  chip.append(iconSvg(event.category, 13, "currentColor"), categoryLabel(event.category) + (event.freeFood ? " · Free food" : ""));
+  top.append(chip);
   card.append(top);
   card.append(el("div", "motive-pop-title", event.title));
   if (event.society) card.append(el("div", "motive-pop-soc", event.society));
@@ -63,12 +68,13 @@ function eventCard(event: MapEvent, now: number, me: [number, number] | null) {
   card.append(el("div", "motive-pop-meta", `${when} · ${event.place}`));
   card.append(el("div", "motive-pop-going", s === "live" ? `${event.going} there or going` : `${event.going} going`));
   if (me) card.append(el("div", "motive-pop-meta", `📍 ${howFar(distanceMetres(me, [event.lng, event.lat]))}`));
+  card.append(el("span", "fn-details", "View details"));
   return card;
 }
 
-type Props = { events: MapEvent[]; windows: MapWindows };
+type Props = { events: MapEvent[]; windows: MapWindows; forceLook?: Look };
 
-export function LiveMap({ events, windows }: Props) {
+export function LiveMap({ events, windows, forceLook }: Props) {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -84,6 +90,9 @@ export function LiveMap({ events, windows }: Props) {
   const [query, setQuery] = useState("");
   const [showResults, setShowResults] = useState(true);
   const [now, setNow] = useState(() => new Date(windows.now).getTime());
+  // Night colours from sunset to sunrise.
+  const look: Look = forceLook ?? (isDark(new Date(now)) ? "night" : "day");
+  const lookRef = useRef(look);
   // Your location, if you choose to share it. It stays in your browser:
   // it's only used to draw your blue dot and work out distances.
   const geolocateRef = useRef<GeolocateControl | null>(null);
@@ -135,7 +144,6 @@ export function LiveMap({ events, windows }: Props) {
   // Create the map once.
   useEffect(() => {
     let cancelled = false;
-    let frame = 0;
 
     (async () => {
       const maplibre = await import("maplibre-gl");
@@ -146,9 +154,8 @@ export function LiveMap({ events, windows }: Props) {
 
       const map = new maplibre.Map({
         container: containerRef.current,
-        style: MAP_STYLE,
-        center: LSE,
-        zoom: 15.6,
+        style: mapStyle(lookRef.current),
+        ...LSE_VIEW,
         minZoom: 9,
         maxZoom: 19,
         attributionControl: { compact: true },
@@ -184,97 +191,101 @@ export function LiveMap({ events, windows }: Props) {
       });
 
       map.on("load", () => {
+        // Events, grouped into a numbered bubble when they're close together.
+        // Each group counts its categories (for the coloured ring) and live events.
         map.addSource("events", {
           type: "geojson",
           data: { type: "FeatureCollection", features: [] },
           cluster: true,
-          clusterRadius: 44,
+          clusterRadius: 48,
           clusterMaxZoom: 17,
-          // Count live events inside each group, so groups with something live show pink-red.
-          clusterProperties: { liveCount: ["+", ["get", "live"]] },
-        });
-
-        map.addLayer({
-          id: "clusters",
-          type: "circle",
-          source: "events",
-          filter: ["has", "point_count"],
-          paint: {
-            "circle-color": ["case", [">", ["get", "liveCount"], 0], LIVE, BRAND],
-            "circle-radius": ["step", ["get", "point_count"], 16, 5, 20, 15, 26],
-            "circle-stroke-width": 3,
-            "circle-stroke-color": "#ffffff",
+          clusterProperties: {
+            liveCount: ["+", ["get", "live"]],
+            ...Object.fromEntries(CATEGORY_ORDER.map((c) => [c, ["+", ["case", ["==", ["get", "category"], c], 1, 0]]])),
           },
         });
-        map.addLayer({
-          id: "cluster-count",
-          type: "symbol",
-          source: "events",
-          filter: ["has", "point_count"],
-          layout: { "text-field": ["get", "point_count_abbreviated"], "text-font": ["Noto Sans Bold"], "text-size": 13 },
-          paint: { "text-color": "#ffffff" },
-        });
-        map.addLayer({
-          id: "live-pulse",
-          type: "circle",
-          source: "events",
-          filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "status"], "live"]],
-          paint: { "circle-color": LIVE, "circle-radius": 10, "circle-opacity": 0.4 },
-        });
-        map.addLayer({
-          id: "points",
-          type: "circle",
-          source: "events",
-          filter: ["!", ["has", "point_count"]],
-          paint: {
-            // Live = pink-red, starting within the hour = hollow ring, later = indigo.
-            "circle-color": ["match", ["get", "status"], "live", LIVE, "soon", "#ffffff", BRAND],
-            "circle-radius": 9,
-            "circle-stroke-width": ["match", ["get", "status"], "soon", 3.5, 3],
-            "circle-stroke-color": ["match", ["get", "status"], "soon", BRAND, "#ffffff"],
+        // An invisible layer, so the map works out the groups for the pins below.
+        map.addLayer({ id: "events-hidden", type: "circle", source: "events", paint: { "circle-radius": 0, "circle-opacity": 0 } });
+        // The same events, not grouped, for the soft "busy area" glow when zoomed out.
+        map.addSource("events-heat", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+        map.addLayer(
+          {
+            id: "heat",
+            type: "heatmap",
+            source: "events-heat",
+            maxzoom: 16,
+            paint: {
+              "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 10, 22, 13, 48, 15, 70],
+              "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 10, 1, 15, 1.8],
+              "heatmap-color": heatColours(lookRef.current),
+              "heatmap-opacity": ["interpolate", ["linear"], ["zoom"], 13.5, 1, 16, 0],
+            },
           },
-        });
+          "water-name", // below the labels
+        );
 
-        // Pulse animation for live events.
-        const animate = (t: number) => {
-          const phase = (t % 1600) / 1600;
-          map.setPaintProperty("live-pulse", "circle-radius", 10 + phase * 18);
-          map.setPaintProperty("live-pulse", "circle-opacity", 0.45 * (1 - phase));
-          frame = requestAnimationFrame(animate);
+        // Pins are HTML so they can pop in, pulse and glow. Keep them in step
+        // with whatever the map is showing (groups split as you zoom in).
+        const markers = new Map<string, Marker>();
+        const syncMarkers = () => {
+          if (!map.getSource("events") || !map.isSourceLoaded("events")) return;
+          const seen = new Set<string>();
+          for (const feature of map.querySourceFeatures("events")) {
+            const p = feature.properties ?? {};
+            const at = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
+            const key = p.cluster ? `group:${p.cluster_id}:${p.point_count}:${p.liveCount}` : `${p.id}:${p.status}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            if (markers.has(key)) continue;
+            let element: HTMLElement;
+            if (p.cluster) {
+              const counts = Object.fromEntries(CATEGORY_ORDER.map((c) => [c, Number(p[c] ?? 0)]));
+              element = clusterElement(p.point_count, counts, p.liveCount > 0);
+              element.addEventListener("click", (e) => {
+                e.stopPropagation();
+                openGroup(p.cluster_id, at);
+              });
+            } else {
+              const event = byIdRef.current.get(p.id);
+              if (!event) continue;
+              element = pinElement(event.category, p.status === "live", `${event.title}, ${categoryLabel(event.category)}`);
+              element.addEventListener("click", (e) => {
+                e.stopPropagation();
+                showPopup([event.lng, event.lat], eventCard(event, nowRef.current, meRef.current), 52);
+              });
+            }
+            element.addEventListener("keydown", (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                element.click();
+              }
+            });
+            markers.set(key, new maplibre.Marker({ element, anchor: p.cluster ? "center" : "bottom" }).setLngLat(at).addTo(map));
+          }
+          for (const [key, marker] of markers) {
+            if (!seen.has(key)) {
+              marker.remove();
+              markers.delete(key);
+            }
+          }
         };
-        frame = requestAnimationFrame(animate);
+        map.on("render", syncMarkers);
 
-        map.on("click", "points", (e: MapLayerMouseEvent) => {
-          const id = e.features?.[0]?.properties?.id as string | undefined;
-          const event = id ? byIdRef.current.get(id) : undefined;
-          if (!event) return;
-          showPopup([event.lng, event.lat], eventCard(event, nowRef.current, meRef.current));
-        });
-
-        map.on("click", "clusters", async (e: MapLayerMouseEvent) => {
-          const feature = e.features?.[0];
-          if (!feature) return;
-          const clusterId = feature.properties?.cluster_id as number;
+        // Tap a group: zoom in until it splits, or list them if they're all in one place.
+        async function openGroup(clusterId: number, center: [number, number]) {
           const source = map.getSource("events") as GeoJSONSource;
-          const center = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
           const zoom = await source.getClusterExpansionZoom(clusterId);
           if (zoom <= 17 && map.getZoom() < 17) {
             map.easeTo({ center, zoom: zoom + 0.2 });
             return;
           }
-          // Several events at the same place: list them.
           const leaves = await source.getClusterLeaves(clusterId, 50, 0);
           const list = el("div", "motive-pop-list");
           for (const leaf of leaves) {
             const event = byIdRef.current.get(leaf.properties?.id as string);
             if (event) list.append(eventCard(event, nowRef.current, meRef.current));
           }
-          showPopup(center, list);
-        });
-
-        for (const layer of ["points", "clusters"]) {
-          map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
-          map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
+          showPopup(center, list, 26);
         }
 
         setReady(true);
@@ -288,11 +299,11 @@ export function LiveMap({ events, windows }: Props) {
           .catch(() => {});
       });
 
-      function showPopup(at: [number, number], content: HTMLElement) {
+      function showPopup(at: [number, number], content: HTMLElement, offset = 52) {
         const PopupClass = popupClassRef.current;
         if (!PopupClass) return;
         popupRef.current?.remove();
-        popupRef.current = new PopupClass({ offset: 14, maxWidth: "280px", closeButton: true })
+        popupRef.current = new PopupClass({ offset, maxWidth: "280px", closeButton: true })
           .setLngLat(at)
           .setDOMContent(content)
           .addTo(map);
@@ -302,7 +313,6 @@ export function LiveMap({ events, windows }: Props) {
 
     return () => {
       cancelled = true;
-      cancelAnimationFrame(frame);
       popupRef.current?.remove();
       mapRef.current?.remove();
       mapRef.current = null;
@@ -319,13 +329,26 @@ export function LiveMap({ events, windows }: Props) {
       features: visible.map((e) => ({
         type: "Feature",
         geometry: { type: "Point", coordinates: [e.lng, e.lat] },
-        properties: { id: e.id, status: status(e, now), live: status(e, now) === "live" ? 1 : 0 },
+        properties: { id: e.id, category: e.category, status: status(e, now), live: status(e, now) === "live" ? 1 : 0 },
       })),
+    });
+    (map.getSource("events-heat") as GeoJSONSource | undefined)?.setData({
+      type: "FeatureCollection",
+      features: visible.map((e) => ({ type: "Feature", geometry: { type: "Point", coordinates: [e.lng, e.lat] }, properties: {} })),
     });
   }, [ready, visible, now]);
 
+  // Switch to night colours after sunset (and back in the morning).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map || lookRef.current === look) return;
+    lookRef.current = look;
+    applyLook(map, look);
+    map.setPaintProperty("heat", "heatmap-color", heatColours(look));
+  }, [ready, look]);
+
   function flyTo(view: "lse" | "london") {
-    mapRef.current?.flyTo(view === "lse" ? { center: LSE, zoom: 15.6 } : { center: [-0.118, 51.512], zoom: 11.6 });
+    mapRef.current?.flyTo(view === "lse" ? LSE_VIEW : { center: [-0.118, 51.512], zoom: 11.6, pitch: 0 });
   }
 
   const liveCount = visible.filter((e) => status(e, now) === "live").length;
@@ -356,7 +379,7 @@ export function LiveMap({ events, windows }: Props) {
   return (
     <div className="relative h-[calc(100dvh-57px-var(--banner-h,0px)-var(--tabbar-h))] w-full overflow-hidden">
       {/* The map library sets its own position on the inner div, so size the wrapper instead. */}
-      <div className="absolute inset-0 bg-[#e9ebf0]">
+      <div className={`absolute inset-0 ${look === "night" ? "fn-night bg-[#171C27]" : "bg-[#F7F6F2]"}`}>
         <div ref={containerRef} className="h-full w-full" />
       </div>
 

@@ -7,7 +7,9 @@ export const metadata: Metadata = {
   description: "Everything on at LSE right now, on one live map.",
 };
 
-export default async function MapPage() {
+export default async function MapPage({ searchParams }: PageProps<"/map">) {
   const { events, windows } = await getMapEvents();
-  return <LiveMap events={events} windows={windows} />;
+  // ?look=day or ?look=night previews that style; otherwise it follows sunset.
+  const { look } = await searchParams;
+  return <LiveMap events={events} windows={windows} forceLook={look === "day" || look === "night" ? look : undefined} />;
 }

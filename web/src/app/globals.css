@@ -89,6 +89,35 @@ body {
 .motive-pop-soc { font-size: 13px; font-weight: 600; color: #4338ca; }
 .motive-pop-meta { font-size: 12px; color: #5e5d78; margin-top: 4px; }
 .motive-pop-going { font-size: 12px; font-weight: 700; margin-top: 4px; }
+.fn-chip { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 2px 8px 2px 6px; color: var(--c); background: color-mix(in srgb, var(--c) 12%, white); }
+.fn-details { display: block; margin-top: 10px; border-radius: 12px; background: #4338ca; color: #fff; text-align: center; font-weight: 700; font-size: 14px; padding: 8px 12px; }
+.motive-pop:hover .fn-details { background: #3730a3; }
+.motive-pop:focus { outline: none; }
+.motive-pop:focus-visible .fn-details { box-shadow: 0 0 0 3px #a5b4fc; }
+
+/* Live map pins. The map moves the outer element, so animations go on the inner one. */
+.fn-pin, .fn-cluster { cursor: pointer; }
+.fn-pin-inner { position: relative; width: 40px; height: 56px; transform-origin: 50% 100%; animation: fn-pop 0.24s cubic-bezier(0.3, 1.5, 0.6, 1) both; }
+.fn-pin-head { position: absolute; left: 2px; top: 2px; width: 36px; height: 36px; border-radius: 50%; background: var(--c); border: 2.5px solid #fff; display: grid; place-items: center; box-shadow: 0 3px 8px rgb(0 0 0 / 0.25); transition: transform 0.15s; }
+.fn-pin:hover .fn-pin-head, .fn-pin:focus-visible .fn-pin-head { transform: scale(1.08); }
+.fn-pin-stem { position: absolute; left: 18.75px; top: 34px; width: 2.5px; height: 18px; border-radius: 2px; background: #475569; }
+.fn-pin-foot { position: absolute; left: 15.5px; top: 51px; width: 9px; height: 5px; border-radius: 50%; background: rgb(0 0 0 / 0.25); }
+.fn-pin-live { position: absolute; left: 50%; top: -12px; transform: translateX(-50%); background: #f43f5e; color: #fff; font: 800 9px/1 var(--font-figtree), sans-serif; letter-spacing: 0.04em; padding: 3px 5px; border-radius: 999px; border: 1.5px solid #fff; }
+.fn-pin-pulse { position: absolute; left: 20px; top: 20px; width: 36px; height: 36px; margin: -18px 0 0 -18px; border-radius: 50%; background: var(--c); animation: fn-pulse 1.8s ease-out infinite; }
+.fn-cluster-inner { position: relative; border-radius: 50%; display: grid; place-items: center; box-shadow: 0 3px 8px rgb(0 0 0 / 0.22); animation: fn-pop 0.24s cubic-bezier(0.3, 1.5, 0.6, 1) both; transition: transform 0.15s; }
+.fn-cluster:hover .fn-cluster-inner { transform: scale(1.06); }
+.fn-cluster-num { width: calc(100% - 9px); height: calc(100% - 9px); border-radius: 50%; background: #fff; color: #1f2937; display: grid; place-items: center; font: 800 16px/1 var(--font-figtree), sans-serif; }
+.fn-cluster-live { position: absolute; right: 0; top: 0; width: 12px; height: 12px; border-radius: 50%; background: #f43f5e; border: 2px solid #fff; }
+.fn-night .fn-pin-head { box-shadow: 0 0 14px 2px var(--c), 0 0 4px var(--c); }
+.fn-night .fn-pin-stem { background: #cbd5e1; }
+.fn-night .fn-cluster-inner { box-shadow: 0 0 16px 2px rgb(249 115 22 / 0.6); }
+.fn-night .fn-cluster-num { background: #1f2533; color: #fff; }
+@keyframes fn-pop { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes fn-pulse { from { transform: scale(0.9); opacity: 0.55; } to { transform: scale(2.3); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .fn-pin-inner, .fn-cluster-inner { animation: none; }
+  .fn-pin-pulse { animation: none; transform: scale(1.6); opacity: 0.25; }
+}
 
 /* The bottom tab bar's height, including the iPhone home bar area.
    Pages leave this much space at the bottom so nothing hides behind it. */
