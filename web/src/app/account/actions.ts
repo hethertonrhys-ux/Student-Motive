@@ -40,6 +40,9 @@ export async function saveProfile(_prev: ProfileState, formData: FormData): Prom
 
 const PHOTO_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 
+// The profile picture: the cropped circle everyone sees, plus (for new
+// photos) the whole photo it was cropped from, so it can be re-cropped later
+// without uploading again. Re-cropping sends only the new circle.
 export async function uploadProfilePhoto(formData: FormData): Promise<{ error?: string; url?: string }> {
   const profile = await getProfile();
   if (!profile) return { error: "Log in first." };
@@ -48,6 +51,8 @@ export async function uploadProfilePhoto(formData: FormData): Promise<{ error?: 
   const ext = PHOTO_TYPES[file.type];
   if (!ext) return { error: "Photos must be JPG, PNG or WebP." };
   if (file.size > 2 * 1024 * 1024) return { error: "That photo is too big. Try a smaller one." };
+  const original = formData.get("original");
+  const newOriginal = original instanceof File && original.size > 0 && original.type === "image/jpeg" && original.size <= 3 * 1024 * 1024;
 
   const supabase = await createClient();
   const path = `${profile.id}/${crypto.randomUUID()}.${ext}`;
@@ -57,12 +62,27 @@ export async function uploadProfilePhoto(formData: FormData): Promise<{ error?: 
     // Supabase's reason (e.g. "Bucket not found") helps us fix setup problems.
     return { error: `The photo couldn't be uploaded (${error.message}). Please try again.` };
   }
+  let originalPath = newOriginal ? `${profile.id}/${ORIGINAL}${crypto.randomUUID()}.jpg` : await findOriginal(supabase, profile.id);
+  if (newOriginal && originalPath) {
+    const { error: originalError } = await supabase.storage.from("avatars").upload(originalPath, original as File, { contentType: "image/jpeg" });
+    if (originalError) originalPath = null; // the circle is saved; it just can't be re-cropped later
+  }
   const url = supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl;
 
   await supabase.from("profiles").update({ avatar_url: url }).eq("id", profile.id);
-  await removeOldPhotos(supabase, profile.id, path);
+  await removeOldPhotos(supabase, profile.id, [path, originalPath]);
   revalidatePath("/", "layout");
   return { url };
+}
+
+// The whole photo the profile picture was cropped from, if we have it
+// (pictures added before re-cropping existed only have the circle).
+export async function getProfilePhotoOriginal(): Promise<string | null> {
+  const profile = await getProfile();
+  if (!profile) return null;
+  const supabase = await createClient();
+  const path = await findOriginal(supabase, profile.id);
+  return path ? supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl : null;
 }
 
 export async function removeProfilePhoto(): Promise<{ error?: string }> {
@@ -70,14 +90,22 @@ export async function removeProfilePhoto(): Promise<{ error?: string }> {
   if (!profile) return { error: "Log in first." };
   const supabase = await createClient();
   await supabase.from("profiles").update({ avatar_url: null }).eq("id", profile.id);
-  await removeOldPhotos(supabase, profile.id, null);
+  await removeOldPhotos(supabase, profile.id, []);
   revalidatePath("/", "layout");
   return {};
 }
 
-// Delete earlier photos so only the current one is kept.
-async function removeOldPhotos(supabase: Awaited<ReturnType<typeof createClient>>, userId: string, keep: string | null) {
+const ORIGINAL = "original-";
+
+async function findOriginal(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
   const { data } = await supabase.storage.from("avatars").list(userId, { limit: 100 });
-  const old = (data ?? []).map((f) => `${userId}/${f.name}`).filter((p) => p !== keep);
+  const name = (data ?? []).find((f) => f.name.startsWith(ORIGINAL))?.name;
+  return name ? `${userId}/${name}` : null;
+}
+
+// Delete earlier photos so only the current one (and its original) is kept.
+async function removeOldPhotos(supabase: Awaited<ReturnType<typeof createClient>>, userId: string, keep: (string | null)[]) {
+  const { data } = await supabase.storage.from("avatars").list(userId, { limit: 100 });
+  const old = (data ?? []).map((f) => `${userId}/${f.name}`).filter((p) => !keep.includes(p));
   if (old.length) await supabase.storage.from("avatars").remove(old);
 }

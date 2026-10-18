@@ -7,6 +7,7 @@ import type { MapEvent, MapWindows } from "@/lib/map-events";
 import { LSE, distanceMetres, howFar } from "@/lib/map-style";
 import { mapCategoryLabel as categoryLabel } from "@/lib/map-categories";
 import { loadMapEvents } from "./actions";
+import { clearWalk, drawWalk, mapsLink, walkText, walkingRoute, whereAmI } from "./directions";
 import { FilterButton, FilterPanel, SearchBar, SearchButton, normalise, useSavedCategories } from "./map-controls";
 import { type Look, applyLook, heatColours, isDark, mapStyle } from "./map-theme";
 import { CATEGORY_ORDER, CATEGORY_STYLE, clusterElement, iconSvg, pinElement } from "./pins";
@@ -72,6 +73,67 @@ function eventCard(event: MapEvent, now: number, me: [number, number] | null) {
   return card;
 }
 
+const WALK_ICON =
+  "M13.5 5a1.75 1.75 0 100-3.5 1.75 1.75 0 000 3.5zM10 21.5l1.8-6.2M12.8 15.3l2.7 2.4.8 3.8M9 11.8l1.2-3.6 3.4-1 2.3 3.6 2.6 1M10.2 8.2l1.6 7.1";
+
+// One event's popup: its card, plus walking directions. Your location is
+// only asked for when you tap Directions.
+function eventPopup(event: MapEvent, now: number, me: [number, number] | null) {
+  const wrap = el("div", "fn-pop");
+  wrap.append(eventCard(event, now, me));
+  const button = el("button", "fn-walk-btn") as HTMLButtonElement;
+  button.type = "button";
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", WALK_ICON);
+  svg.append(path);
+  button.append(svg, "Directions");
+  const status = el("div", "fn-walk-status");
+  status.setAttribute("aria-live", "polite");
+  wrap.append(button, status);
+
+  const to: [number, number] = [event.lng, event.lat];
+  const link = (text: string, href: string) => {
+    const a = el("a", "fn-walk-link", text) as HTMLAnchorElement;
+    a.href = href;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    return a;
+  };
+  button.addEventListener("click", async () => {
+    const map = kept?.map;
+    if (!map) return;
+    button.disabled = true;
+    status.textContent = "Finding you…";
+    try {
+      const from = shared.me ?? (await whereAmI());
+      shared.onMe(from);
+      status.textContent = "Working out the route…";
+      const walk = await walkingRoute(from, to);
+      // The card closes so the route can be seen; a small bar takes its place.
+      status.replaceChildren();
+      shared.popup?.remove();
+      drawWalk(map, walk);
+      shared.onWalk({
+        title: event.title,
+        text: walkText(walk),
+        // Social events show a rough spot until you're going.
+        note: event.href.startsWith("/social/") ? "To the rough area. The exact spot is on the event page once you're going." : null,
+        maps: mapsLink(to),
+      });
+    } catch (e) {
+      status.replaceChildren(el("div", "fn-walk-error", (e as Error).message), link("Open in Maps instead", mapsLink(to)));
+    } finally {
+      button.disabled = false;
+    }
+  });
+  return wrap;
+}
+
+type WalkInfo = { title: string; text: string; note: string | null; maps: string };
+
 type Props = { events: MapEvent[]; windows: MapWindows; forceLook?: Look };
 
 // The map is kept between visits, so going back to the Map tab is instant
@@ -95,7 +157,8 @@ const shared: {
   onMe: (at: [number, number]) => void;
   onLocateError: (code: number) => void;
   onMapError: () => void;
-} = { byId: new Map(), now: 0, me: null, popup: null, onReady() {}, onMe() {}, onLocateError() {}, onMapError() {} };
+  onWalk: (walk: WalkInfo | null) => void;
+} = { byId: new Map(), now: 0, me: null, popup: null, onReady() {}, onMe() {}, onLocateError() {}, onMapError() {}, onWalk() {} };
 
 export function LiveMap({ events: firstEvents, windows: firstWindows, forceLook }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -120,6 +183,8 @@ export function LiveMap({ events: firstEvents, windows: firstWindows, forceLook 
   const [me, setMe] = useState<[number, number] | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  // The walking route being shown, if any (see Directions in an event card).
+  const [walk, setWalk] = useState<WalkInfo | null>(null);
 
   // Keep "live" up to date, and fetch fresh events every minute (just the
   // events, not the whole page).
@@ -180,9 +245,11 @@ export function LiveMap({ events: firstEvents, windows: firstWindows, forceLook 
       );
     };
     shared.onMapError = () => setMapError(true);
+    shared.onWalk = setWalk;
     const leave = () => {
       cancelled = true;
       shared.popup?.remove();
+      if (kept?.loaded) clearWalk(kept.map); // its bar goes with this screen
       kept?.element.remove(); // set aside, not destroyed
       mapRef.current = null;
     };
@@ -299,7 +366,7 @@ export function LiveMap({ events: firstEvents, windows: firstWindows, forceLook 
               element = pinElement(event.category, p.status === "live", `${event.title}, ${categoryLabel(event.category)}`);
               element.addEventListener("click", (e) => {
                 e.stopPropagation();
-                showPopup([event.lng, event.lat], eventCard(event, shared.now, shared.me), 52);
+                showPopup([event.lng, event.lat], eventPopup(event, shared.now, shared.me), 52);
               });
             }
             element.addEventListener("keydown", (e) => {
@@ -408,7 +475,7 @@ export function LiveMap({ events: firstEvents, windows: firstWindows, forceLook 
     const map = mapRef.current;
     if (!map) return;
     map.flyTo({ center: [event.lng, event.lat], zoom: Math.max(map.getZoom(), 16) });
-    kept?.showPopup([event.lng, event.lat], eventCard(event, now, me));
+    kept?.showPopup([event.lng, event.lat], eventPopup(event, now, me));
   }
 
   return (
@@ -499,8 +566,28 @@ export function LiveMap({ events: firstEvents, windows: firstWindows, forceLook 
         )}
       </div>
 
-      {/* Status bar */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3">
+      {/* Status bar (above the map's own corner controls, so it can always be tapped) */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-2 p-3">
+        {walk ? (
+          <div role="status" className="pointer-events-auto max-w-[19rem] rounded-2xl border border-line bg-surface px-4 py-2.5 shadow-lg">
+            <p className="truncate text-xs font-semibold text-muted">Walking to {walk.title}</p>
+            <p className="font-display text-base font-bold whitespace-nowrap">{walk.text}</p>
+            {walk.note && <p className="text-xs text-muted">{walk.note}</p>}
+            <div className="mt-1 flex gap-4 text-sm font-bold whitespace-nowrap">
+              <a href={walk.maps} target="_blank" rel="noopener noreferrer" className="text-brand">Open in Maps</a>
+              <button
+                type="button"
+                onClick={() => {
+                  if (mapRef.current) clearWalk(mapRef.current);
+                  setWalk(null);
+                }}
+                className="text-muted"
+              >
+                Clear route
+              </button>
+            </div>
+          </div>
+        ) : (
         <div className="pointer-events-auto rounded-2xl border border-line bg-surface px-4 py-2.5 shadow-lg">
           <p className="text-sm font-bold">
             {visible.length} {visible.length === 1 ? "event" : "events"}
@@ -530,6 +617,7 @@ export function LiveMap({ events: firstEvents, windows: firstWindows, forceLook 
           )}
           {locationError && <p className="mt-1 max-w-52 text-xs text-danger">{locationError}</p>}
         </div>
+        )}
         <div className="pointer-events-auto mr-12 flex gap-2">
           <button type="button" onClick={() => flyTo("lse")} className="rounded-xl border border-line bg-surface px-3 py-2 text-sm font-bold shadow-lg">
             LSE
