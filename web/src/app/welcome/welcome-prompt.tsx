@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { TwoTruthsForm } from "@/components/two-truths-form";
 import { MAX_ANSWER, exampleFor, type Prompt, type Uni } from "@/lib/prompts";
 import { finishWelcome, saveWelcomePrompt, welcomeReached } from "./actions";
 
@@ -17,6 +18,10 @@ export function WelcomePrompt({ prompts, uni, next }: { prompts: Prompt[]; uni: 
   const [leaving, setLeaving] = useState(false);
   const box = useRef<HTMLTextAreaElement>(null);
   const saving = useRef<Promise<unknown>>(Promise.resolve());
+  // Two truths and a lie: ready once all three are filled in and a lie picked.
+  const [gameReady, setGameReady] = useState(false);
+  const saveGame = useRef<() => Promise<boolean>>(async () => false);
+  const game = Boolean(chosen?.game);
 
   useEffect(() => {
     void welcomeReached();
@@ -24,7 +29,7 @@ export function WelcomePrompt({ prompts, uni, next }: { prompts: Prompt[]; uni: 
 
   // Save a moment after typing stops.
   useEffect(() => {
-    if (!chosen || !text.trim()) return;
+    if (!chosen || chosen.game || !text.trim()) return;
     const timer = setTimeout(() => {
       const previous = saved !== chosen.id ? saved : null;
       saving.current = saveWelcomePrompt(chosen.id, text, previous).then((r) => {
@@ -46,7 +51,12 @@ export function WelcomePrompt({ prompts, uni, next }: { prompts: Prompt[]; uni: 
 
   async function leave(event: "prompts_skipped" | "prompts_completed") {
     setLeaving(true);
-    if (event === "prompts_completed" && chosen && text.trim()) {
+    if (event === "prompts_completed" && game) {
+      if (!(await saveGame.current())) {
+        setLeaving(false);
+        return;
+      }
+    } else if (event === "prompts_completed" && chosen && text.trim()) {
       await saving.current;
       const r = await saveWelcomePrompt(chosen.id, text, saved !== chosen.id ? saved : null);
       if (r.error) {
@@ -65,7 +75,24 @@ export function WelcomePrompt({ prompts, uni, next }: { prompts: Prompt[]; uni: 
       <p className="mt-2 text-lg">Pick one prompt so people have something to say hi about.</p>
       <p className="mt-1 text-sm text-muted">Optional. You can add more later (up to 3).</p>
 
-      <div className="card mt-5 space-y-2">
+      {game && (
+        <div className="card mt-5 space-y-2">
+          <p className="font-semibold">{chosen!.text}</p>
+          <TwoTruthsForm
+            key={chosen!.id}
+            initial={null}
+            uni={uni}
+            autoSave
+            placeFirst
+            focusFirst
+            onReady={(ready, save) => {
+              setGameReady(ready);
+              saveGame.current = save;
+            }}
+          />
+        </div>
+      )}
+      <div className={`card mt-5 space-y-2 ${game ? "hidden" : ""}`}>
         <label htmlFor="welcome-answer" className={`block font-semibold ${chosen ? "" : "text-muted"}`}>
           {chosen ? chosen.text : "Tap a prompt below, then answer here"}
         </label>
@@ -110,7 +137,7 @@ export function WelcomePrompt({ prompts, uni, next }: { prompts: Prompt[]; uni: 
           <button type="button" disabled={leaving} onClick={() => leave("prompts_skipped")} className="btn-ghost w-full py-3 text-base">
             Skip for now
           </button>
-          <button type="button" disabled={leaving || !chosen || !text.trim()} onClick={() => leave("prompts_completed")} className="btn w-full py-3 text-base">
+          <button type="button" disabled={leaving || !chosen || (game ? !gameReady : !text.trim())} onClick={() => leave("prompts_completed")} className="btn w-full py-3 text-base">
             Continue
           </button>
         </div>

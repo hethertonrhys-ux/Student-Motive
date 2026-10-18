@@ -2,6 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { MAX_ANSWER, MAX_PROMPTS, exampleFor, promptById, promptsFor, type Prompt, type Uni } from "@/lib/prompts";
+import { useRouter } from "next/navigation";
+import { TwoTruthsForm } from "@/components/two-truths-form";
+import type { TwoTruthsOwn } from "@/lib/two-truths";
 import { saveProfilePrompts } from "./actions";
 
 type Answer = { prompt_id: string; answer: string };
@@ -9,14 +12,17 @@ type Answer = { prompt_id: string; answer: string };
 const SHOWN = 5;
 
 // The first few prompts in list order (the same every time, so the page looks
-// the same while it loads; Two truths and a lie is first); Shuffle picks others.
+// the same while it loads); Shuffle picks others. Two truths and a lie stays
+// pinned at the top until it's answered.
 function firstPicks(offered: Prompt[], answered: Set<string>) {
   return offered.filter((p) => !answered.has(p.id)).slice(0, SHOWN);
 }
+const pinned = (offered: Prompt[], answered: Set<string>) => offered.filter((p) => p.game && !answered.has(p.id));
 
 // Fun questions instead of a blank "About me": answer up to 3. Each change
 // saves straight away. "uni" decides which prompts and examples you see.
-export function PromptsEditor({ initial, uni }: { initial: Answer[]; uni: Uni | null }) {
+export function PromptsEditor({ initial, uni, twoTruths }: { initial: Answer[]; uni: Uni | null; twoTruths: TwoTruthsOwn | null }) {
+  const router = useRouter();
   const offered = promptsFor(uni);
   const [answers, setAnswers] = useState<Answer[]>(initial.filter((a) => promptById(a.prompt_id)));
   const [picks, setPicks] = useState<Prompt[]>(() => firstPicks(offered, new Set(initial.map((a) => a.prompt_id))));
@@ -41,10 +47,11 @@ export function PromptsEditor({ initial, uni }: { initial: Answer[]; uni: Uni | 
   }
 
   function shuffle() {
-    const pool = offered.filter((p) => !answered.has(p.id) && !picks.some((x) => x.id === p.id));
-    const fresh: Prompt[] = [];
+    const top = pinned(offered, answered);
+    const pool = offered.filter((p) => !p.game && !answered.has(p.id) && !picks.some((x) => x.id === p.id));
+    const fresh: Prompt[] = [...top];
     while (fresh.length < SHOWN && pool.length) fresh.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
-    setPicks(fresh.length ? fresh : firstPicks(offered, answered));
+    setPicks(fresh.length > top.length ? fresh : firstPicks(offered, answered));
   }
 
   function finish() {
@@ -89,7 +96,18 @@ export function PromptsEditor({ initial, uni }: { initial: Answer[]; uni: Uni | 
             return (
               <li key={a.prompt_id} className="rounded-xl border border-line p-3">
                 <p className="text-xs font-semibold text-muted">{prompt.text}</p>
-                <p className="mt-0.5 font-semibold [overflow-wrap:anywhere]">{a.answer}</p>
+                {prompt.game && twoTruths ? (
+                  <ul className="mt-1 space-y-0.5 text-sm font-semibold">
+                    {[twoTruths.s1, twoTruths.s2, twoTruths.s3].map((t, i) => (
+                      <li key={i} className="[overflow-wrap:anywhere]">
+                        {t}
+                        {twoTruths.lie === i + 1 && <span className="ml-1.5 rounded-full bg-danger/10 px-1.5 py-0.5 text-[11px] font-bold text-danger">the lie</span>}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-0.5 font-semibold [overflow-wrap:anywhere]">{a.answer}</p>
+                )}
                 <div className="mt-2 flex gap-4 text-sm font-semibold">
                   <button
                     type="button"
@@ -119,7 +137,24 @@ export function PromptsEditor({ initial, uni }: { initial: Answer[]; uni: Uni | 
         </ul>
       )}
 
-      {editing ? (
+      {editing?.prompt.game ? (
+        <div className="rounded-xl border-2 border-brand p-3">
+          <p className="mb-2 font-semibold">{editing.prompt.text}</p>
+          <TwoTruthsForm
+            initial={twoTruths}
+            uni={uni}
+            focusFirst
+            onCancel={() => setEditing(null)}
+            onSaved={() => {
+              if (!answers.some((a) => a.prompt_id === editing.prompt.id)) setAnswers([...answers, { prompt_id: editing.prompt.id, answer: editing.prompt.text }]);
+              setPicks((p) => p.filter((x) => x.id !== editing.prompt.id));
+              setEditing(null);
+              setStatus({ saved: true });
+              router.refresh();
+            }}
+          />
+        </div>
+      ) : editing ? (
         <div className="rounded-xl border-2 border-brand p-3">
           <label htmlFor="prompt-answer" className="block font-semibold">{editing.prompt.text}</label>
           <textarea

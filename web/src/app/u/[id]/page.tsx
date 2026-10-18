@@ -13,6 +13,8 @@ import { ProfileMenu } from "./profile-menu";
 import { PhotoGallery } from "./photo-gallery";
 import { getPhotos, getProfileSocieties } from "@/lib/profile-photos";
 import { promptById } from "@/lib/prompts";
+import type { TwoTruthsView } from "@/lib/two-truths";
+import { TwoTruthsGame } from "./two-truths-game";
 
 export const metadata: Metadata = { title: "Profile" };
 
@@ -49,8 +51,8 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
         .limit(10);
 
   // Their current photos and societies (both empty if either of you has blocked the other).
-  const [photos, societies, prompts] = isBlocked
-    ? [[], [], []]
+  const [photos, societies, prompts, twoTruths] = isBlocked
+    ? [[], [], [], null]
     : await Promise.all([
         getPhotos(supabase, id),
         getProfileSocieties(supabase, id),
@@ -60,6 +62,8 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
           .eq("user_id", id)
           .order("position")
           .then(({ data }) => (data ?? []) as { prompt_id: string; answer: string }[]),
+        // Two truths and a lie, as this viewer may see it (no lie until they've guessed).
+        supabase.rpc("two_truths_view", { person: id }).then(({ data }) => (data as TwoTruthsView | null) ?? null),
       ]);
   const currentPhotos = photos.filter((p) => p.current);
 
@@ -82,7 +86,11 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
               return prompt ? (
                 <li key={p.prompt_id} data-prompt className="rounded-xl bg-brand-soft px-3.5 py-2.5">
                   <p className="text-xs font-semibold text-muted">{prompt.text}</p>
-                  <p className="font-semibold [overflow-wrap:anywhere]">{p.answer}</p>
+                  {prompt.game && twoTruths ? (
+                    <div className="mt-1.5"><TwoTruthsGame person={id} initial={twoTruths} /></div>
+                  ) : (
+                    <p className="font-semibold [overflow-wrap:anywhere]">{p.answer}</p>
+                  )}
                 </li>
               ) : null;
             })}

@@ -63,3 +63,31 @@ export async function getTableMoves(supabase: SupabaseClient, me: string): Promi
     at: r.created_at,
   }));
 }
+
+export type TwoTruthsDay = { day: string; at: string; plays: number; right: number; rightNames: string[] };
+
+// People playing your Two truths and a lie, one notification per day (UK
+// time). Its time is the day's first play, so the bell lights up at most
+// once a day however many people play.
+export async function getTwoTruthsDays(supabase: SupabaseClient): Promise<TwoTruthsDay[]> {
+  const { data, error } = await supabase.rpc("my_two_truths_days");
+  if (error) return [];
+  return ((data ?? []) as { day: string; first_at: string; plays: number; right_count: number; right_names: string[] | null }[]).map((r) => ({
+    day: r.day,
+    at: r.first_at,
+    plays: Number(r.plays),
+    right: Number(r.right_count),
+    rightNames: r.right_names ?? [],
+  }));
+}
+
+// "5 people played your Two truths and a lie. Sam, Alex and 1 more got it right."
+export function twoTruthsLine(d: TwoTruthsDay) {
+  const who = d.plays === 1 ? "Someone" : `${d.plays} people`;
+  // Up to 3 names, then "and N more".
+  const names = d.rightNames.slice(0, d.right > 3 ? 2 : 3);
+  const parts = d.right > names.length ? [...names, `${d.right - names.length} more`] : names;
+  const named = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
+  const right = d.right === 0 ? (d.plays === 1 ? "They didn't spot the lie." : "Nobody spotted the lie.") : `${named} got it right.`;
+  return { played: `${who} played your Two truths and a lie`, right };
+}

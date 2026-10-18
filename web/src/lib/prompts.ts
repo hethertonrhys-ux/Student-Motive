@@ -25,8 +25,8 @@ export const MAX_PROMPTS = 3;
 // New answers; older ones (up to 150) still show as they are.
 export const MAX_ANSWER = 120;
 export const TWO_TRUTHS_ID = "two-truths";
-// Two truths and a lie needs its database change; until then it isn't offered.
-export const TWO_TRUTHS_ENABLED = false;
+// Two truths and a lie (needs its database change, supabase/migrations/20261103…).
+export const TWO_TRUTHS_ENABLED = true;
 
 export const PROMPTS: Prompt[] = [
   {
