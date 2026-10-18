@@ -25,9 +25,10 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Checks the login token on our own server with Supabase's public key (no
+  // trip to Supabase), refreshing it first if it has expired.
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims ?? null;
 
   const path = request.nextUrl.pathname;
   const isPrivate = path.startsWith("/dashboard") || path.startsWith("/admin");

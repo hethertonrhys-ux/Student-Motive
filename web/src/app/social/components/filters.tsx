@@ -1,19 +1,17 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { SOCIAL_CATEGORIES } from "@/lib/social-events";
 
 type Menu = "category" | "date" | "type" | null;
 
 // Discover search and filters. Only the search bar shows until you tap it;
 // then the filters appear underneath. Everything lives in the web address,
-// so a filtered list can be shared.
+// so a filtered list can be shared. Changing them doesn't ask the server:
+// the list underneath narrows straight away.
 export function Filters() {
-  const router = useRouter();
-  const pathname = usePathname();
   const params = useSearchParams();
-  const [pending, start] = useTransition();
   const [q, setQ] = useState(params.get("q") ?? "");
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState<Menu>(null);
@@ -33,7 +31,8 @@ export function Filters() {
       if (v) next.set(k, v);
       else next.delete(k);
     }
-    start(() => router.replace(`${pathname}?${next.toString()}`, { scroll: false }));
+    const query = next.toString();
+    window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
   }
   const clearFilters = () => set({ category: null, date: null, type: null, available: null });
 
@@ -43,13 +42,6 @@ export function Filters() {
     inputRef.current?.blur();
   }
 
-  // Search as you type, after a short pause.
-  useEffect(() => {
-    if ((params.get("q") ?? "") === q.trim()) return;
-    const t = setTimeout(() => set({ q: q.trim() || null }), 350);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q]);
 
   // Tapping anywhere outside, or pressing Escape, closes the filters.
   useEffect(() => {
@@ -80,7 +72,7 @@ export function Filters() {
   };
 
   return (
-    <div ref={boxRef} className={`space-y-3 ${pending ? "opacity-70" : ""}`}>
+    <div ref={boxRef} className="space-y-3">
       <div className="flex items-center gap-2">
         <div className="relative min-w-0 flex-1">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-muted" aria-hidden>
@@ -91,7 +83,10 @@ export function Filters() {
             ref={inputRef}
             type="search"
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => {
+              setQ(e.target.value);
+              set({ q: e.target.value.trim() || null });
+            }}
             onFocus={() => setOpen(true)}
             placeholder="Search events"
             aria-label="Search events by name or place"

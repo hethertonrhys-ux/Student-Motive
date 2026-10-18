@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { getProfile } from "@/lib/auth";
+import { getUserId } from "@/lib/auth";
 import { getCards } from "@/lib/social";
-import { SOCIAL_CATEGORIES, SOCIAL_EVENT_FIELDS, spacesLeft, type MemberStatus, type SocialEvent } from "@/lib/social-events";
+import { SOCIAL_EVENT_FIELDS, formatWhen, type MemberStatus, type SocialEvent } from "@/lib/social-events";
 import { createClient } from "@/lib/supabase/server";
-import { londonInputToIso, nowMs } from "@/lib/time";
+import { nowMs } from "@/lib/time";
+import { DiscoverList } from "./components/discover-list";
 import { EventCard } from "./components/event-card";
 import { Filters } from "./components/filters";
 
@@ -13,27 +14,35 @@ export const metadata: Metadata = { title: "Social", description: "Students host
 
 type Tab = "discover" | "hosting" | "going";
 
-// Midnight (UK time) at the start of a YYYY-MM-DD day, plus some days.
-function londonDayStart(day: string, addDays = 0) {
-  const iso = londonInputToIso(`${day}T00:00`);
-  return iso ? new Date(new Date(iso).getTime() + addDays * 86400e3) : null;
-}
-const londonToday = (now: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date(now));
-
 export default async function SocialPage({ searchParams }: PageProps<"/social">) {
   const params = await searchParams;
   const str = (k: string) => (typeof params[k] === "string" ? (params[k] as string) : "");
-  const me = await getProfile();
+  // Just your id: checked on our own server, with no database trip.
+  const myId = await getUserId();
+  const me = myId ? { id: myId } : null;
   const tab: Tab = me && (str("tab") === "hosting" || str("tab") === "going") ? (str("tab") as Tab) : "discover";
   const supabase = await createClient();
   const now = nowMs();
   const nowIso = new Date(now).toISOString();
+
+  // Requests waiting on events you host, for the Hosting tab's red number.
+  // Started now so it loads at the same time as everything else.
+  const badge = me
+    ? supabase
+        .from("social_event_members")
+        .select("event_id, social_events!inner(host_id, ends_at, is_cancelled)", { count: "exact", head: true })
+        .eq("status", "pending")
+        .eq("social_events.host_id", me.id)
+        .eq("social_events.is_cancelled", false)
+        .gt("social_events.ends_at", nowIso)
+    : null;
 
   let events: SocialEvent[] = [];
   const status = new Map<string, MemberStatus>();
   const pending = new Map<string, number>();
 
   if (tab === "discover") {
+    // Every upcoming event; search and filters then work on the phone.
     let query = supabase
       .from("social_events")
       .select(SOCIAL_EVENT_FIELDS)
@@ -42,31 +51,12 @@ export default async function SocialPage({ searchParams }: PageProps<"/social">)
       .order("starts_at")
       .limit(200);
     if (me) query = query.neq("host_id", me.id);
-    const category = str("category");
-    if (SOCIAL_CATEGORIES.some((c) => c.value === category)) query = query.eq("category", category);
-    if (str("type") === "open") query = query.eq("is_private", false);
-    if (str("type") === "private") query = query.eq("is_private", true);
-    // Search matches the event name or the place.
-    const q = str("q").replace(/[%_,()"\\]/g, " ").trim().slice(0, 60);
-    if (q) query = query.or(`title.ilike."%${q}%",area.ilike."%${q}%"`);
-    const date = str("date");
-    const today = londonToday(now);
-    const range =
-      date === "today"
-        ? [londonDayStart(today), londonDayStart(today, 1)]
-        : date === "week"
-          ? [new Date(now), londonDayStart(today, 7)]
-          : /^\d{4}-\d{2}-\d{2}$/.test(date)
-            ? [londonDayStart(date), londonDayStart(date, 1)]
-            : null;
-    if (range?.[0] && range[1]) query = query.lt("starts_at", range[1].toISOString()).gt("ends_at", range[0].toISOString());
-    const { data } = await query;
+    const [{ data }, { data: mine }] = await Promise.all([
+      query,
+      me ? supabase.from("social_event_members").select("event_id, status").eq("user_id", me.id) : Promise.resolve({ data: [] }),
+    ]);
     events = (data ?? []) as SocialEvent[];
-    if (str("available") === "1") events = events.filter((e) => spacesLeft(e) > 0);
-    if (me && events.length) {
-      const { data: mine } = await supabase.from("social_event_members").select("event_id, status").eq("user_id", me.id).in("event_id", events.map((e) => e.id));
-      for (const m of mine ?? []) status.set(m.event_id, m.status as MemberStatus);
-    }
+    for (const m of mine ?? []) status.set(m.event_id, m.status as MemberStatus);
   } else if (tab === "hosting" && me) {
     const { data } = await supabase
       .from("social_events")
@@ -93,19 +83,9 @@ export default async function SocialPage({ searchParams }: PageProps<"/social">)
     events.sort((a, b) => a.starts_at.localeCompare(b.starts_at));
   }
 
-  const hosts = await getCards(supabase, events.map((e) => e.host_id));
+  const [hosts, badgeResult] = await Promise.all([getCards(supabase, events.map((e) => e.host_id)), badge]);
   const totalPending = [...pending.values()].reduce((a, b) => a + b, 0);
-
-  // A pending-requests count for the Hosting tab, even when you're on another tab.
-  let hostingBadge = totalPending;
-  if (me && tab !== "hosting") {
-    const { data: mineHosting } = await supabase.from("social_events").select("id").eq("host_id", me.id).eq("is_cancelled", false).gt("ends_at", nowIso);
-    const ids = (mineHosting ?? []).map((e) => e.id);
-    if (ids.length) {
-      const { count } = await supabase.from("social_event_members").select("event_id", { count: "exact", head: true }).eq("status", "pending").in("event_id", ids);
-      hostingBadge = count ?? 0;
-    }
-  }
+  const hostingBadge = tab === "hosting" ? totalPending : (badgeResult?.count ?? 0);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
@@ -150,29 +130,35 @@ export default async function SocialPage({ searchParams }: PageProps<"/social">)
       )}
 
       <div className="mt-5 space-y-3">
-        {events.map((e) => (
-          <EventCard key={e.id} event={e} host={tab === "hosting" ? null : hosts.get(e.host_id)} status={status.get(e.id)} pending={pending.get(e.id)} />
-        ))}
-        {events.length === 0 && <Empty tab={tab} filtered={Boolean(str("category") || str("date") || str("type") || str("available") || str("q"))} />}
+        {tab === "discover" ? (
+          <Suspense>
+            <DiscoverList
+              events={events}
+              status={Object.fromEntries(status)}
+              hosts={Object.fromEntries([...hosts].map(([id, h]) => [id, { name: h.name, avatar_url: h.avatar_url }]))}
+              whenText={Object.fromEntries(events.map((e) => [e.id, formatWhen(e.starts_at)]))}
+              now={now}
+              loggedIn={Boolean(me)}
+            />
+          </Suspense>
+        ) : (
+          <>
+            {events.map((e) => (
+              <EventCard key={e.id} event={e} host={tab === "hosting" ? null : hosts.get(e.host_id)} status={status.get(e.id)} pending={pending.get(e.id)} />
+            ))}
+            {events.length === 0 && <Empty tab={tab} />}
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-function Empty({ tab, filtered }: { tab: Tab; filtered: boolean }) {
-  const text =
-    tab === "discover"
-      ? filtered
-        ? "Nothing matches those filters. Try clearing some."
-        : "No events yet. Be the first to host one!"
-      : tab === "hosting"
-        ? "You're not hosting anything yet."
-        : "You haven't joined anything yet. Have a look in Discover.";
+function Empty({ tab }: { tab: Exclude<Tab, "discover"> }) {
   return (
     <div className="card py-10 text-center">
-      <p className="font-semibold">{text}</p>
-      {tab !== "going" && !filtered && <Link href="/social/new" className="btn mt-4">Host an event</Link>}
-      {tab === "going" && <Link href="/social" className="btn mt-4">Discover events</Link>}
+      <p className="font-semibold">{tab === "hosting" ? "You're not hosting anything yet." : "You haven't joined anything yet. Have a look in Discover."}</p>
+      {tab === "hosting" ? <Link href="/social/new" className="btn mt-4">Host an event</Link> : <Link href="/social" className="btn mt-4">Discover events</Link>}
     </div>
   );
 }

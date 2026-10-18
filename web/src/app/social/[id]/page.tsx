@@ -1,27 +1,29 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { ShareButton } from "@/components/share-button";
-import { getProfile } from "@/lib/auth";
+import { getUserId } from "@/lib/auth";
 import { getCards } from "@/lib/social";
 import { SOCIAL_EVENT_FIELDS, categoryInfo, formatWhen, spacesLeft, type MemberStatus, type SocialEvent } from "@/lib/social-events";
 import { SITE_URL } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 import { nowMs } from "@/lib/time";
-import { cancelSocialEvent, joinSocialEvent, leaveSocialEvent, removeGuest, respondToRequest } from "../actions";
-import { ActionButton } from "../components/action-button";
+import { removeGuest, respondToRequest } from "../actions";
+import { InstantRow, JoinPanel } from "../components/join-panel";
 import { ReportLink } from "../components/report-link";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const time = (iso: string) => new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Europe/London" }).format(new Date(iso));
 
-async function load(id: string) {
+// Loaded once per page, shared by the page title and the page itself.
+const load = cache(async (id: string) => {
   if (!UUID.test(id)) return null;
   const supabase = await createClient();
   const { data } = await supabase.from("social_events").select(SOCIAL_EVENT_FIELDS).eq("id", id).maybeSingle();
   return data as SocialEvent | null;
-}
+});
 
 export async function generateMetadata({ params }: PageProps<"/social/[id]">): Promise<Metadata> {
   const event = await load((await params).id);
@@ -33,16 +35,18 @@ type Member = { user_id: string; status: MemberStatus; created_at: string };
 export default async function SocialEventPage({ params, searchParams }: PageProps<"/social/[id]">) {
   const { id } = await params;
   const { created } = await searchParams;
-  const event = await load(id);
-  if (!event) notFound();
-
-  const me = await getProfile();
+  // Your id is checked on our own server (no database trip), then the event,
+  // who's going and the address all load at the same time.
+  const myId = await getUserId();
+  const me = myId ? { id: myId } : null;
   const supabase = await createClient();
-  const isHost = me?.id === event.host_id;
-  const [{ data: memberRows }, { data: address }] = await Promise.all([
-    me ? supabase.from("social_event_members").select("user_id, status, created_at").eq("event_id", id).order("created_at") : Promise.resolve({ data: [] }),
-    me ? supabase.from("social_event_addresses").select("address, lat, lng").eq("event_id", id).maybeSingle() : Promise.resolve({ data: null }),
+  const [event, { data: memberRows }, { data: address }] = await Promise.all([
+    load(id),
+    me && UUID.test(id) ? supabase.from("social_event_members").select("user_id, status, created_at").eq("event_id", id).order("created_at") : Promise.resolve({ data: [] }),
+    me && UUID.test(id) ? supabase.from("social_event_addresses").select("address, lat, lng").eq("event_id", id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
+  if (!event) notFound();
+  const isHost = me?.id === event.host_id;
   const members = (memberRows ?? []) as Member[];
   const cards = await getCards(supabase, [event.host_id, ...members.map((m) => m.user_id)]);
   const host = cards.get(event.host_id);
@@ -108,7 +112,17 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
 
       {/* The main button */}
       <div className="mt-5">
-        <JoinPanel event={event} loggedIn={Boolean(me)} isHost={isHost} mine={mine} left={left} finished={finished} hostName={host?.name ?? "The host"} />
+        <JoinPanel
+          eventId={event.id}
+          isPrivate={event.is_private}
+          cancelled={event.is_cancelled}
+          loggedIn={Boolean(me)}
+          isHost={isHost}
+          mine={mine}
+          left={left}
+          finished={finished}
+          hostName={host?.name ?? "The host"}
+        />
       </div>
 
       {event.description && <p className="mt-6 text-lg leading-relaxed whitespace-pre-line">{event.description}</p>}
@@ -122,7 +136,13 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
             {requests.map((r) => {
               const p = cards.get(r.user_id);
               return (
-                <li key={r.user_id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                <InstantRow
+                  key={r.user_id}
+                  buttons={[
+                    { label: "Approve", action: respondToRequest.bind(null, id, r.user_id, true), className: "btn px-3 py-1.5 text-sm" },
+                    { label: "Decline", action: respondToRequest.bind(null, id, r.user_id, false), className: "btn-ghost px-3 py-1.5 text-sm" },
+                  ]}
+                >
                   <Link href={`/u/${r.user_id}`} className="flex min-w-0 flex-1 items-center gap-3">
                     <Avatar name={p?.name ?? "Member"} url={p?.avatar_url} size={40} />
                     <span className="min-w-0">
@@ -130,11 +150,7 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
                       {p?.course && <span className="block truncate text-xs text-muted">{p.course}</span>}
                     </span>
                   </Link>
-                  <span className="flex gap-2">
-                    <ActionButton action={respondToRequest.bind(null, id, r.user_id, true)} className="btn px-3 py-1.5 text-sm">Approve</ActionButton>
-                    <ActionButton action={respondToRequest.bind(null, id, r.user_id, false)} className="btn-ghost px-3 py-1.5 text-sm">Decline</ActionButton>
-                  </span>
-                </li>
+                </InstantRow>
               );
             })}
           </ul>
@@ -156,21 +172,20 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
             {going.map((g) => {
               const p = cards.get(g.user_id);
               return (
-                <li key={g.user_id} className="flex items-center gap-3 px-4 py-3">
+                <InstantRow
+                  key={g.user_id}
+                  className="flex items-center gap-3 px-4 py-3"
+                  buttons={
+                    isHost && !finished
+                      ? [{ label: "Remove", action: removeGuest.bind(null, id, g.user_id), className: "text-sm font-semibold text-muted hover:text-danger", confirmText: `Remove ${p?.name ?? "them"} from this event?` }]
+                      : []
+                  }
+                >
                   <Link href={`/u/${g.user_id}`} className="flex min-w-0 flex-1 items-center gap-3">
                     <Avatar name={p?.name ?? "Member"} url={p?.avatar_url} size={40} />
                     <span className="truncate font-semibold">{p?.name ?? "Member"}</span>
                   </Link>
-                  {isHost && !finished && (
-                    <ActionButton
-                      action={removeGuest.bind(null, id, g.user_id)}
-                      confirmText={`Remove ${p?.name ?? "them"} from this event?`}
-                      className="text-sm font-semibold text-muted hover:text-danger"
-                    >
-                      Remove
-                    </ActionButton>
-                  )}
-                </li>
+                </InstantRow>
               );
             })}
           </ul>
@@ -182,89 +197,5 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
         {me && !isHost && <ReportLink id={id} />}
       </div>
     </article>
-  );
-}
-
-function JoinPanel({
-  event,
-  loggedIn,
-  isHost,
-  mine,
-  left,
-  finished,
-  hostName,
-}: {
-  event: SocialEvent;
-  loggedIn: boolean;
-  isHost: boolean;
-  mine: MemberStatus | null;
-  left: number;
-  finished: boolean;
-  hostName: string;
-}) {
-  const box = "card flex flex-wrap items-center justify-between gap-3";
-  if (event.is_cancelled) return <div className={box}><p className="font-semibold text-danger">This event has been cancelled.</p></div>;
-  if (finished) return <div className={box}><p className="font-semibold text-muted">This event has finished.</p></div>;
-  if (!loggedIn) {
-    return (
-      <div className={box}>
-        <p className="font-semibold">Log in to join.</p>
-        <Link href={`/login?next=/social/${event.id}`} className="btn">Log in</Link>
-      </div>
-    );
-  }
-  if (isHost) {
-    return (
-      <div className={box}>
-        <p className="font-semibold">You&apos;re hosting</p>
-        <span className="flex gap-2">
-          <Link href={`/social/${event.id}/edit`} className="btn-ghost py-2">Edit</Link>
-          <ActionButton
-            action={cancelSocialEvent.bind(null, event.id)}
-            confirmText="Cancel this event? Everyone going will see it's cancelled."
-            className="btn-ghost py-2 text-danger"
-          >
-            Cancel event
-          </ActionButton>
-        </span>
-      </div>
-    );
-  }
-  if (mine === "going") {
-    return (
-      <div className={box}>
-        <p className="font-semibold"><span className="text-ok">✓</span> You&apos;re going</p>
-        <ActionButton action={leaveSocialEvent.bind(null, event.id)} confirmText="Leave this event? Your space goes to someone else." className="text-sm font-semibold text-muted hover:text-danger">
-          Leave
-        </ActionButton>
-      </div>
-    );
-  }
-  if (mine === "pending") {
-    return (
-      <div className={box}>
-        <p className="font-semibold">Request sent. {hostName} will approve or decline.</p>
-        <ActionButton action={leaveSocialEvent.bind(null, event.id)} className="text-sm font-semibold text-muted hover:text-danger">Withdraw request</ActionButton>
-      </div>
-    );
-  }
-  if (mine === "declined") {
-    return <div className={box}><p className="font-semibold text-muted">{hostName} declined your request for this one.</p></div>;
-  }
-  if (left === 0) {
-    return (
-      <div className={box}>
-        <p className="font-semibold">No spaces left.</p>
-        <button type="button" disabled className="btn">Full</button>
-      </div>
-    );
-  }
-  return (
-    <div className={box}>
-      <p className="font-semibold">{event.is_private ? `${hostName} approves who comes.` : "Coming?"}</p>
-      <ActionButton action={joinSocialEvent.bind(null, event.id)} className="btn px-6">
-        {event.is_private ? "Request to join" : "I'm in"}
-      </ActionButton>
-    </div>
   );
 }

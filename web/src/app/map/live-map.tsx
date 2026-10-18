@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import type { GeoJSONSource, GeolocateControl, Map as MapLibreMap, Marker, Popup } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { MapEvent, MapWindows } from "@/lib/map-events";
 import { LSE, distanceMetres, howFar } from "@/lib/map-style";
 import { categoryLabel } from "@/lib/types";
+import { loadMapEvents } from "./actions";
 import { FilterButton, FilterPanel, SearchBar, SearchButton, normalise, useSavedCategories } from "./map-controls";
 import { type Look, applyLook, heatColours, isDark, mapStyle } from "./map-theme";
 import { CATEGORY_ORDER, CATEGORY_STYLE, clusterElement, iconSvg, pinElement } from "./pins";
@@ -74,14 +74,36 @@ function eventCard(event: MapEvent, now: number, me: [number, number] | null) {
 
 type Props = { events: MapEvent[]; windows: MapWindows; forceLook?: Look };
 
-export function LiveMap({ events, windows, forceLook }: Props) {
-  const router = useRouter();
+// The map is kept between visits, so going back to the Map tab is instant
+// instead of rebuilding it. While you're on another tab it waits, unseen.
+// "shared" is how the kept map reaches whichever map screen is showing now.
+type Kept = {
+  map: MapLibreMap;
+  element: HTMLDivElement;
+  geolocate: GeolocateControl;
+  showPopup: (at: [number, number], content: HTMLElement, offset?: number) => void;
+  loaded: boolean;
+  look: Look;
+};
+let kept: Kept | null = null;
+const shared: {
+  byId: Map<string, MapEvent>;
+  now: number;
+  me: [number, number] | null;
+  popup: Popup | null;
+  onReady: () => void;
+  onMe: (at: [number, number]) => void;
+  onLocateError: (code: number) => void;
+  onMapError: () => void;
+} = { byId: new Map(), now: 0, me: null, popup: null, onReady() {}, onMe() {}, onLocateError() {}, onMapError() {} };
+
+export function LiveMap({ events: firstEvents, windows: firstWindows, forceLook }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
-  const popupRef = useRef<Popup | null>(null);
-  const popupClassRef = useRef<typeof Popup | null>(null);
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(() => Boolean(kept?.loaded));
   const [mapError, setMapError] = useState(false);
+  // Events start with what the page loaded, then refresh every minute.
+  const [{ events, windows }, setData] = useState({ events: firstEvents, windows: firstWindows });
   const [when, setWhen] = useState<When>("tonight");
   // Category filters are remembered on this device; nothing ticked shows everything.
   const [categories, setCategories] = useSavedCategories();
@@ -92,24 +114,25 @@ export function LiveMap({ events, windows, forceLook }: Props) {
   const [now, setNow] = useState(() => new Date(windows.now).getTime());
   // Night colours from sunset to sunrise.
   const look: Look = forceLook ?? (isDark(new Date(now)) ? "night" : "day");
-  const lookRef = useRef(look);
   // Your location, if you choose to share it. It stays in your browser:
   // it's only used to draw your blue dot and work out distances.
   const geolocateRef = useRef<GeolocateControl | null>(null);
   const [me, setMe] = useState<[number, number] | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const showPopupRef = useRef<((at: [number, number], content: HTMLElement) => void) | null>(null);
 
-  // Keep "live" up to date, and fetch fresh events every minute.
+  // Keep "live" up to date, and fetch fresh events every minute (just the
+  // events, not the whole page).
   useEffect(() => {
     const tick = setInterval(() => setNow(Date.now()), 30_000);
-    const refresh = setInterval(() => router.refresh(), 60_000);
+    const refresh = setInterval(() => {
+      loadMapEvents().then(setData, () => {});
+    }, 60_000);
     return () => {
       clearInterval(tick);
       clearInterval(refresh);
     };
-  }, [router]);
+  }, []);
 
   // Time, categories and search all combine.
   const categoryKey = categories.join(",");
@@ -132,29 +155,59 @@ export function LiveMap({ events, windows, forceLook }: Props) {
     [filtered, words],
   );
   const byId = useMemo(() => new Map(events.map((e) => [e.id, e])), [events]);
-  const byIdRef = useRef(byId);
-  const nowRef = useRef(now);
-  const meRef = useRef(me);
   useEffect(() => {
-    byIdRef.current = byId;
-    nowRef.current = now;
-    meRef.current = me;
+    shared.byId = byId;
+    shared.now = now;
+    shared.me = me;
   }, [byId, now, me]);
 
-  // Create the map once.
+  // Hook this screen up to the map: the kept one if there is one, otherwise
+  // a new one (only on the first visit).
   useEffect(() => {
     let cancelled = false;
+    shared.onReady = () => setReady(true);
+    shared.onMe = (at) => {
+      setMe(at);
+      setLocating(false);
+      setLocationError(null);
+    };
+    shared.onLocateError = (code) => {
+      setLocating(false);
+      setLocationError(
+        code === 1
+          ? "Location is turned off for Function. Allow it in your phone's settings to see what's near you."
+          : "Couldn't find your location. Try again outside or near a window.",
+      );
+    };
+    shared.onMapError = () => setMapError(true);
+    const leave = () => {
+      cancelled = true;
+      shared.popup?.remove();
+      kept?.element.remove(); // set aside, not destroyed
+      mapRef.current = null;
+    };
+
+    if (kept) {
+      containerRef.current?.append(kept.element);
+      kept.map.resize();
+      mapRef.current = kept.map;
+      geolocateRef.current = kept.geolocate;
+      return leave;
+    }
 
     (async () => {
       const maplibre = await import("maplibre-gl");
       if (cancelled || !containerRef.current) return;
       // Copied into public/ by scripts/copy-map-worker.mjs.
       maplibre.setWorkerUrl("/maplibre-gl-worker.mjs");
-      popupClassRef.current = maplibre.Popup;
 
+      const element = document.createElement("div");
+      element.style.width = element.style.height = "100%";
+      containerRef.current.append(element);
+      const startLook = forceLook ?? (isDark(new Date()) ? "night" : "day");
       const map = new maplibre.Map({
-        container: containerRef.current,
-        style: mapStyle(lookRef.current),
+        container: element,
+        style: mapStyle(startLook),
         ...LSE_VIEW,
         minZoom: 9,
         maxZoom: 19,
@@ -173,22 +226,17 @@ export function LiveMap({ events, windows, forceLook }: Props) {
       });
       geolocateRef.current = geolocate;
       map.addControl(geolocate, "bottom-right");
-      geolocate.on("geolocate", (e) => {
-        setMe([e.coords.longitude, e.coords.latitude]);
-        setLocating(false);
-        setLocationError(null);
-      });
-      geolocate.on("error", (e) => {
-        setLocating(false);
-        setLocationError(
-          e.code === 1
-            ? "Location is turned off for Function. Allow it in your phone's settings to see what's near you."
-            : "Couldn't find your location. Try again outside or near a window.",
-        );
-      });
+      geolocate.on("geolocate", (e) => shared.onMe([e.coords.longitude, e.coords.latitude]));
+      geolocate.on("error", (e) => shared.onLocateError(e.code));
       map.on("error", (e) => {
-        if (String(e.error?.message ?? "").toLowerCase().includes("style")) setMapError(true);
+        if (String(e.error?.message ?? "").toLowerCase().includes("style")) shared.onMapError();
       });
+
+      function showPopup(at: [number, number], content: HTMLElement, offset = 52) {
+        shared.popup?.remove();
+        shared.popup = new maplibre.Popup({ offset, maxWidth: "280px", closeButton: true }).setLngLat(at).setDOMContent(content).addTo(map);
+      }
+      kept = { map, element, geolocate, showPopup, loaded: false, look: startLook };
 
       map.on("load", () => {
         // Events, grouped into a numbered bubble when they're close together.
@@ -217,7 +265,7 @@ export function LiveMap({ events, windows, forceLook }: Props) {
             paint: {
               "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 10, 22, 13, 48, 15, 70],
               "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 10, 1, 15, 1.8],
-              "heatmap-color": heatColours(lookRef.current),
+              "heatmap-color": heatColours(startLook),
               "heatmap-opacity": ["interpolate", ["linear"], ["zoom"], 13.5, 1, 16, 0],
             },
           },
@@ -246,12 +294,12 @@ export function LiveMap({ events, windows, forceLook }: Props) {
                 openGroup(p.cluster_id, at);
               });
             } else {
-              const event = byIdRef.current.get(p.id);
+              const event = shared.byId.get(p.id);
               if (!event) continue;
               element = pinElement(event.category, p.status === "live", `${event.title}, ${categoryLabel(event.category)}`);
               element.addEventListener("click", (e) => {
                 e.stopPropagation();
-                showPopup([event.lng, event.lat], eventCard(event, nowRef.current, meRef.current), 52);
+                showPopup([event.lng, event.lat], eventCard(event, shared.now, shared.me), 52);
               });
             }
             element.addEventListener("keydown", (e) => {
@@ -282,41 +330,28 @@ export function LiveMap({ events, windows, forceLook }: Props) {
           const leaves = await source.getClusterLeaves(clusterId, 50, 0);
           const list = el("div", "motive-pop-list");
           for (const leaf of leaves) {
-            const event = byIdRef.current.get(leaf.properties?.id as string);
-            if (event) list.append(eventCard(event, nowRef.current, meRef.current));
+            const event = shared.byId.get(leaf.properties?.id as string);
+            if (event) list.append(eventCard(event, shared.now, shared.me));
           }
           showPopup(center, list, 26);
         }
 
-        setReady(true);
+        if (kept) kept.loaded = true;
+        shared.onReady();
 
         // Already said yes before? Show your location straight away.
         navigator.permissions
           ?.query({ name: "geolocation" })
           .then((p) => {
-            if (p.state === "granted" && !cancelled) geolocate.trigger();
+            if (p.state === "granted") geolocate.trigger();
           })
           .catch(() => {});
       });
-
-      function showPopup(at: [number, number], content: HTMLElement, offset = 52) {
-        const PopupClass = popupClassRef.current;
-        if (!PopupClass) return;
-        popupRef.current?.remove();
-        popupRef.current = new PopupClass({ offset, maxWidth: "280px", closeButton: true })
-          .setLngLat(at)
-          .setDOMContent(content)
-          .addTo(map);
-      }
-      showPopupRef.current = showPopup;
     })();
 
-    return () => {
-      cancelled = true;
-      popupRef.current?.remove();
-      mapRef.current?.remove();
-      mapRef.current = null;
-    };
+    return leave;
+    // forceLook only matters when the map is first made.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Push the filtered events onto the map whenever filters or data change.
@@ -341,8 +376,8 @@ export function LiveMap({ events, windows, forceLook }: Props) {
   // Switch to night colours after sunset (and back in the morning).
   useEffect(() => {
     const map = mapRef.current;
-    if (!ready || !map || lookRef.current === look) return;
-    lookRef.current = look;
+    if (!ready || !map || !kept || kept.look === look) return;
+    kept.look = look;
     applyLook(map, look);
     map.setPaintProperty("heat", "heatmap-color", heatColours(look));
   }, [ready, look]);
@@ -373,7 +408,7 @@ export function LiveMap({ events, windows, forceLook }: Props) {
     const map = mapRef.current;
     if (!map) return;
     map.flyTo({ center: [event.lng, event.lat], zoom: Math.max(map.getZoom(), 16) });
-    showPopupRef.current?.([event.lng, event.lat], eventCard(event, now, me));
+    kept?.showPopup([event.lng, event.lat], eventCard(event, now, me));
   }
 
   return (

@@ -14,8 +14,12 @@ export function EventCard({
   host,
   status,
   pending = 0,
+  whenText,
 }: {
   event: SocialEvent;
+  // The date and time, already written out (phones and servers word dates
+  // slightly differently, so lists shown on the phone pass in the server's).
+  whenText?: string;
   host?: { name: string; avatar_url: string | null } | null;
   status?: MemberStatus | null;
   pending?: number;
@@ -46,7 +50,7 @@ export function EventCard({
       </div>
 
       <div className="space-y-0.5 text-sm">
-        <p className="font-semibold">{formatWhen(event.starts_at)}</p>
+        <p className="font-semibold">{whenText ?? formatWhen(event.starts_at)}</p>
         <p className="truncate text-muted">{event.area}</p>
       </div>
 

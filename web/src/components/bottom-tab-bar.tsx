@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import type { ComponentType, SVGProps } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, type ComponentType, type SVGProps } from "react";
 import {
   ChatBubbleOvalLeftIcon as ChatOutline,
   MapPinIcon as MapOutline,
@@ -82,6 +82,14 @@ export function BottomTabBar({ meId, avatarUrl, name, socialRequests, unread }: 
     },
   ];
 
+  // After every tab change, make sure the other tabs are loaded in the
+  // background (already-fresh ones aren't fetched again).
+  const router = useRouter();
+  const hrefs = tabs.map((t) => t.href).join(" ");
+  useEffect(() => {
+    for (const href of hrefs.split(" ")) if (href.split("?")[0] !== pathname) router.prefetch(href);
+  }, [pathname, hrefs, router]);
+
   return (
     <nav
       aria-label="Main"
@@ -96,6 +104,8 @@ export function BottomTabBar({ meId, avatarUrl, name, socialRequests, unread }: 
             <li key={tab.key} className="flex flex-1">
               <Link
                 href={tab.href}
+                // Load each tab fully in the background so tapping it is instant.
+                prefetch={true}
                 aria-label={tab.label + (tab.dot ? (tab.key === "social" ? ", join requests waiting" : ", unread messages") : "")}
                 aria-current={active ? "page" : undefined}
                 onClick={(e) => {

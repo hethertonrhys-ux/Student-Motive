@@ -1,6 +1,8 @@
 // Shared definitions for the Social section (students hosting their own
 // events). Separate from Societies: different tables and different rules.
 
+import { londonInputToIso } from "./time";
+
 export type SocialCategory = "sport" | "social" | "study" | "nightlife" | "other";
 export type MemberStatus = "going" | "pending" | "declined";
 
@@ -51,3 +53,35 @@ export const formatWhen = (iso: string) =>
 
 // What the event's button should say for the person looking at it.
 export type JoinState = "host" | "going" | "pending" | "declined" | "full" | "join" | "request" | "finished" | "cancelled" | "login";
+
+// Discover filters, checked on the phone so results change the moment you tap.
+export type DiscoverFilters = { category: string; date: string; type: string; available: boolean; q: string };
+
+// Midnight (UK time) at the start of a YYYY-MM-DD day, plus some days.
+function londonDayStart(day: string, addDays = 0) {
+  const iso = londonInputToIso(`${day}T00:00`);
+  return iso ? new Date(iso).getTime() + addDays * 86400e3 : null;
+}
+const londonToday = (now: number) => new Intl.DateTimeFormat("en-CA", { timeZone: LONDON }).format(new Date(now));
+
+export function matchesDiscover(e: SocialEvent, f: DiscoverFilters, now: number) {
+  if (f.category && e.category !== f.category) return false;
+  if (f.type === "open" && e.is_private) return false;
+  if (f.type === "private" && !e.is_private) return false;
+  if (f.available && spacesLeft(e) === 0) return false;
+  const q = f.q.trim().toLowerCase();
+  if (q && !e.title.toLowerCase().includes(q) && !e.area.toLowerCase().includes(q)) return false;
+  const today = londonToday(now);
+  const range =
+    f.date === "today"
+      ? [londonDayStart(today), londonDayStart(today, 1)]
+      : f.date === "week"
+        ? [now, londonDayStart(today, 7)]
+        : /^\d{4}-\d{2}-\d{2}$/.test(f.date)
+          ? [londonDayStart(f.date), londonDayStart(f.date, 1)]
+          : null;
+  if (range?.[0] != null && range[1] != null) {
+    if (!(new Date(e.starts_at).getTime() < range[1] && new Date(e.ends_at).getTime() > range[0])) return false;
+  }
+  return true;
+}
