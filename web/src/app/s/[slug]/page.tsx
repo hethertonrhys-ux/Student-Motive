@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/auth";
+import { formatCost } from "@/lib/cost";
 import { JoinForm } from "./join-form";
 import { leaveSociety, requestToJoin } from "./actions";
 import { InstantArea, InstantFormButton } from "@/components/instant";
@@ -91,6 +92,7 @@ export default async function SocietyPage({ params }: PageProps<"/s/[slug]">) {
                   </p>
                   <p className="text-sm text-muted">
                     {formatEventTime(event.starts_at, event.ends_at)} · {categoryLabel(event.category)}
+                    {formatCost(event.cost_pence) && ` · ${formatCost(event.cost_pence)}`}
                   </p>
                 </div>
                 <span className="text-sm font-semibold text-muted">{event.going_count} going</span>

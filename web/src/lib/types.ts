@@ -46,6 +46,8 @@ export type MotiveEvent = {
   description: string | null;
   category: EventCategory;
   free_food: boolean;
+  // Display only, in pence: null = not given, 0 = Free.
+  cost_pence?: number | null;
   venue_id: string | null;
   // A custom pin, used when the event isn't at one of the listed venues.
   lat: number | null;
