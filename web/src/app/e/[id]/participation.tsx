@@ -6,6 +6,8 @@ import { formatPounds, settle } from "@/lib/ledger";
 import { hasEnded, nowMs } from "@/lib/time";
 import type { EventTable, MotiveEvent } from "@/lib/types";
 import { Avatar } from "@/components/avatar";
+import { CompleteProfileCard } from "@/components/complete-profile-card";
+import { promptCount } from "@/lib/my-prompts";
 import { InstantArea } from "@/components/instant";
 import { NameForm } from "@/components/name-form";
 import { saveName } from "@/app/account/actions";
@@ -49,10 +51,11 @@ export async function Participation({ event, society }: Props) {
   }
 
   const supabase = await createClient();
-  const [{ data: isMember }, { people, tables }, { data: queueRows }] = await Promise.all([
+  const [{ data: isMember }, { people, tables }, { data: queueRows }, prompts] = await Promise.all([
     supabase.rpc("is_society_member", { sid: event.society_id }),
     getEventPeople(supabase, event.id),
     event.format === "tables" ? supabase.rpc("table_waitlist_summary", { eid: event.id }) : Promise.resolve({ data: [] }),
+    promptCount(supabase, profile.id),
   ]);
   const queue: Queue = new Map(
     ((queueRows ?? []) as { table_id: string; waiting: number; my_position: number }[]).map((q) => [q.table_id, { waiting: Number(q.waiting), myPosition: Number(q.my_position) }]),
@@ -95,6 +98,9 @@ export async function Participation({ event, society }: Props) {
           <GoingPanel event={event} me={me} you={you} />
         </InstantArea>
       )}
+
+      {/* Just joined: a gentle nudge to finish their profile (once per session). */}
+      {!finished && me && me.status === "going" && <CompleteProfileCard prompts={prompts} />}
 
       {/* Tables where this player is the bank: their bank screen. */}
       {!event.results_published &&

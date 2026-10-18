@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cache } from "react";
 import { notFound } from "next/navigation";
 import { Avatar } from "@/components/avatar";
+import { CompleteProfileCard } from "@/components/complete-profile-card";
 import { ShareButton } from "@/components/share-button";
 import { getUserId } from "@/lib/auth";
 import { formatCost } from "@/lib/cost";
@@ -158,6 +159,7 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
           hostName={host?.name ?? "The host"}
           suggestPrompt={myPrompts === 0}
         />
+        {me && !isHost && (mine === "going" || mine === "pending") && <CompleteProfileCard prompts={myPrompts ?? 0} />}
         {chat && (isHost || mine === "going") && (
           <Link href={`/chats/${chat.id}`} prefetch={false} className="btn-ghost mt-3 w-full py-3">
             Open group chat

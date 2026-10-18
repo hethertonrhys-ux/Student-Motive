@@ -6,6 +6,7 @@ import { ProfileForm } from "./profile-form";
 import { PhotoPicker } from "./photo-picker";
 import { MyFive } from "./my-five";
 import { PromptsEditor } from "./prompts-editor";
+import { uniFromEmail } from "@/lib/prompts";
 import { ShowSocietiesToggle } from "./show-societies-toggle";
 import { getPhotos } from "@/lib/profile-photos";
 
@@ -46,7 +47,7 @@ export default async function AccountPage() {
         <ShowSocietiesToggle initial={settings?.show_societies ?? true} />
       </div>
       <ProfileForm name={data?.display_name ?? ""} course={data?.course ?? ""} />
-      <PromptsEditor initial={prompts ?? []} />
+      <PromptsEditor initial={prompts ?? []} uni={uniFromEmail(me.email)} />
     </div>
   );
 }

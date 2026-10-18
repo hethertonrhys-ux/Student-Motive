@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Avatar } from "@/components/avatar";
+import { CompleteProfileCard } from "@/components/complete-profile-card";
 import { FriendButton } from "@/components/friend-button";
 import { requireProfile } from "@/lib/auth";
 import { getCards, getFriendships, getHiddenPeople, relationFor } from "@/lib/social";
@@ -106,6 +107,7 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
         )}
         {relation !== "self" && <ProfileMenu id={id} name={person.name} blockedByMe={isBlocked} />}
       </div>
+      {relation === "self" && <CompleteProfileCard prompts={prompts.length} />}
 
       {societies.length > 0 && (
         <section className="mt-6">

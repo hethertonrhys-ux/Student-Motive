@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/auth";
+import { CompleteProfileCard } from "@/components/complete-profile-card";
+import { promptCount } from "@/lib/my-prompts";
 import { formatCost } from "@/lib/cost";
 import { JoinForm } from "./join-form";
 import { leaveSociety, requestToJoin } from "./actions";
@@ -117,9 +119,10 @@ async function Membership({ societyId, slug, name }: { societyId: string; slug: 
   }
 
   const supabase = await createClient();
-  const [{ data: membership }, { data: isAdmin }] = await Promise.all([
+  const [{ data: membership }, { data: isAdmin }, prompts] = await Promise.all([
     supabase.from("society_members").select("status").eq("society_id", societyId).eq("user_id", profile.id).maybeSingle(),
     supabase.rpc("is_society_admin", { sid: societyId }),
+    promptCount(supabase, profile.id),
   ]);
 
   if (isAdmin) {
@@ -135,6 +138,7 @@ async function Membership({ societyId, slug, name }: { societyId: string; slug: 
     <div className="card mt-6">
       <p className="font-semibold">Request sent</p>
       <p className="text-sm text-muted">The committee will approve you once they&apos;ve checked your membership.</p>
+      <CompleteProfileCard prompts={prompts} />
     </div>
   );
   const joinCard = (after?: React.ReactNode) => (
@@ -150,6 +154,7 @@ async function Membership({ societyId, slug, name }: { societyId: string; slug: 
       <InstantArea>
         <div className="card mt-6 flex flex-wrap items-center justify-between gap-3">
           <p className="font-semibold"><span className="text-ok">✓</span> You&apos;re a member of {name}</p>
+          <div className="w-full"><CompleteProfileCard prompts={prompts} /></div>
           <InstantFormButton action={leaveSociety.bind(null, societyId, slug)} after={joinCard()} className="text-sm font-semibold text-muted hover:text-danger">
             Leave
           </InstantFormButton>

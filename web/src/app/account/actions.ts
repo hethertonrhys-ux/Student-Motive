@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getProfile } from "@/lib/auth";
-import { MAX_ANSWER, MAX_PROMPTS, promptById } from "@/lib/prompts";
+import { MAX_PROMPTS, promptById } from "@/lib/prompts";
 import { createClient } from "@/lib/supabase/server";
 
 export type NameState = { error?: string };
@@ -47,7 +47,7 @@ export async function saveProfilePrompts(answers: { prompt_id: string; answer: s
   if (!profile) return { error: "Log in first." };
   const clean = answers
     .filter((a) => promptById(a.prompt_id))
-    .map((a) => ({ prompt_id: a.prompt_id, answer: String(a.answer).trim().replace(/\s+/g, " ").slice(0, MAX_ANSWER) }))
+    .map((a) => ({ prompt_id: a.prompt_id, answer: String(a.answer).trim().replace(/\s+/g, " ").slice(0, 150) })) // the database limit; older answers can be up to 150
     .filter((a) => a.answer);
   if (clean.length > MAX_PROMPTS) return { error: `You can answer up to ${MAX_PROMPTS} prompts.` };
   const supabase = await createClient();
