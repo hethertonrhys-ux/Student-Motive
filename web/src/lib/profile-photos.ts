@@ -23,6 +23,8 @@ export async function getPhotos(supabase: SupabaseClient, userId: string): Promi
     .from("profile_photos")
     .select("id, path, pinned, activated_at, archived_at")
     .eq("user_id", userId)
+    // In the order the owner chose; photos added since come first.
+    .order("position", { ascending: true, nullsFirst: true })
     .order("activated_at", { ascending: false });
   const rows = (data ?? []) as Row[];
   if (rows.length === 0) return [];

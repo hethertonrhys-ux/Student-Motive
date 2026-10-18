@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { PhotoCropper } from "@/components/photo-cropper";
 import { decodePhoto } from "@/lib/compress-photo";
-import { archivePhoto, uploadMyFivePhoto, type Result } from "./my-five-actions";
+import { archivePhoto, reorderPhotos, uploadMyFivePhoto, type Result } from "./my-five-actions";
+import { useDragOrder } from "./use-drag-order";
 
 type Photo = { id: string; url: string | null };
 
-// The owner's view of their 5 photos: add and remove. Photos stay until
-// removed; removed ones go to the Archive (restore or delete them there).
+// The owner's view of their 5 photos: add, reorder and remove. Photos stay
+// until removed; removed ones go to the Archive (restore or delete them there).
 export function MyFive({ photos, archived }: { photos: Photo[]; archived: number }) {
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +26,19 @@ export function MyFive({ photos, archived }: { photos: Photo[]; archived: number
       const r = await fn();
       if (r.error) setError(r.error);
     });
+
+  // Hold and drag to change the order; the first is shown first on your profile.
+  const byId = new Map(photos.map((p) => [p.id, p]));
+  const { order, dragging, itemProps, reset } = useDragOrder(photos.map((p) => p.id), (ids) =>
+    start(async () => {
+      setError(null);
+      const r = await reorderPhotos(ids);
+      if (r.error) {
+        setError(r.error);
+        reset();
+      }
+    }),
+  );
 
   // Pick several at once (up to the free spaces), then crop each to the
   // shape it's shown in on your profile.
@@ -82,11 +96,21 @@ export function MyFive({ photos, archived }: { photos: Photo[]; archived: number
       </div>
 
       <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-        {photos.map((p) => (
-          <li key={p.id} className="relative aspect-square overflow-hidden rounded-xl border border-line bg-line">
+        {order.map((id) => byId.get(id)).filter((p): p is Photo => Boolean(p)).map((p, index) => (
+          <li
+            key={p.id}
+            {...itemProps(p.id)}
+            aria-label={`Photo ${index + 1}`}
+            className={`relative aspect-square cursor-grab touch-manipulation overflow-hidden rounded-xl border bg-line select-none [-webkit-touch-callout:none] ${
+              dragging === p.id ? "z-10 scale-105 border-brand opacity-80 shadow-xl" : "border-line"
+            } transition-transform`}
+          >
             {p.url && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={p.url} alt="" className="size-full object-cover" />
+              <img src={p.url} alt="" draggable={false} className="pointer-events-none size-full object-cover" />
+            )}
+            {index === 0 && photos.length > 1 && (
+              <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-bold text-white">First</span>
             )}
             <button
               type="button"
@@ -119,6 +143,7 @@ export function MyFive({ photos, archived }: { photos: Photo[]; archived: number
         )}
       </ul>
 
+      {photos.length > 1 && <p className="text-xs text-muted">Hold and drag a photo to change the order. The first one shows first on your profile.</p>}
       {full && <p className="text-sm font-medium text-muted">All 5 spaces are full. Remove one to add another.</p>}
       {error && <p className="text-sm font-medium text-danger">{error}</p>}
       <Link href="/account/archive" className="inline-block text-sm font-semibold text-brand">
