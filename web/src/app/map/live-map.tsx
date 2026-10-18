@@ -6,7 +6,8 @@ import type { GeoJSONSource, GeolocateControl, Map as MapLibreMap, MapLayerMouse
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { MapEvent, MapWindows } from "@/lib/map-events";
 import { LSE, MAP_STYLE, distanceMetres, howFar } from "@/lib/map-style";
-import { CATEGORIES, categoryLabel, type EventCategory } from "@/lib/types";
+import { categoryLabel } from "@/lib/types";
+import { FilterButton, FilterPanel, SearchBar, SearchButton, normalise, useSavedCategories } from "./map-controls";
 
 const BRAND = "#4338ca";
 const LIVE = "#f43f5e";
@@ -76,8 +77,12 @@ export function LiveMap({ events, windows }: Props) {
   const [ready, setReady] = useState(false);
   const [mapError, setMapError] = useState(false);
   const [when, setWhen] = useState<When>("tonight");
-  const [categories, setCategories] = useState<EventCategory[]>([]);
-  const [freeFood, setFreeFood] = useState(false);
+  // Category filters are remembered on this device; nothing ticked shows everything.
+  const [categories, setCategories] = useSavedCategories();
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [showResults, setShowResults] = useState(true);
   const [now, setNow] = useState(() => new Date(windows.now).getTime());
   // Your location, if you choose to share it. It stays in your browser:
   // it's only used to draw your blue dot and work out distances.
@@ -97,15 +102,25 @@ export function LiveMap({ events, windows }: Props) {
     };
   }, [router]);
 
+  // Time, categories and search all combine.
+  const categoryKey = categories.join(",");
+  const filtered = useMemo(
+    () => {
+      const chosen = categoryKey ? categoryKey.split(",") : [];
+      return events.filter((e) => inWindow(e, when, windows, now) && (chosen.length === 0 || chosen.includes(e.category)));
+    },
+    [events, when, windows, now, categoryKey],
+  );
+  const words = useMemo(() => normalise(query).split(" ").filter(Boolean), [query]);
   const visible = useMemo(
     () =>
-      events.filter(
-        (e) =>
-          inWindow(e, when, windows, now) &&
-          (categories.length === 0 || categories.includes(e.category)) &&
-          (!freeFood || e.freeFood),
-      ),
-    [events, when, windows, now, categories, freeFood],
+      words.length === 0
+        ? filtered
+        : filtered.filter((e) => {
+            const text = normalise(`${e.title} ${e.society} ${e.place}`);
+            return words.every((w) => text.includes(w));
+          }),
+    [filtered, words],
   );
   const byId = useMemo(() => new Map(events.map((e) => [e.id, e])), [events]);
   const byIdRef = useRef(byId);
@@ -309,10 +324,6 @@ export function LiveMap({ events, windows }: Props) {
     });
   }, [ready, visible, now]);
 
-  function toggleCategory(value: EventCategory) {
-    setCategories((current) => (current.includes(value) ? current.filter((c) => c !== value) : [...current, value]));
-  }
-
   function flyTo(view: "lse" | "london") {
     mapRef.current?.flyTo(view === "lse" ? { center: LSE, zoom: 15.6 } : { center: [-0.118, 51.512], zoom: 11.6 });
   }
@@ -349,33 +360,85 @@ export function LiveMap({ events, windows }: Props) {
         <div ref={containerRef} className="h-full w-full" />
       </div>
 
-      {/* Filters */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 space-y-2 p-3">
-        <div className="pointer-events-auto mx-auto flex w-fit rounded-full border border-line bg-surface p-1 shadow-lg">
-          {WHEN_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setWhen(option.value)}
-              className={`rounded-full px-4 py-1.5 text-sm font-bold transition ${
-                when === option.value ? "bg-brand text-brand-ink" : "text-muted hover:text-ink"
-              }`}
-            >
-              {option.value === "now" && <span className="mr-1.5 inline-block size-2 rounded-full bg-live align-middle" />}
-              {option.label}
-            </button>
-          ))}
-        </div>
-        <div className="pointer-events-auto -mx-3 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:justify-center">
-          {CATEGORIES.map((c) => (
-            <Chip key={c.value} active={categories.includes(c.value)} onClick={() => toggleCategory(c.value)}>
-              {c.label}
-            </Chip>
-          ))}
-          <Chip active={freeFood} onClick={() => setFreeFood((f) => !f)}>
-            Free food 🍕
-          </Chip>
-        </div>
+      {/* Top row: time, filter and search. Search replaces the row while open. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 p-3">
+        {searchOpen ? (
+          <SearchBar
+            value={query}
+            onChange={(v) => {
+              setQuery(v);
+              setShowResults(true);
+            }}
+            onCancel={() => {
+              setSearchOpen(false);
+              setQuery("");
+            }}
+          />
+        ) : (
+          <div className="relative flex items-center justify-center gap-2 max-[359px]:gap-1.5">
+            <div className="pointer-events-auto flex rounded-full border border-line bg-surface p-1 shadow-lg">
+              {WHEN_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setWhen(option.value)}
+                  aria-pressed={when === option.value}
+                  className={`rounded-full px-3 py-1.5 text-sm font-bold whitespace-nowrap transition max-[359px]:px-2 max-[359px]:text-[13px] min-[400px]:px-4 ${
+                    when === option.value ? "bg-brand text-brand-ink" : "text-muted hover:text-ink"
+                  }`}
+                >
+                  {option.value === "now" && <span className="mr-1.5 inline-block size-2 rounded-full bg-live align-middle" />}
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <span className="pointer-events-auto">
+              <FilterButton count={categories.length} open={filterOpen} onClick={() => setFilterOpen((o) => !o)} />
+            </span>
+            <span className="pointer-events-auto">
+              <SearchButton
+                onClick={() => {
+                  setFilterOpen(false);
+                  setSearchOpen(true);
+                }}
+              />
+            </span>
+            {filterOpen && <FilterPanel selected={categories} onChange={setCategories} onClose={() => setFilterOpen(false)} />}
+          </div>
+        )}
+
+        {/* Search results, as you type */}
+        {searchOpen && words.length > 0 && showResults && (
+          <ul className="pointer-events-auto mt-2 max-h-[45vh] overflow-y-auto rounded-2xl border border-line bg-surface shadow-xl">
+            {visible.slice(0, 20).map((e) => (
+              <li key={e.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowResults(false);
+                    (document.activeElement as HTMLElement | null)?.blur();
+                    goTo(e);
+                  }}
+                  className="block w-full border-b border-line px-4 py-2.5 text-left last:border-0 hover:bg-brand-soft"
+                >
+                  <span className="flex items-center gap-2">
+                    {status(e, now) === "live" && <span className="rounded-full bg-live px-1.5 text-[10px] font-bold text-white">LIVE</span>}
+                    <span className="truncate font-semibold">{e.title}</span>
+                  </span>
+                  <span className="block truncate text-xs text-muted">
+                    {[e.society, `${time.format(new Date(e.startsAt))}`, e.place].filter(Boolean).join(" · ")}
+                  </span>
+                </button>
+              </li>
+            ))}
+            {visible.length === 0 && (
+              <li className="px-4 py-3 text-sm text-muted">
+                No {WHEN_OPTIONS.find((o) => o.value === when)?.label.toLowerCase()} events match
+                {categories.length ? " your filters" : ""}. Try another time{categories.length ? " or clear the filters" : ""}.
+              </li>
+            )}
+          </ul>
+        )}
       </div>
 
       {/* Status bar */}
@@ -387,7 +450,13 @@ export function LiveMap({ events, windows }: Props) {
           </p>
           {visible.length === 0 && (
             <p className="text-xs text-muted">
-              {when === "now" ? "Nothing on right now. Try Tonight." : "Nothing posted yet. Check back soon."}
+              {words.length
+                ? "Nothing matches your search."
+                : categories.length
+                  ? "Nothing in your chosen categories. Change the filter."
+                  : when === "now"
+                    ? "Nothing on right now. Try Tonight."
+                    : "Nothing posted yet. Check back soon."}
             </p>
           )}
           {nearest ? (
@@ -420,20 +489,5 @@ export function LiveMap({ events, windows }: Props) {
         </div>
       )}
     </div>
-  );
-}
-
-function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-semibold shadow-sm transition ${
-        active ? "border-brand bg-brand text-brand-ink" : "border-line bg-surface text-ink hover:border-brand"
-      }`}
-    >
-      {children}
-    </button>
   );
 }
