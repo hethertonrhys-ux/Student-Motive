@@ -1,11 +1,11 @@
-// KCLSU's public society directory. Each SU's site is laid out differently
-// and changes over time, so its reading code lives here on its own.
+// KCLSU's student groups directory.
 //
-// collect(fetcher, log) returns one record per society (see lib/common.mjs).
-// Use fetcher.text(url) for every page: it checks robots.txt, waits a
-// second between requests and caches pages.
-
-import { NotReady } from "../lib/common.mjs";
+// Not readable at the moment: kclsu.org answers every request, including
+// robots.txt and the sitemap, with a bot check ("Just a moment…", HTTP 403)
+// that needs a real browser. We don't work around that, so this uni is
+// skipped and reported. If KCLSU opens its directory up (or offers a data
+// feed), write the reader here; its site is the same MSL platform as
+// LSESU's, so sites/lse.mjs is a good starting point.
 
 export default {
   id: "kcl",
@@ -14,9 +14,9 @@ export default {
   directory: "https://www.kclsu.org/groups/",
 
   async collect(fetcher) {
-    // Checks robots.txt now, so a refusal is reported even before this
-    // site's reader is written.
-    if (!(await fetcher.allowed(this.directory))) throw new NotReady("robots.txt doesn't allow the society directory");
-    throw new NotReady("this site's page layout hasn't been checked yet, so there's no reader for it");
+    // Fetching robots.txt is enough to hit the bot check, which the fetcher
+    // reports as "answered 403 (blocked or needs a login)".
+    await fetcher.allowed(this.directory);
+    throw new Error("the site's page layout can't be read behind its bot check");
   },
 };
