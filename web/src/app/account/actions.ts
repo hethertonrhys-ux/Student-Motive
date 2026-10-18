@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getProfile } from "@/lib/auth";
+import { MAX_ANSWER, MAX_PROMPTS, promptById } from "@/lib/prompts";
 import { createClient } from "@/lib/supabase/server";
 
 export type NameState = { error?: string };
@@ -26,14 +27,35 @@ export async function saveProfile(_prev: ProfileState, formData: FormData): Prom
   const clean = (key: string, max: number) => String(formData.get(key) ?? "").trim().replace(/[ \t]+/g, " ").slice(0, max);
   const name = clean("name", 60);
   const course = clean("course", 60) || null;
-  const bio = clean("bio", 160).replace(/\n{3,}/g, "\n\n") || null;
   if (name.length < 2) return { error: "Enter your name." };
+  // "About me" has been replaced by prompts; the old text is kept, so it's
+  // only changed if the form still has the box.
+  const bio = formData.has("bio") ? { bio: clean("bio", 160).replace(/\n{3,}/g, "\n\n") || null } : {};
   const supabase = await createClient();
-  const { error } = await supabase.from("profiles").update({ display_name: name, course, bio }).eq("id", profile.id);
+  const { error } = await supabase.from("profiles").update({ display_name: name, course, ...bio }).eq("id", profile.id);
   if (error) return { error: "Couldn't save. Please try again." };
   revalidatePath("/account");
   revalidatePath(`/u/${profile.id}`);
   return { saved: true };
+}
+
+// ---------- Prompts ----------
+
+// Save your prompt answers (up to 3), replacing the ones you had.
+export async function saveProfilePrompts(answers: { prompt_id: string; answer: string }[]): Promise<{ error?: string }> {
+  const profile = await getProfile();
+  if (!profile) return { error: "Log in first." };
+  const clean = answers
+    .filter((a) => promptById(a.prompt_id))
+    .map((a) => ({ prompt_id: a.prompt_id, answer: String(a.answer).trim().replace(/\s+/g, " ").slice(0, MAX_ANSWER) }))
+    .filter((a) => a.answer);
+  if (clean.length > MAX_PROMPTS) return { error: `You can answer up to ${MAX_PROMPTS} prompts.` };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("save_profile_prompts", { answers: clean });
+  if (error) return { error: "Couldn't save. Please try again." };
+  revalidatePath("/account");
+  revalidatePath(`/u/${profile.id}`);
+  return {};
 }
 
 // ---------- Profile photo ----------

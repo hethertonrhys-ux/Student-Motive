@@ -42,12 +42,14 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
   const myId = await getUserId();
   const me = myId ? { id: myId } : null;
   const supabase = await createClient();
-  const [event, { data: memberRows }, { data: address }, { data: chat }] = await Promise.all([
+  const [event, { data: memberRows }, { data: address }, { data: chat }, { count: myPrompts }] = await Promise.all([
     load(id),
     me && UUID.test(id) ? supabase.from("social_event_members").select("user_id, status, created_at").eq("event_id", id).order("created_at") : Promise.resolve({ data: [] }),
     me && UUID.test(id) ? supabase.from("social_event_addresses").select("address, lat, lng").eq("event_id", id).maybeSingle() : Promise.resolve({ data: null }),
     // The group chat: only the host and people going can see it.
     me && UUID.test(id) ? supabase.from("threads").select("id").eq("social_event_id", id).maybeSingle() : Promise.resolve({ data: null }),
+    // Whether you've answered any profile prompts (for private events, the host sees your profile).
+    me ? supabase.from("profile_prompts").select("prompt_id", { count: "exact", head: true }).eq("user_id", me.id) : Promise.resolve({ count: null }),
   ]);
   if (!event) notFound();
   const isHost = me?.id === event.host_id;
@@ -146,6 +148,7 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
           left={left}
           finished={finished}
           hostName={host?.name ?? "The host"}
+          suggestPrompt={myPrompts === 0}
         />
         {chat && (isHost || mine === "going") && (
           <Link href={`/chats/${chat.id}`} prefetch={false} className="btn-ghost mt-3 w-full py-3">

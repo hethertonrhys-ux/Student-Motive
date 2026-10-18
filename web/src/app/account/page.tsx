@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ProfileForm } from "./profile-form";
 import { PhotoPicker } from "./photo-picker";
 import { MyFive } from "./my-five";
+import { PromptsEditor } from "./prompts-editor";
 import { ShowSocietiesToggle } from "./show-societies-toggle";
 import { getPhotos } from "@/lib/profile-photos";
 
@@ -13,10 +14,11 @@ export const metadata: Metadata = { title: "Your profile" };
 export default async function AccountPage() {
   const me = await requireProfile();
   const supabase = await createClient();
-  const [{ data }, photos, { data: settings }] = await Promise.all([
-    supabase.from("profiles").select("display_name, course, bio, avatar_url").eq("id", me.id).single(),
+  const [{ data }, photos, { data: settings }, { data: prompts }] = await Promise.all([
+    supabase.from("profiles").select("display_name, course, avatar_url").eq("id", me.id).single(),
     getPhotos(supabase, me.id),
     supabase.from("profile_settings").select("show_societies").eq("user_id", me.id).maybeSingle(),
+    supabase.from("profile_prompts").select("prompt_id, answer").eq("user_id", me.id).order("position"),
   ]);
 
   return (
@@ -43,7 +45,8 @@ export default async function AccountPage() {
       <div className="card mt-6">
         <ShowSocietiesToggle initial={settings?.show_societies ?? true} />
       </div>
-      <ProfileForm name={data?.display_name ?? ""} course={data?.course ?? ""} bio={data?.bio ?? ""} />
+      <ProfileForm name={data?.display_name ?? ""} course={data?.course ?? ""} />
+      <PromptsEditor initial={prompts ?? []} />
     </div>
   );
 }
