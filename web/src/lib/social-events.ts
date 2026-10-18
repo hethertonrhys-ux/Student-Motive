@@ -32,10 +32,11 @@ export type SocialEvent = {
   friends_only: boolean;
   is_cancelled: boolean;
   going_count: number;
+  cost_pence: number | null;
 };
 
 export const SOCIAL_EVENT_FIELDS =
-  "id, host_id, title, category, description, starts_at, ends_at, area, lat, lng, spaces, is_private, friends_only, is_cancelled, going_count";
+  "id, host_id, title, category, description, starts_at, ends_at, area, lat, lng, spaces, is_private, friends_only, is_cancelled, going_count, cost_pence";
 
 // The host takes one space.
 export function spacesLeft(e: Pick<SocialEvent, "spaces" | "going_count">) {

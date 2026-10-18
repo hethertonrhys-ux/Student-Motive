@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { CostField } from "@/components/cost-field";
 import { SOCIAL_CATEGORIES, type SocialEvent } from "@/lib/social-events";
 import type { FormState } from "../actions";
 import { PlacePicker, type Point } from "./place-picker";
@@ -97,6 +98,8 @@ export function EventForm({ action, event, exact, defaults }: Props) {
         <input id="spaces" name="spaces" type="number" inputMode="numeric" required min={2} max={500} defaultValue={event?.spaces ?? 8} className="input w-32" />
         <p className="mt-1 text-xs text-muted">Including you. 8 spaces = you + 7 others.</p>
       </div>
+
+      <CostField pence={event?.cost_pence} />
 
       <fieldset>
         <legend className="label">Open or Private?</legend>
