@@ -3,14 +3,15 @@
 import { useActionState } from "react";
 import { submitClaim, type ClaimState } from "./actions";
 
-export function ClaimForm({ societies }: { societies: { id: string; name: string }[] }) {
+// chosen: the society to start with (from "Claim this page").
+export function ClaimForm({ societies, chosen }: { societies: { id: string; name: string }[]; chosen?: string }) {
   const [state, action, pending] = useActionState(submitClaim, {} as ClaimState);
 
   return (
     <form action={action} className="space-y-5">
       <div>
         <label htmlFor="society_id" className="label">Society</label>
-        <select id="society_id" name="society_id" required className="input" defaultValue="">
+        <select id="society_id" name="society_id" required className="input" defaultValue={societies.some((s) => s.id === chosen) ? chosen : ""}>
           <option value="" disabled>Choose your society…</option>
           {societies.map((s) => (
             <option key={s.id} value={s.id}>{s.name}</option>

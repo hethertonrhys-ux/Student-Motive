@@ -6,7 +6,8 @@ import { ClaimForm } from "./claim-form";
 
 export const metadata: Metadata = { title: "Manage a society" };
 
-export default async function ClaimPage() {
+export default async function ClaimPage({ searchParams }: PageProps<"/dashboard/claim">) {
+  const { society } = await searchParams;
   const me = await requireProfile();
   const supabase = await createClient();
   const { data: societies } = await supabase
@@ -24,7 +25,7 @@ export default async function ClaimPage() {
         Choose your society. Once we&apos;ve checked you&apos;re on the committee, you can post events for it.
       </p>
       <div className="card">
-        <ClaimForm societies={societies ?? []} />
+        <ClaimForm societies={societies ?? []} chosen={typeof society === "string" ? society : undefined} />
       </div>
       <p className="mt-6 text-sm text-muted">
         Society not listed? Email us at{" "}

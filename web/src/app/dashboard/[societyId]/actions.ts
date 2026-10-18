@@ -47,6 +47,7 @@ export async function updateSociety(societyId: string, _prev: FormState, formDat
   const { error } = await supabase
     .from("societies")
     .update({
+      ...(text(formData, "name", 120) ? { name: text(formData, "name", 120) } : {}),
       description: text(formData, "description", 2000),
       instagram,
       website: website.value,
