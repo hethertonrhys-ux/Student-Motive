@@ -75,7 +75,9 @@ export function cleanDescription(text) {
 // "@chess.lse", "instagram.com/chess.lse/" -> "chess.lse". Anything else -> "".
 export function instagramHandle(value) {
   const s = String(value ?? "").trim();
-  const m = /instagram\.com\/([A-Za-z0-9._]{1,30})\/?/i.exec(s) ?? /^@?([A-Za-z0-9._]{1,30})$/.exec(s);
+  // Some SU pages double the link up ("instagram.com/https://www.instagram.com/x"), so take the last part.
+  const links = [...s.matchAll(/instagram\.com\/([A-Za-z0-9._]{1,30})\/?/gi)];
+  const m = links.at(-1) ?? /^@?([A-Za-z0-9._]{1,30})$/.exec(s);
   const handle = m?.[1] ?? "";
   return ["p", "reel", "explore", "accounts"].includes(handle.toLowerCase()) ? "" : handle;
 }
