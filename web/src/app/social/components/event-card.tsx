@@ -32,7 +32,7 @@ export function EventCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-bold tracking-wide text-brand uppercase">
-            {cat.emoji} {cat.label}
+            {cat.label}
           </p>
           <h3 className="mt-0.5 font-display text-lg leading-snug font-bold">{event.title}</h3>
         </div>
@@ -41,13 +41,13 @@ export function EventCard({
             event.is_private ? "bg-ink text-surface" : "bg-brand-soft text-brand"
           }`}
         >
-          {event.is_private ? "🔒 Private" : "Open"}
+          {event.is_private ? "Private" : "Open"}
         </span>
       </div>
 
-      <div className="space-y-1 text-sm">
-        <p>🕒 {formatWhen(event.starts_at)}</p>
-        <p className="truncate">📍 {event.area}</p>
+      <div className="space-y-0.5 text-sm">
+        <p className="font-semibold">{formatWhen(event.starts_at)}</p>
+        <p className="truncate text-muted">{event.area}</p>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
@@ -61,7 +61,7 @@ export function EventCard({
         )}
         <span className="flex flex-wrap items-center gap-1.5">
           {event.is_cancelled && <span className="rounded-full bg-danger/10 px-2.5 py-0.5 text-xs font-bold text-danger">Cancelled</span>}
-          {event.friends_only && <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-bold text-brand">👥 Friends</span>}
+          {event.friends_only && <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-bold text-brand">Friends only</span>}
           {pending > 0 && (
             <span className="rounded-full bg-live px-2.5 py-0.5 text-xs font-bold text-white">
               {pending} request{pending === 1 ? "" : "s"}

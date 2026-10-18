@@ -39,7 +39,7 @@ export function EventForm({ action, event, exact, defaults }: Props) {
               }`}
             >
               <input type="radio" name="category" value={c.value} checked={category === c.value} onChange={() => setCategory(c.value)} className="sr-only" required />
-              {c.emoji} {c.label}
+              {c.label}
             </label>
           ))}
         </div>
@@ -102,14 +102,14 @@ export function EventForm({ action, event, exact, defaults }: Props) {
         <legend className="label">Open or Private?</legend>
         <div className="grid gap-2 sm:grid-cols-2">
           <Choice name="privacy" value="open" checked={privacy === "open"} onChange={() => setPrivacy("open")} title="Open" help="Anyone can tap “I'm in” and join straight away" />
-          <Choice name="privacy" value="private" checked={privacy === "private"} onChange={() => setPrivacy("private")} title="🔒 Private" help="People request to join; you approve or decline" />
+          <Choice name="privacy" value="private" checked={privacy === "private"} onChange={() => setPrivacy("private")} title="Private" help="People request to join; you approve or decline" />
         </div>
       </fieldset>
 
       <label className="flex items-start gap-3 rounded-xl border border-line px-3.5 py-3">
         <input type="checkbox" name="friends_only" defaultChecked={event?.friends_only} className="mt-0.5 size-5 accent-[var(--brand)]" />
         <span>
-          <span className="block font-semibold">👥 Only my friends can see this</span>
+          <span className="block font-semibold">Only my friends can see this</span>
           <span className="block text-sm text-muted">Hidden from everyone else in Discover.</span>
         </span>
       </label>

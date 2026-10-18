@@ -4,12 +4,12 @@
 export type SocialCategory = "sport" | "social" | "study" | "nightlife" | "other";
 export type MemberStatus = "going" | "pending" | "declined";
 
-export const SOCIAL_CATEGORIES: { value: SocialCategory; label: string; emoji: string }[] = [
-  { value: "sport", label: "Sport", emoji: "⚽" },
-  { value: "social", label: "Social", emoji: "🎉" },
-  { value: "study", label: "Study", emoji: "📚" },
-  { value: "nightlife", label: "Nightlife", emoji: "🌙" },
-  { value: "other", label: "Other", emoji: "✨" },
+export const SOCIAL_CATEGORIES: { value: SocialCategory; label: string }[] = [
+  { value: "sport", label: "Sport" },
+  { value: "social", label: "Social" },
+  { value: "study", label: "Study" },
+  { value: "nightlife", label: "Nightlife" },
+  { value: "other", label: "Other" },
 ];
 
 export const categoryInfo = (value: SocialCategory) => SOCIAL_CATEGORIES.find((c) => c.value === value) ?? SOCIAL_CATEGORIES[4];

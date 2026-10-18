@@ -46,8 +46,9 @@ export default async function SocialPage({ searchParams }: PageProps<"/social">)
     if (SOCIAL_CATEGORIES.some((c) => c.value === category)) query = query.eq("category", category);
     if (str("type") === "open") query = query.eq("is_private", false);
     if (str("type") === "private") query = query.eq("is_private", true);
-    const q = str("q").replace(/[%_,()]/g, " ").trim().slice(0, 60);
-    if (q) query = query.ilike("title", `%${q}%`);
+    // Search matches the event name or the place.
+    const q = str("q").replace(/[%_,()"\\]/g, " ").trim().slice(0, 60);
+    if (q) query = query.or(`title.ilike."%${q}%",area.ilike."%${q}%"`);
     const date = str("date");
     const today = londonToday(now);
     const range =
@@ -144,7 +145,7 @@ export default async function SocialPage({ searchParams }: PageProps<"/social">)
 
       {tab === "hosting" && totalPending > 0 && (
         <p className="mt-5 rounded-2xl bg-live/10 px-4 py-3 text-sm font-semibold text-live">
-          🔔 {totalPending} {totalPending === 1 ? "person is" : "people are"} waiting for your answer.
+          {totalPending} {totalPending === 1 ? "person is" : "people are"} waiting for your answer.
         </p>
       )}
 

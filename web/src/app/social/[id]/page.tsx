@@ -59,11 +59,11 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
       <Link href="/social" className="text-sm font-semibold text-muted hover:text-ink">← Social</Link>
 
       <div className="mt-4 flex flex-wrap items-center gap-2 text-sm font-bold">
-        <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-brand">{cat.emoji} {cat.label}</span>
+        <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-brand">{cat.label}</span>
         <span className={`rounded-full px-2.5 py-0.5 ${event.is_private ? "bg-ink text-surface" : "bg-brand-soft text-brand"}`}>
-          {event.is_private ? "🔒 Private" : "Open"}
+          {event.is_private ? "Private" : "Open"}
         </span>
-        {event.friends_only && <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-brand">👥 Friends only</span>}
+        {event.friends_only && <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-brand">Friends only</span>}
         {event.is_cancelled && <span className="rounded-full bg-danger/10 px-2.5 py-0.5 text-danger">Cancelled</span>}
       </div>
       <h1 className="mt-3 font-display text-3xl leading-tight font-extrabold tracking-tight sm:text-4xl">{event.title}</h1>
@@ -88,7 +88,7 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
           <dt className="text-sm font-semibold text-muted">Where</dt>
           <dd className="font-semibold">{event.area}</dd>
           {address?.address ? (
-            <dd className="text-sm">📍 {address.address}</dd>
+            <dd className="text-sm">{address.address}</dd>
           ) : (
             !isHost && <dd className="text-sm text-muted">The exact spot is shared with people going.</dd>
           )}
@@ -116,7 +116,7 @@ export default async function SocialEventPage({ params, searchParams }: PageProp
       {/* Host: requests to approve */}
       {isHost && requests.length > 0 && !event.is_cancelled && (
         <section className="mt-8">
-          <h2 className="font-display text-xl font-bold">🔔 Requests ({requests.length})</h2>
+          <h2 className="font-display text-xl font-bold">Requests ({requests.length})</h2>
           <p className="text-sm text-muted">Tap someone to see their profile.</p>
           <ul className="mt-3 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
             {requests.map((r) => {
@@ -243,7 +243,7 @@ function JoinPanel({
   if (mine === "pending") {
     return (
       <div className={box}>
-        <p className="font-semibold">⏳ Request sent. {hostName} will approve or decline.</p>
+        <p className="font-semibold">Request sent. {hostName} will approve or decline.</p>
         <ActionButton action={leaveSocialEvent.bind(null, event.id)} className="text-sm font-semibold text-muted hover:text-danger">Withdraw request</ActionButton>
       </div>
     );
