@@ -73,6 +73,8 @@ function read(formData: FormData) {
 
 function refresh(id?: string) {
   revalidatePath("/social");
+  // Joining or leaving adds you to or takes you out of the event's group chat.
+  revalidatePath("/chats");
   if (id) revalidatePath(`/social/${id}`);
 }
 

@@ -9,6 +9,7 @@ export const metadata: Metadata = { title: "Messages" };
 type Thread = {
   id: string;
   event_id: string | null;
+  social_event_id?: string | null;
   title: string;
   other_name: string | null;
   other_avatar: string | null;
@@ -57,7 +58,7 @@ export default async function ChatsPage() {
           {threads.map((t) => (
             <li key={t.id}>
               <Link href={`/chats/${t.id}`} className="flex items-center gap-3 px-4 py-3 transition hover:bg-brand-soft">
-                {t.event_id ? (
+                {t.event_id || t.social_event_id ? (
                   <span className="grid size-11 shrink-0 place-items-center rounded-full bg-brand-soft text-xl">🎉</span>
                 ) : (
                   <Avatar name={t.other_name ?? "Member"} url={t.other_avatar} size={44} />
@@ -68,7 +69,7 @@ export default async function ChatsPage() {
                     <span className="shrink-0 text-xs text-muted">{when(t.last_at)}</span>
                   </span>
                   <span className={`block truncate text-sm ${t.unread ? "font-semibold text-ink" : "text-muted"}`}>
-                    {t.last_body ? `${t.last_sender === me.id ? "You: " : ""}${t.last_body}` : t.event_id ? "Event chat. Say hi to everyone going." : "Say hi 👋"}
+                    {t.last_body ? `${t.last_sender === me.id ? "You: " : ""}${t.last_body}` : t.event_id || t.social_event_id ? "Event chat. Say hi to everyone going." : "Say hi 👋"}
                   </span>
                 </span>
                 {Number(t.unread) > 0 && (
