@@ -13,6 +13,9 @@ There are two steps, with a review in between:
 
 ## What it collects, and what it doesn't
 
+**Which groups:** societies and sports clubs from all four unis. Imperial's
+"projects" (student-run ventures listed alongside its clubs) are left out.
+
 **It keeps:** the society's name, short description, category, SU page link,
 the logo shown on the SU page, and its Instagram handle and website if the
 SU page lists them (links only).

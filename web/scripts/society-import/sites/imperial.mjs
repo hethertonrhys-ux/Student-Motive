@@ -11,6 +11,9 @@ export default {
   id: "imperial",
   uni: "Imperial",
   su: "Imperial College Union",
+  // What to keep: clubs and societies, including sports clubs. Imperial also
+  // lists "projects" (student-run ventures like Soup Run or the rocketry
+  // team); those are left out, as agreed.
   // Not confirmed yet: check against the live site before writing the reader.
   directory: "https://www.imperialcollegeunion.org/activities/a-to-z",
 
