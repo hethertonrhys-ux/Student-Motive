@@ -3,6 +3,7 @@ import { Bricolage_Grotesque, Figtree } from "next/font/google";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { InstallBanner } from "@/components/install-banner";
+import { MainNav } from "@/components/main-nav";
 import "./globals.css";
 
 const bricolage = Bricolage_Grotesque({ variable: "--font-bricolage", subsets: ["latin"] });
@@ -28,11 +29,12 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en-GB" className={`${bricolage.variable} ${figtree.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] font-sans">
+      <body className="flex min-h-full flex-col pr-[env(safe-area-inset-right)] pb-[var(--tabbar-h)] pl-[env(safe-area-inset-left)] font-sans">
         <SiteHeader />
         <InstallBanner />
         <main className="flex-1">{children}</main>
         <SiteFooter />
+        <MainNav />
       </body>
     </html>
   );

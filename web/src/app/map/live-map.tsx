@@ -343,7 +343,7 @@ export function LiveMap({ events, windows }: Props) {
   }
 
   return (
-    <div className="relative h-[calc(100dvh-57px-var(--banner-h,0px))] w-full overflow-hidden">
+    <div className="relative h-[calc(100dvh-57px-var(--banner-h,0px)-var(--tabbar-h))] w-full overflow-hidden">
       {/* The map library sets its own position on the inner div, so size the wrapper instead. */}
       <div className="absolute inset-0 bg-[#e9ebf0]">
         <div ref={containerRef} className="h-full w-full" />
@@ -379,7 +379,7 @@ export function LiveMap({ events, windows }: Props) {
       </div>
 
       {/* Status bar */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3">
         <div className="pointer-events-auto rounded-2xl border border-line bg-surface px-4 py-2.5 shadow-lg">
           <p className="text-sm font-bold">
             {visible.length} {visible.length === 1 ? "event" : "events"}

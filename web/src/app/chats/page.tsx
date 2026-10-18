@@ -4,7 +4,7 @@ import { Avatar } from "@/components/avatar";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "Chats" };
+export const metadata: Metadata = { title: "Messages" };
 
 type Thread = {
   id: string;
@@ -27,12 +27,23 @@ const when = (iso: string) => {
 export default async function ChatsPage() {
   const me = await requireProfile();
   const supabase = await createClient();
-  const { data } = await supabase.rpc("my_threads");
+  const [{ data }, { count: requests }] = await Promise.all([
+    supabase.rpc("my_threads"),
+    supabase.from("friendships").select("requester_id", { count: "exact", head: true }).eq("addressee_id", me.id).eq("status", "pending"),
+  ]);
   const threads = (data ?? []) as Thread[];
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
-      <h1 className="font-display text-3xl font-extrabold tracking-tight">Chats</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="font-display text-3xl font-extrabold tracking-tight">Messages</h1>
+        <Link href="/friends" className="btn-ghost relative py-2">
+          Friends
+          {requests ? (
+            <span className="ml-1.5 grid min-w-5 place-items-center rounded-full bg-live px-1.5 text-xs leading-5 font-bold text-white">{requests}</span>
+          ) : null}
+        </Link>
+      </div>
       {threads.length === 0 ? (
         <div className="card mt-6 space-y-2">
           <p className="font-semibold">No chats yet.</p>

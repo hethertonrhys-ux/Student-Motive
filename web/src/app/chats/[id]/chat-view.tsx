@@ -119,7 +119,7 @@ export function ChatView({ threadId, meId, initial, hidden }: { threadId: string
           e.preventDefault();
           send();
         }}
-        className="border-t border-line py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+        className="border-t border-line py-3"
       >
         {error && <p className="mb-2 text-sm font-medium text-danger">{error}</p>}
         <div className="flex items-end gap-2">

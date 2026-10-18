@@ -34,7 +34,7 @@ export default async function ChatPage({ params }: PageProps<"/chats/[id]">) {
   const other = otherId ? cards.get(otherId) : null;
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-57px-var(--banner-h,0px))] max-w-2xl flex-col px-4">
+    <div className="mx-auto flex h-[calc(100dvh-57px-var(--banner-h,0px)-var(--tabbar-h))] max-w-2xl flex-col px-4">
       <header className="flex items-center gap-3 border-b border-line py-3">
         <Link href="/chats" className="px-1 text-xl text-muted" aria-label="Back to chats">‹</Link>
         {event ? (

@@ -30,6 +30,8 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
   if (!person) notFound();
   const isBlocked = hidden.has(id);
   const relation = relationFor(relations, me.id, id);
+  const friendCount = [...relations.values()].filter((r) => r === "friends").length;
+  const incomingCount = [...relations.values()].filter((r) => r === "incoming").length;
 
   // Their upcoming events you're allowed to see (public, or friends-only if you're friends).
   const { data: events } = isBlocked
@@ -63,7 +65,13 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
         {person.bio && <p className="max-w-md whitespace-pre-line">{person.bio}</p>}
         {theirFriends ? <p className="text-sm text-muted">{theirFriends} friend{theirFriends === 1 ? "" : "s"} in common</p> : null}
         {relation === "self" ? (
-          <Link href="/account" className="btn-ghost">Edit your profile</Link>
+          <span className="flex flex-wrap justify-center gap-2">
+            <Link href="/account" className="btn-ghost">Edit your profile</Link>
+            <Link href="/friends" className="btn-ghost">
+              Friends{friendCount ? ` (${friendCount})` : ""}
+              {incomingCount ? <span className="ml-1.5 rounded-full bg-live px-1.5 text-xs font-bold text-white">{incomingCount} new</span> : null}
+            </Link>
+          </span>
         ) : isBlocked ? (
           <p className="text-sm font-semibold text-muted">You&apos;ve blocked this person, or they&apos;ve blocked you.</p>
         ) : (
