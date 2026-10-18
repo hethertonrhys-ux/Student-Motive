@@ -150,3 +150,12 @@ export async function reportSocialEvent(id: string, reason: string): Promise<Act
   const { error } = await supabase.from("social_reports").insert({ event_id: id, reason: clean });
   return error ? { error: "Couldn't send the report. Please try again." } : {};
 }
+
+// Message the host privately (no need to be friends).
+export async function messageHost(eventId: string) {
+  await requireProfile();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("open_host_dm", { eid: eventId });
+  if (error || !data) redirect(`/social/${eventId}`);
+  redirect(`/chats/${data}`);
+}
