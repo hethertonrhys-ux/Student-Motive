@@ -38,7 +38,7 @@ export function NotificationBell() {
       getNotificationTimes().then((t) => {
         if (!alive) return;
         const seen = seenAt();
-        setCount(t.posts.filter((at) => new Date(at).getTime() > seen).length);
+        setCount(t.times.filter((at) => new Date(at).getTime() > seen).length);
       }, () => {});
     };
     check();
