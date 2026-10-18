@@ -7,6 +7,7 @@ import { requireProfile } from "@/lib/auth";
 import { getCards, getFriendships, getHiddenPeople, relationFor } from "@/lib/social";
 import { createClient } from "@/lib/supabase/server";
 import { formatEventTime, nowMs } from "@/lib/time";
+import { AvatarZoom } from "./avatar-zoom";
 import { ProfileMenu } from "./profile-menu";
 import { PhotoGallery } from "./photo-gallery";
 import { getPhotos, getProfileSocieties } from "@/lib/profile-photos";
@@ -67,7 +68,7 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
       <div className="card flex flex-col items-center gap-3 text-center">
-        <Avatar name={person.name} url={person.avatar_url} size={88} />
+        <AvatarZoom name={person.name} url={person.avatar_url} size={88} />
         <div>
           <h1 className="font-display text-2xl font-extrabold">{person.name}</h1>
           {person.course && <p className="text-muted">{person.course}</p>}
