@@ -88,3 +88,17 @@ export async function confirmSeat(eventId: string) {
   revalidatePath(`/e/${eventId}`);
   redirect(`/dashboard?confirmed=${eventId}`);
 }
+
+// After results are shared: mark one of your "who pays who" payments as paid
+// (either of the two players can), or undo a mark you made.
+export async function markPaymentPaid(eventId: string, fromRow: string, toRow: string, amountPence: number) {
+  const supabase = await createClient();
+  await supabase.rpc("mark_payment_paid", { eid: eventId, from_row: fromRow, to_row: toRow, amount_pence: amountPence });
+  revalidatePath(`/e/${eventId}`);
+}
+
+export async function undoPaymentMark(eventId: string, paymentId: string) {
+  const supabase = await createClient();
+  await supabase.rpc("undo_payment_mark", { pid: paymentId });
+  revalidatePath(`/e/${eventId}`);
+}
