@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { PhotoCropper } from "@/components/photo-cropper";
 import { decodePhoto } from "@/lib/compress-photo";
-import { archivePhoto, deletePhoto, pinPhoto, uploadMyFivePhoto, type Result } from "./my-five-actions";
+import { archivePhoto, deletePhoto, pinPhoto, recropMyFivePhoto, uploadMyFivePhoto, type Result } from "./my-five-actions";
 
 type Photo = { id: string; url: string | null; pinned: boolean; daysLeft: number | null };
 
@@ -17,6 +17,23 @@ export function MyFive({ photos, archived }: { photos: Photo[]; archived: number
   // Photos picked together are cropped one by one, then uploaded.
   const [crop, setCrop] = useState<{ files: File[]; index: number; image: ImageBitmap; done: File[] } | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
+  // A photo already in your 5 being re-cropped (with the file it came from).
+  const [recrop, setRecrop] = useState<{ id: string; image: ImageBitmap; original: Blob } | null>(null);
+
+  function startRecrop(p: Photo) {
+    if (!p.url) return;
+    setError(null);
+    start(async () => {
+      try {
+        const res = await fetch(p.url!, { cache: "no-store" });
+        if (!res.ok) throw new Error("load");
+        const original = await res.blob();
+        setRecrop({ id: p.id, image: await createImageBitmap(original), original });
+      } catch {
+        setError("Couldn't open that photo. Please try again.");
+      }
+    });
+  }
 
   const run = (fn: () => Promise<Result>) =>
     start(async () => {
@@ -88,6 +105,17 @@ export function MyFive({ photos, archived }: { photos: Photo[]; archived: number
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={p.url} alt="" className="size-full object-cover" />
               )}
+              <button
+                type="button"
+                disabled={busy || !p.url}
+                onClick={() => startRecrop(p)}
+                aria-label="Crop photo"
+                className="absolute right-1.5 bottom-1.5 grid size-7 place-items-center rounded-full bg-black/60 text-white shadow transition hover:bg-black/80"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5" aria-hidden>
+                  <path d="M6 2v14a2 2 0 002 2h14M18 22V8a2 2 0 00-2-2H2" />
+                </svg>
+              </button>
               <span className={`absolute top-1.5 left-1.5 rounded-full px-2 py-0.5 text-[11px] font-bold ${p.pinned ? "bg-brand text-brand-ink" : "bg-black/60 text-white"}`}>
                 {p.pinned ? "📌 Pinned" : `${p.daysLeft} day${p.daysLeft === 1 ? "" : "s"} left`}
               </span>
@@ -138,6 +166,27 @@ export function MyFive({ photos, archived }: { photos: Photo[]; archived: number
         className="hidden"
         onChange={(e) => choose(e.target.files)}
       />
+      {recrop && (
+        <PhotoCropper
+          image={recrop.image}
+          aspect={4 / 5}
+          title="Crop your photo"
+          doneLabel="Save"
+          onDone={(photo) => {
+            const { id, image, original } = recrop;
+            image.close();
+            setRecrop(null);
+            const form = new FormData();
+            form.append("photo", photo);
+            form.append("backup", new File([original], "backup", { type: original.type || "image/jpeg" }));
+            run(() => recropMyFivePhoto(id, form));
+          }}
+          onCancel={() => {
+            recrop.image.close();
+            setRecrop(null);
+          }}
+        />
+      )}
       {crop && (
         <PhotoCropper
           key={crop.index}
