@@ -30,6 +30,10 @@ export function SocietyForm({ action, society }: Props) {
         </div>
       </div>
       <div>
+        <label htmlFor="name" className="label">Name</label>
+        <input id="name" name="name" required maxLength={120} defaultValue={society.name} className="input" />
+      </div>
+      <div>
         <label htmlFor="description" className="label">About</label>
         <textarea id="description" name="description" rows={3} maxLength={2000} defaultValue={society.description ?? ""} placeholder="One or two sentences about your society." className="input" />
       </div>

@@ -36,14 +36,17 @@ export default async function SocietyPage({ params }: PageProps<"/s/[slug]">) {
   if (!society) notFound();
 
   const supabase = await createClient();
-  const { data } = await supabase
+  const [{ data }, { data: claimed }] = await Promise.all([
+    supabase
     .from("events")
     .select("*")
     .eq("society_id", society.id)
     .eq("is_cancelled", false)
     .gte("ends_at", new Date().toISOString())
     .order("starts_at")
-    .limit(30);
+    .limit(30),
+    supabase.rpc("society_is_claimed", { sid: society.id }),
+  ]);
   const events = (data ?? []) as MotiveEvent[];
 
   return (
@@ -61,6 +64,9 @@ export default async function SocietyPage({ params }: PageProps<"/s/[slug]">) {
           <h1 className="font-display text-3xl font-extrabold tracking-tight">{society.name}</h1>
           <div className="mt-1 flex flex-wrap gap-3 text-sm font-semibold">
             <span className="text-muted">{uniShort(society.university)}</span>
+            {claimed === false && (
+              <span className="rounded-full border border-line px-2 py-0.5 text-xs font-bold text-muted">Unclaimed</span>
+            )}
             {society.instagram && (
               <a href={`https://instagram.com/${society.instagram}`} target="_blank" rel="noopener noreferrer" className="text-brand">
                 @{society.instagram}
@@ -78,6 +84,7 @@ export default async function SocietyPage({ params }: PageProps<"/s/[slug]">) {
       {society.description && <p className="mt-6 text-lg">{society.description}</p>}
 
       <Membership societyId={society.id} slug={society.slug} name={society.name} university={society.university} />
+      {claimed === false && <ClaimPrompt societyId={society.id} university={society.university} />}
 
       <h2 className="mt-10 font-display text-xl font-bold">Upcoming events</h2>
       {events.length === 0 ? (
@@ -105,6 +112,23 @@ export default async function SocietyPage({ params }: PageProps<"/s/[slug]">) {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+// Nobody runs this page yet (e.g. it came from the SU directory): its
+// committee can ask to take it over. Claims need a login with an email
+// from the society's uni and are approved by the Function team.
+async function ClaimPrompt({ societyId, university }: { societyId: string; university: string }) {
+  const profile = await getProfile();
+  if (profile && profile.university !== university) return null;
+  const href = `/dashboard/claim?society=${societyId}`;
+  return (
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-dashed border-line px-4 py-3 text-sm">
+      <span className="text-muted">Is this your society?</span>
+      <Link href={profile ? href : `/login?next=${encodeURIComponent(href)}`} className="font-semibold text-brand">
+        Claim this page →
+      </Link>
     </div>
   );
 }

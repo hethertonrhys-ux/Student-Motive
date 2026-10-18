@@ -27,6 +27,9 @@ export type Society = {
   instagram: string | null;
   website: string | null;
   is_verified: boolean;
+  // Imported from a students' union directory: "su_directory" and the SU page.
+  source?: string | null;
+  source_url?: string | null;
 };
 
 export type Venue = {

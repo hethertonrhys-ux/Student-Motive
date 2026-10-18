@@ -16,3 +16,6 @@ dist/
 Thumbs.db
 .vscode/*
 !.vscode/extensions.json
+
+# Society import: downloaded pages, logos and the review CSV
+web/scripts/society-import/out/
