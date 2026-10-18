@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { SOCIAL_CATEGORIES } from "@/lib/social-events";
+import { SOCIAL_CATEGORIES, readCategories } from "@/lib/social-events";
 
 type Menu = "category" | "date" | "type" | null;
 
@@ -18,7 +18,8 @@ export function Filters() {
   const boxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const category = params.get("category") ?? "";
+  const categories = readCategories(params.get("category"));
+  const category = categories.join(",");
   const date = params.get("date") ?? "";
   const type = params.get("type") ?? "";
   const available = params.get("available") === "1";
@@ -62,7 +63,13 @@ export function Filters() {
     `shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${
       active ? "border-brand bg-brand text-brand-ink" : "border-line bg-surface text-ink hover:border-brand/50"
     }`;
-  const categoryLabel = SOCIAL_CATEGORIES.find((c) => c.value === category)?.label;
+  const categoryLabel =
+    categories.length === 1 ? SOCIAL_CATEGORIES.find((c) => c.value === categories[0])?.label : categories.length > 1 ? `${categories.length} categories` : undefined;
+  // Tick or untick a category; the menu stays open so you can pick several.
+  const toggleCategory = (value: string) => {
+    const next = categories.includes(value as (typeof categories)[number]) ? categories.filter((c) => c !== value) : [...categories, value];
+    set({ category: next.join(",") || null });
+  };
   const dateLabel =
     date === "today" ? "Today" : date === "week" ? "This week" : picked ? new Date(`${picked}T12:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "";
   const typeLabel = type === "open" ? "Open only" : type === "private" ? "Private only" : "";
@@ -132,7 +139,7 @@ export function Filters() {
             <div className="flex flex-wrap gap-2 rounded-2xl border border-line bg-surface p-3">
               <button type="button" onClick={() => pick({ category: null })} className={chip(!category)}>All</button>
               {SOCIAL_CATEGORIES.map((c) => (
-                <button key={c.value} type="button" onClick={() => pick({ category: c.value })} className={chip(category === c.value)}>
+                <button key={c.value} type="button" aria-pressed={categories.includes(c.value)} onClick={() => toggleCategory(c.value)} className={chip(categories.includes(c.value))}>
                   {c.label}
                 </button>
               ))}

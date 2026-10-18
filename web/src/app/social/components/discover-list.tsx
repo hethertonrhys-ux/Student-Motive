@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { matchesDiscover, type MemberStatus, type SocialEvent } from "@/lib/social-events";
+import { matchesDiscover, readCategories, type MemberStatus, type SocialEvent } from "@/lib/social-events";
 import { EventCard } from "./event-card";
 
 // Discover results. Every upcoming event is already here, so search and
@@ -24,13 +24,13 @@ export function DiscoverList({
 }) {
   const params = useSearchParams();
   const filters = {
-    category: params.get("category") ?? "",
+    categories: readCategories(params.get("category")),
     date: params.get("date") ?? "",
     type: params.get("type") ?? "",
     available: params.get("available") === "1",
     q: params.get("q") ?? "",
   };
-  const filtered = Boolean(filters.category || filters.date || filters.type || filters.available || filters.q.trim());
+  const filtered = Boolean(filters.categories.length || filters.date || filters.type || filters.available || filters.q.trim());
   const shown = events.filter((e) => matchesDiscover(e, filters, now));
 
   if (shown.length === 0) {

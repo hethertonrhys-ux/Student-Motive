@@ -55,7 +55,14 @@ export const formatWhen = (iso: string) =>
 export type JoinState = "host" | "going" | "pending" | "declined" | "full" | "join" | "request" | "finished" | "cancelled" | "login";
 
 // Discover filters, checked on the phone so results change the moment you tap.
-export type DiscoverFilters = { category: string; date: string; type: string; available: boolean; q: string };
+// Several categories can be ticked: an event shows if it's in any of them.
+export type DiscoverFilters = { categories: string[]; date: string; type: string; available: boolean; q: string };
+
+// The ticked categories from the web address (?category=social,nightlife).
+export function readCategories(value: string | null): SocialCategory[] {
+  const valid = new Set<string>(SOCIAL_CATEGORIES.map((c) => c.value));
+  return (value ?? "").split(",").filter((c): c is SocialCategory => valid.has(c));
+}
 
 // Midnight (UK time) at the start of a YYYY-MM-DD day, plus some days.
 function londonDayStart(day: string, addDays = 0) {
@@ -65,7 +72,7 @@ function londonDayStart(day: string, addDays = 0) {
 const londonToday = (now: number) => new Intl.DateTimeFormat("en-CA", { timeZone: LONDON }).format(new Date(now));
 
 export function matchesDiscover(e: SocialEvent, f: DiscoverFilters, now: number) {
-  if (f.category && e.category !== f.category) return false;
+  if (f.categories.length && !f.categories.includes(e.category)) return false;
   if (f.type === "open" && e.is_private) return false;
   if (f.type === "private" && !e.is_private) return false;
   if (f.available && spacesLeft(e) === 0) return false;
