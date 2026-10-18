@@ -7,7 +7,6 @@ import { PhotoPicker } from "./photo-picker";
 import { MyFive } from "./my-five";
 import { ShowSocietiesToggle } from "./show-societies-toggle";
 import { getPhotos } from "@/lib/profile-photos";
-import { nowMs } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Your profile" };
 
@@ -16,7 +15,7 @@ export default async function AccountPage() {
   const supabase = await createClient();
   const [{ data }, photos, { data: settings }] = await Promise.all([
     supabase.from("profiles").select("display_name, course, bio, avatar_url").eq("id", me.id).single(),
-    getPhotos(supabase, me.id, nowMs()),
+    getPhotos(supabase, me.id),
     supabase.from("profile_settings").select("show_societies").eq("user_id", me.id).maybeSingle(),
   ]);
 
@@ -37,7 +36,7 @@ export default async function AccountPage() {
       </div>
       <div className="card mt-6">
         <MyFive
-          photos={photos.filter((p) => p.current).map((p) => ({ id: p.id, url: p.url, pinned: p.pinned, daysLeft: p.daysLeft }))}
+          photos={photos.filter((p) => p.current).map((p) => ({ id: p.id, url: p.url }))}
           archived={photos.filter((p) => !p.current).length}
         />
       </div>
