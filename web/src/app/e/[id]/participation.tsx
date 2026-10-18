@@ -10,7 +10,7 @@ import { InstantArea } from "@/components/instant";
 import { NameForm } from "@/components/name-form";
 import { saveName } from "@/app/account/actions";
 import { ActionButton } from "./action-button";
-import { chooseTable, confirmSeat, deleteMyPayment, joinEvent, leaveEvent, recordMyPayment, recordMyResult } from "./actions";
+import { chooseTable, confirmSeat, deleteMyPayment, joinEvent, leaveEvent, markPaymentPaid, recordMyPayment, recordMyResult, undoPaymentMark } from "./actions";
 import { AlsoTables } from "./also-tables";
 import { SelfReport } from "./self-report";
 import { BankLedger } from "./bank-ledger";
@@ -367,6 +367,7 @@ async function MyResults({ eventId, userId, tables }: { eventId: string; userId:
           payments.filter((p) => names.has(p.from_row)).map((p) => ({ fromId: p.from_row, toId: p.to_row, amountPence: p.amount_pence })),
         );
         const myTransfers = s.transfers.filter((t) => t.fromId === mine.id || t.toId === mine.id);
+        const myPayments = payments.filter((p) => p.from_row === mine.id || p.to_row === mine.id);
         const table = tables.find((t) => t.id === mine.table_id);
         if (table?.bank_user_id) {
           const payout = mine.cashout_pence === null ? null : mine.cashout_pence + mine.adjust_pence;
@@ -412,15 +413,40 @@ async function MyResults({ eventId, userId, tables }: { eventId: string; userId:
             {s.imbalancePence !== 0 ? (
               <p className="text-sm text-muted">The committee is still checking the numbers.</p>
             ) : myTransfers.length === 0 ? (
-              <p className="font-semibold">You&apos;re all square. Nothing to pay or collect.</p>
+              <p className="font-semibold">{myPayments.length ? "✓ All settled up. Nothing left to pay or collect." : "You're all square. Nothing to pay or collect."}</p>
             ) : (
               <ul className="space-y-1.5">
                 {myTransfers.map((t, i) => (
-                  <li key={i} className="flex items-center justify-between rounded-xl bg-brand-soft px-3 py-2">
+                  <li key={i} className="flex items-center justify-between gap-2 rounded-xl bg-brand-soft px-3 py-2">
                     <span>
                       {t.fromId === mine.id ? <>You pay <strong>{names.get(t.toId)}</strong></> : <><strong>{names.get(t.fromId)}</strong> pays you</>}
                     </span>
-                    <span className="font-display text-lg font-extrabold">{formatPounds(t.amountPence)}</span>
+                    <span className="flex items-center gap-3">
+                      <span className="font-display text-lg font-extrabold">{formatPounds(t.amountPence)}</span>
+                      <form action={markPaymentPaid.bind(null, eventId, t.fromId, t.toId, t.amountPence)}>
+                        <button className="rounded-lg bg-surface px-2.5 py-1 text-sm font-bold text-brand">
+                          {t.fromId === mine.id ? "I've paid" : "Got it"}
+                        </button>
+                      </form>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {/* Payments already made that involve you; you can undo your own marks. */}
+            {myPayments.length > 0 && (
+              <ul className="space-y-1 text-sm">
+                {myPayments.map((p) => (
+                  <li key={p.id} className="flex items-center justify-between gap-2">
+                    <span className="text-ok">
+                      ✓ {p.from_row === mine.id ? <>You paid <strong>{names.get(p.to_row)}</strong></> : <><strong>{names.get(p.from_row)}</strong> paid you</>}{" "}
+                      {formatPounds(p.amount_pence)}
+                    </span>
+                    {p.created_by === userId && (
+                      <form action={undoPaymentMark.bind(null, eventId, p.id)}>
+                        <button className="font-semibold text-muted hover:text-danger">Undo</button>
+                      </form>
+                    )}
                   </li>
                 ))}
               </ul>

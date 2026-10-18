@@ -74,7 +74,8 @@ export function LedgerEditor({ title, initialRows, payments, saveAction, addPaym
 
       {/* 1. Results */}
       <form action={save} className="space-y-3">
-        <p className="text-sm text-muted">How much each player is up (+) or down (−), in pounds.</p>
+        <h4 className="font-semibold">Results</h4>
+        <p className="text-sm text-muted">How much each player is up or down, in pounds. Use a minus for losses, e.g. -15.</p>
         <ul className="space-y-2">
           {rows.map((r) => {
             const value = pence(r.amount);
@@ -137,10 +138,75 @@ export function LedgerEditor({ title, initialRows, payments, saveAction, addPaym
         </div>
       </form>
 
-      {/* 2. Payments already made (e.g. someone left early) */}
+      {/* 2. Who pays who */}
+      <div className="space-y-2 border-t border-line pt-4">
+        <h4 className="font-semibold">Who pays who</h4>
+        {preview.kind === "invalid" ? (
+          <p className="text-sm text-danger">Check the amount for {preview.invalid.join(", ")}.</p>
+        ) : preview.settlement.imbalancePence !== 0 ? (
+          <div className="space-y-2 rounded-xl bg-danger/10 px-3 py-3 text-sm">
+            <p className="font-medium text-danger">
+              The results don&apos;t add up: they&apos;re {formatPounds(Math.abs(preview.settlement.imbalancePence))}{" "}
+              {preview.settlement.imbalancePence > 0 ? "over" : "under"}.
+              Check everyone&apos;s numbers, or share the difference evenly.
+            </p>
+            {preview.count > 0 && (
+              <button type="button" onClick={applySplit} className="btn py-2">
+                Split it: {formatPounds(Math.ceil(Math.abs(preview.rawTotal) / preview.count))}
+                {Math.abs(preview.rawTotal) % preview.count ? " or less" : ""} each{" "}
+                {preview.rawTotal > 0 ? "extra to pay" : "back"} ({preview.count} players)
+              </button>
+            )}
+          </div>
+        ) : preview.settlement.transfers.length === 0 ? (
+          <p className="text-sm text-muted">Everyone&apos;s square.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {preview.settlement.transfers.map((t, i) => (
+              <li key={i} className="flex items-center justify-between gap-2 rounded-xl bg-brand-soft px-3 py-2">
+                <span>
+                  <strong>{preview.names.get(t.fromId)}</strong> pays <strong>{preview.names.get(t.toId)}</strong>
+                </span>
+                <span className="flex items-center gap-3">
+                  <span className="font-display text-lg font-extrabold">{formatPounds(t.amountPence)}</span>
+                  {/* Saved players only: a mark is saved as a payment between them. */}
+                  {!dirty && nameById.has(t.fromId) && nameById.has(t.toId) && (
+                    <form action={addPayment}>
+                      <input type="hidden" name="from_row" value={t.fromId} />
+                      <input type="hidden" name="to_row" value={t.toId} />
+                      <input type="hidden" name="amount" value={(t.amountPence / 100).toFixed(2)} />
+                      <button className="rounded-lg bg-surface px-2.5 py-1 text-sm font-bold text-brand" disabled={paying}>
+                        Mark paid
+                      </button>
+                    </form>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {hasSplit && preview.kind === "ok" && (
+          <p className="text-sm text-muted">
+            Includes an even split of {formatPounds(Math.abs(preview.adjustTotal))} to make the table add up.{" "}
+            <button type="button" onClick={clearSplit} className="font-semibold text-brand">Undo split</button>
+          </p>
+        )}
+        {dirty && <p className="text-xs text-muted">Showing your unsaved numbers. Save so players see the same.</p>}
+      </div>
+
+      {/* 3. Settle up: what's been paid, and what's still to pay */}
       <div className="space-y-3 border-t border-line pt-4">
-        <h4 className="font-semibold">Payments already made</h4>
-        <p className="text-sm text-muted">If someone left early and settled with another player, it goes here so nobody pays twice.</p>
+        <h4 className="font-semibold">Settle up</h4>
+        {preview.kind === "ok" && preview.settlement.imbalancePence === 0 && (
+          <p className={`text-sm font-semibold ${preview.settlement.transfers.length ? "" : "text-ok"}`}>
+            {preview.settlement.transfers.length
+              ? `Still to pay: ${formatPounds(preview.settlement.transfers.reduce((sum, t) => sum + t.amountPence, 0))} in ${preview.settlement.transfers.length} payment${preview.settlement.transfers.length === 1 ? "" : "s"}.`
+              : tablePayments.length
+                ? "✓ All settled."
+                : "Nothing to pay."}
+          </p>
+        )}
+        <p className="text-sm text-muted">Payments marked paid (by you or the players), and any made another way, e.g. someone who left early. If results change, who pays who is worked out again.</p>
         {tablePayments.length > 0 && (
           <ul className="space-y-1.5">
             {tablePayments.map((p) => (
@@ -176,48 +242,6 @@ export function LedgerEditor({ title, initialRows, payments, saveAction, addPaym
         )}
       </div>
 
-      {/* 3. Who pays who */}
-      <div className="space-y-2 border-t border-line pt-4">
-        <h4 className="font-semibold">Who pays who</h4>
-        {preview.kind === "invalid" ? (
-          <p className="text-sm text-danger">Check the amount for {preview.invalid.join(", ")}.</p>
-        ) : preview.settlement.imbalancePence !== 0 ? (
-          <div className="space-y-2 rounded-xl bg-danger/10 px-3 py-3 text-sm">
-            <p className="font-medium text-danger">
-              The results don&apos;t add up: they&apos;re {formatPounds(Math.abs(preview.settlement.imbalancePence))}{" "}
-              {preview.settlement.imbalancePence > 0 ? "over" : "under"}.
-              Check everyone&apos;s numbers, or share the difference evenly.
-            </p>
-            {preview.count > 0 && (
-              <button type="button" onClick={applySplit} className="btn py-2">
-                Split it: {formatPounds(Math.ceil(Math.abs(preview.rawTotal) / preview.count))}
-                {Math.abs(preview.rawTotal) % preview.count ? " or less" : ""} each{" "}
-                {preview.rawTotal > 0 ? "extra to pay" : "back"} ({preview.count} players)
-              </button>
-            )}
-          </div>
-        ) : preview.settlement.transfers.length === 0 ? (
-          <p className="text-sm text-muted">Everyone&apos;s square.</p>
-        ) : (
-          <ul className="space-y-1.5">
-            {preview.settlement.transfers.map((t, i) => (
-              <li key={i} className="flex items-center justify-between rounded-xl bg-brand-soft px-3 py-2">
-                <span>
-                  <strong>{preview.names.get(t.fromId)}</strong> pays <strong>{preview.names.get(t.toId)}</strong>
-                </span>
-                <span className="font-display text-lg font-extrabold">{formatPounds(t.amountPence)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-        {hasSplit && preview.kind === "ok" && (
-          <p className="text-sm text-muted">
-            Includes an even split of {formatPounds(Math.abs(preview.adjustTotal))} to make the table add up.{" "}
-            <button type="button" onClick={clearSplit} className="font-semibold text-brand">Undo split</button>
-          </p>
-        )}
-        {dirty && <p className="text-xs text-muted">Showing your unsaved numbers. Save so players see the same.</p>}
-      </div>
     </div>
   );
 }
