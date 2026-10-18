@@ -7,12 +7,14 @@ import { ClaimForm } from "./claim-form";
 export const metadata: Metadata = { title: "Manage a society" };
 
 export default async function ClaimPage() {
-  await requireProfile();
+  const me = await requireProfile();
   const supabase = await createClient();
   const { data: societies } = await supabase
     .from("societies")
     .select("id, name")
     .eq("kind", "society")
+    // You can only manage a society at your own uni.
+    .eq("university", me.university)
     .order("name");
 
   return (

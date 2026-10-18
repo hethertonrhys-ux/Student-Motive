@@ -6,6 +6,7 @@ import { getProfile } from "@/lib/auth";
 import { MAX_ANSWER, MAX_PROMPTS, promptById } from "@/lib/prompts";
 import { logSignupEvent, type SignupEvent } from "@/lib/signup-events";
 import { createClient } from "@/lib/supabase/server";
+import { uniById } from "@/lib/universities";
 import { WELCOMED_COOKIE } from "./constants";
 
 // Saves the one answer from the welcome step as you type (replacing the
@@ -29,6 +30,17 @@ export async function saveWelcomePrompt(promptId: string, answer: string, previo
 export async function finishWelcome(event: Extract<SignupEvent, "prompts_skipped" | "prompts_completed">) {
   (await cookies()).set(WELCOMED_COOKIE, "1", { maxAge: 60 * 60 * 24 * 365, path: "/", sameSite: "lax", httpOnly: true });
   await logSignupEvent(await createClient(), event);
+}
+
+// Someone invited with a non-uni email says which uni they're at. (The
+// database ignores this for uni emails: theirs always comes from the email.)
+export async function setMyUni(uniId: string) {
+  const me = await getProfile();
+  const uni = uniById(uniId);
+  if (!me || !uni) return;
+  const supabase = await createClient();
+  await supabase.from("profiles").update({ university: uni.id }).eq("id", me.id);
+  revalidatePath("/", "layout");
 }
 
 export async function welcomeReached() {

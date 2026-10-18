@@ -8,6 +8,9 @@ import { uploadSocietyImage } from "@/lib/storage";
 import { londonInputToIso } from "@/lib/time";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CATEGORIES, type EventCategory, type EventFormat } from "@/lib/types";
+import { AUDIENCES } from "@/lib/universities";
+
+const AUDIENCE_VALUES: string[] = AUDIENCES;
 
 export type FormState = { error?: string; saved?: boolean };
 
@@ -99,6 +102,7 @@ function readEvent(formData: FormData) {
       format,
       capacity,
       members_only: formData.get("members_only") === "on",
+      audience: AUDIENCE_VALUES.includes(String(formData.get("audience"))) ? String(formData.get("audience")) : "uni",
       title,
       category,
       venue_id: custom ? null : venueId,

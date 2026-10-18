@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import type { OrgKind } from "@/lib/types";
+import { UNIVERSITIES, uniShort } from "@/lib/universities";
 
 export type SearchableSociety = {
   id: string;
@@ -11,6 +12,7 @@ export type SearchableSociety = {
   slug: string;
   kind: OrgKind;
   logo_url: string | null;
+  university: string;
   // Your link to it, if any.
   relation: "runs" | "member" | "pending" | null;
 };
@@ -32,21 +34,25 @@ const normalise = (text: string) =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
-export function SocietySearch({ societies }: { societies: SearchableSociety[] }) {
+// myUni: searches start with that uni's societies (the chips switch uni).
+// Without it (the committee dashboard) every uni is searched.
+export function SocietySearch({ societies, myUni }: { societies: SearchableSociety[]; myUni?: string }) {
   const [query, setQuery] = useState("");
+  const [uni, setUni] = useState(myUni);
   const searching = query.trim().length > 0;
 
   const results = useMemo(() => {
     const words = normalise(query).split(" ").filter(Boolean);
     if (words.length === 0) return [];
     return societies
+      .filter((s) => !uni || s.university === uni)
       .map((s) => ({ s, name: normalise(s.name) }))
       .filter(({ name }) => words.every((w) => name.includes(w)))
       // Names that start with what you typed come first.
       .sort((a, b) => Number(b.name.startsWith(words[0])) - Number(a.name.startsWith(words[0])) || a.name.localeCompare(b.name))
       .slice(0, 12)
       .map(({ s }) => s);
-  }, [societies, query]);
+  }, [societies, query, uni]);
 
   return (
     <section className="mt-8">
@@ -60,12 +66,28 @@ export function SocietySearch({ societies }: { societies: SearchableSociety[] })
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search societies, e.g. Poker, Economics, Law"
+          placeholder={uni ? `Search ${uniShort(uni)} societies, e.g. Poker, Economics, Law` : "Search societies, e.g. Poker, Economics, Law"}
           aria-label="Search societies"
           autoComplete="off"
           className="input pl-11"
         />
       </div>
+
+      {myUni && (
+        <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="University">
+          {UNIVERSITIES.map((u) => (
+            <button
+              key={u.id}
+              type="button"
+              aria-pressed={uni === u.id}
+              onClick={() => setUni(u.id)}
+              className={`rounded-full border px-3 py-1 text-xs font-bold transition ${uni === u.id ? "border-brand bg-brand-soft text-brand" : "border-line bg-surface text-muted hover:border-brand"}`}
+            >
+              {u.short}
+            </button>
+          ))}
+        </div>
+      )}
 
       {searching && (
         <ul className="mt-2 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
@@ -75,7 +97,7 @@ export function SocietySearch({ societies }: { societies: SearchableSociety[] })
                 <Avatar name={s.name} url={s.logo_url} size={36} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold">{s.name}</span>
-                  <span className="text-xs text-muted">{KIND_LABEL[s.kind]}</span>
+                  <span className="text-xs text-muted">{KIND_LABEL[s.kind]} · {uniShort(s.university)}</span>
                 </span>
                 {s.relation && (
                   <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ${s.relation === "pending" ? "bg-brand-soft text-brand" : "bg-ok/10 text-ok"}`}>

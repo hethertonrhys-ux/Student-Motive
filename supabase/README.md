@@ -14,6 +14,7 @@ Project ID: `xrpbmcoptyrpgkdowfdt` (London region)
 - `migrations/20261021000000_profile_photos.sql`: profile photos (the `avatars` storage bucket).
 - `migrations/20261022000000_social_section.sql`: the Social section (students hosting their own events), in its own tables: `social_events`, `social_event_members`, `social_event_addresses`, `social_reports`.
 - `migrations/20261023000000_profile_upgrade.sql`: profile upgrade. Societies on profiles (a read-only `profile_societies` function, no Societies changes), "My 5" photos (`profile_photos`, private `profile-photos` bucket), `profile_settings`, and `profile_photo_reports`.
+- `migrations/20261104000000_london_unis.sql`: London expansion. A `universities` table (LSE, UCL, King's, Imperial and their email domains), `profiles.university`, sign-up for all four unis, societies only for their own uni's students, and `events.audience` (members / uni / london) for who can see a society's event.
 - `seed.sql`: starter data (LSE buildings, LSE halls, other universities, first society).
 
 ## Running them
@@ -29,7 +30,8 @@ Each migration file runs **once**, in date order. Never edit one that has alread
 | Table | What it holds |
 |---|---|
 | `profiles` | One row per logged-in person. `is_admin` = Motive team. |
-| `allowed_emails` | Non-LSE emails (or whole domains like `@kcl.ac.uk`) allowed to sign up. Managed on the Admin page. |
+| `universities` | The unis Function is open to, and the email domains that prove you study there. Keep in step with `web/src/lib/universities.ts`. |
+| `allowed_emails` | Other emails (or whole domains like `@kcl.ac.uk`) allowed to sign up. Managed on the Admin page. |
 | `societies` | Societies, halls, other universities, promoters (`kind`). |
 | `society_admins` | Who can post for which society. |
 | `society_claims` | Committee requests to manage a society page, approved by us. |
@@ -47,7 +49,9 @@ Each migration file runs **once**, in date order. Never edit one that has alread
 
 ## Security rules in plain English
 
-- Only `@lse.ac.uk` emails (or ones in `allowed_emails`) can sign up.
+- Only LSE, UCL, King's and Imperial emails (or ones in `allowed_emails`) can sign up. Everyone has a uni (`profiles.university`): from their email, otherwise LSE until they pick.
+- Societies are for their own uni's students: only they can ask to join, follow, be invited or ask to manage it.
+- A society's event is seen by its members only, its uni's students (the default; logged-out visitors too, so links work), or all London students, as the society chooses (`events.audience`).
 - Anyone, even logged out, can read societies, venues and visible events, so shared event links work.
 - Only a society's admins can create, edit or delete its events and edit its page.
 - Students can only change their own follows, blocks and reports.

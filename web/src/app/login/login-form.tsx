@@ -27,7 +27,7 @@ function writePending(email: string | null) {
 }
 const noSubscribe = () => () => {};
 
-export function LoginForm({ next }: { next: string }) {
+export function LoginForm({ next, emailExample }: { next: string; emailExample: string }) {
   const [emailState, emailAction, sending] = useActionState(sendCode, { step: "email" } as LoginState);
   const [codeState, codeAction, verifying] = useActionState(verifyCode, { step: "code" } as LoginState);
   const [changingEmail, setChangingEmail] = useState(false);
@@ -56,7 +56,7 @@ export function LoginForm({ next }: { next: string }) {
             autoComplete="email"
             required
             defaultValue={emailState.email ?? savedEmail ?? ""}
-            placeholder="a.student@lse.ac.uk"
+            placeholder={emailExample}
             className="input"
           />
         </div>

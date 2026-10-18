@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import type { Society } from "@/lib/types";
 import type { FormState } from "./actions";
+import { initialOf } from "@/lib/universities";
 
 type Props = {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
@@ -20,7 +21,7 @@ export function SocietyForm({ action, society }: Props) {
           <img src={society.logo_url} alt="" className="size-16 rounded-2xl object-cover" />
         ) : (
           <div className="grid size-16 place-items-center rounded-2xl bg-brand-soft font-display text-2xl font-extrabold text-brand">
-            {society.name.replace(/^LSE\s+/i, "").charAt(0)}
+            {initialOf(society.name)}
           </div>
         )}
         <div className="flex-1">

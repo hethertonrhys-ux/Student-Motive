@@ -12,6 +12,7 @@ import { getCards } from "@/lib/social";
 import { createClient } from "@/lib/supabase/server";
 import { Avatar } from "@/components/avatar";
 import { formatCost } from "@/lib/cost";
+import { audienceLabel } from "@/lib/universities";
 
 export async function generateMetadata({ params }: PageProps<"/e/[id]">): Promise<Metadata> {
   const { id } = await params;
@@ -145,6 +146,12 @@ export default async function EventPage({ params, searchParams }: PageProps<"/e/
             <dd className="font-semibold">{cost === "Free" ? "Free" : `${cost} per person`}</dd>
           </div>
         )}
+        {event.societies && (
+          <div>
+            <dt className="text-sm font-semibold text-muted">Who can come</dt>
+            <dd className="font-semibold">{audienceLabel(event.audience, event.societies.university)}</dd>
+          </div>
+        )}
         <div>
           <dt className="text-sm font-semibold text-muted">{event.format === "entries" && !hosted ? "Entered" : "Going"}</dt>
           <dd className="font-semibold">{event.going_count} {event.going_count === 1 ? "person" : "people"}</dd>
@@ -154,7 +161,7 @@ export default async function EventPage({ params, searchParams }: PageProps<"/e/
       {hosted ? (
         <HostedPanel event={event} host={host} />
       ) : (
-        <Participation event={event} society={event.societies ? { name: event.societies.name, slug: event.societies.slug } : null} />
+        <Participation event={event} society={event.societies ? { name: event.societies.name, slug: event.societies.slug, university: event.societies.university } : null} />
       )}
 
       {event.description && <p className="mt-6 whitespace-pre-line text-lg leading-relaxed">{event.description}</p>}
@@ -169,8 +176,8 @@ export default async function EventPage({ params, searchParams }: PageProps<"/e/
       </div>
 
       <div className="card mt-10 bg-brand-soft">
-        <p className="font-display text-lg font-bold">See everything on at LSE tonight</p>
-        <p className="text-muted">Every society event on one live map.</p>
+        <p className="font-display text-lg font-bold">See what&apos;s on in London tonight</p>
+        <p className="text-muted">Every society event and social on one live map.</p>
         <Link href="/map" className="mt-2 inline-block font-semibold text-brand">Open the live map →</Link>
       </div>
     </article>

@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { SITE_DESCRIPTION } from "@/lib/site";
 
 // Lets phones install Function from the browser ("Add to Home Screen"),
 // so it opens full screen with its own icon, like an app.
@@ -6,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Function",
     short_name: "Function",
-    description: "Every LSE society and event in one place, on a live map.",
+    description: SITE_DESCRIPTION,
     id: "/",
     start_url: "/dashboard",
     scope: "/",

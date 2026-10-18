@@ -18,8 +18,9 @@ import { SelfReport } from "./self-report";
 import { BankLedger } from "./bank-ledger";
 import { saveBankLedger } from "./bank-actions";
 import { bankEditorRows } from "@/lib/bank-rows";
+import { uniShort } from "@/lib/universities";
 
-type Props = { event: MotiveEvent; society: { name: string; slug: string } | null };
+type Props = { event: MotiveEvent; society: { name: string; slug: string; university: string } | null };
 
 // Waiting lists for full tables: how many are waiting, and your place (0 if not queued).
 type Queue = Map<string, { waiting: number; myPosition: number }>;
@@ -62,7 +63,11 @@ export async function Participation({ event, society }: Props) {
   );
   const me = people.find((p) => p.userId === profile.id) ?? null;
   const you: You = { id: profile.id, name: profile.display_name || "You" };
-  const canJoin = !event.members_only || isMember === true;
+  // Members-only events need membership; "[Uni] students" events need that uni
+  // (checked again by the database).
+  const sameUni = !society || society.university === profile.university;
+  const uniOnly = event.audience === "uni" && !sameUni && isMember !== true;
+  const canJoin = (!event.members_only || isMember === true) && !uniOnly;
 
   // Members see each other's names, so ask for one before joining.
   if (!finished && canJoin && !me && !profile.display_name) {
@@ -77,13 +82,18 @@ export async function Participation({ event, society }: Props) {
     <div className="mt-6 space-y-6">
       {finished ? (
         me && event.results_published ? <MyResults eventId={event.id} userId={profile.id} tables={tables} /> : null
+      ) : uniOnly ? (
+        <div className="card">
+          <p className="font-semibold">This event is for {uniShort(society?.university)} students</p>
+          <p className="text-sm text-muted">Only students at {uniShort(society?.university)} can join.</p>
+        </div>
       ) : !canJoin ? (
         <div className="card flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="font-semibold">Members only</p>
             <p className="text-sm text-muted">Join {society?.name ?? "the society"} to take part.</p>
           </div>
-          {society && <Link href={`/s/${society.slug}`} className="btn">Become a member</Link>}
+          {society && sameUni && <Link href={`/s/${society.slug}`} className="btn">Become a member</Link>}
         </div>
       ) : event.format === "tables" ? (
         <InstantArea>

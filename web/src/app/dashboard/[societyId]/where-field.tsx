@@ -16,7 +16,7 @@ export const CUSTOM_PLACE = "custom";
 
 // "Where" on the event form: a listed venue, or anywhere else by
 // searching for it and/or dropping a pin on a map.
-export function WhereField({ venues, event }: { venues: Venue[]; event?: MotiveEvent }) {
+export function WhereField({ venues, event, centre }: { venues: Venue[]; event?: MotiveEvent; centre?: [number, number] }) {
   const startsCustom = Boolean(event && !event.venue_id && event.lat != null && event.lng != null);
   const [choice, setChoice] = useState(event ? (startsCustom ? CUSTOM_PLACE : (event.venue_id ?? "")) : "");
   const custom = choice === CUSTOM_PLACE;
@@ -66,6 +66,7 @@ export function WhereField({ venues, event }: { venues: Venue[]; event?: MotiveE
       {custom && (
         <PlacePicker
           label="Find the place"
+          centre={centre}
           pin={pin}
           onPick={(point, name) => {
             setPin(point);

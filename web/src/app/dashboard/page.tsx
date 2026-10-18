@@ -29,7 +29,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       .from("event_entries")
       .select("status, event_tables!event_entries_table_id_fkey(name, level), events(id, title, starts_at, ends_at)")
       .eq("user_id", profile.id),
-    supabase.from("societies").select("id, name, slug, kind, logo_url").order("name").limit(2000),
+    supabase.from("societies").select("id, name, slug, kind, logo_url, university").order("name").limit(2000),
     supabase
       .from("events")
       .select("id, title, starts_at, ends_at, going_count, visibility, is_cancelled")
@@ -103,7 +103,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         </section>
       )}
 
-      <SocietySearch societies={searchable} />
+      <SocietySearch societies={searchable} myUni={profile.university} />
 
       {upcoming.length > 0 && (
         <section className="mt-8">

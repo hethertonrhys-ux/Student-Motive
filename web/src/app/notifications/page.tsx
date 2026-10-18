@@ -7,6 +7,7 @@ import { getFriendRequests, getSocietyPosts, getTableMoves, getTwoTruthsDays, tw
 import { getCards } from "@/lib/social";
 import { createClient } from "@/lib/supabase/server";
 import { MarkSeen } from "./mark-seen";
+import { initialOf } from "@/lib/universities";
 
 export const metadata: Metadata = { title: "Notifications" };
 
@@ -119,7 +120,7 @@ export default async function NotificationsPage() {
             <li key={p.id}>
               <Link href={`/e/${p.id}`} className="flex items-start gap-3 px-4 py-3 transition hover:bg-brand-soft">
                 <span className="grid size-10 shrink-0 place-items-center rounded-full bg-brand-soft font-display font-extrabold text-brand">
-                  {p.society.replace(/^LSE\s+/i, "").charAt(0)}
+                  {initialOf(p.society)}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm">

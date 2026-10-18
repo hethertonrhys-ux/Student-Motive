@@ -12,6 +12,7 @@ import { leaveSociety, requestToJoin } from "./actions";
 import { InstantArea, InstantFormButton } from "@/components/instant";
 import { formatEventTime, isLive } from "@/lib/time";
 import { categoryLabel, type MotiveEvent, type Society } from "@/lib/types";
+import { initialOf, uniShort } from "@/lib/universities";
 
 const getSociety = cache(async (slug: string) => {
   const supabase = await createClient();
@@ -53,12 +54,13 @@ export default async function SocietyPage({ params }: PageProps<"/s/[slug]">) {
           <img src={society.logo_url} alt="" className="size-20 rounded-2xl object-cover" />
         ) : (
           <div className="grid size-20 place-items-center rounded-2xl bg-brand-soft font-display text-3xl font-extrabold text-brand">
-            {society.name.replace(/^LSE\s+/i, "").charAt(0)}
+            {initialOf(society.name)}
           </div>
         )}
         <div>
           <h1 className="font-display text-3xl font-extrabold tracking-tight">{society.name}</h1>
           <div className="mt-1 flex flex-wrap gap-3 text-sm font-semibold">
+            <span className="text-muted">{uniShort(society.university)}</span>
             {society.instagram && (
               <a href={`https://instagram.com/${society.instagram}`} target="_blank" rel="noopener noreferrer" className="text-brand">
                 @{society.instagram}
@@ -75,7 +77,7 @@ export default async function SocietyPage({ params }: PageProps<"/s/[slug]">) {
 
       {society.description && <p className="mt-6 text-lg">{society.description}</p>}
 
-      <Membership societyId={society.id} slug={society.slug} name={society.name} />
+      <Membership societyId={society.id} slug={society.slug} name={society.name} university={society.university} />
 
       <h2 className="mt-10 font-display text-xl font-bold">Upcoming events</h2>
       {events.length === 0 ? (
@@ -107,12 +109,13 @@ export default async function SocietyPage({ params }: PageProps<"/s/[slug]">) {
   );
 }
 
-async function Membership({ societyId, slug, name }: { societyId: string; slug: string; name: string }) {
+async function Membership({ societyId, slug, name, university }: { societyId: string; slug: string; name: string; university: string }) {
   const profile = await getProfile();
+  const uni = uniShort(university);
   if (!profile) {
     return (
       <div className="card mt-6 flex flex-wrap items-center justify-between gap-3">
-        <p className="font-semibold">Members can join events and pick their table.</p>
+        <p className="font-semibold">{uni} students can join to enter events and pick their table.</p>
         <Link href={`/login?next=/s/${slug}`} className="btn">Log in to join</Link>
       </div>
     );
@@ -163,5 +166,15 @@ async function Membership({ societyId, slug, name }: { societyId: string; slug: 
     );
   }
   if (membership?.status === "pending") return requestSent;
+  // Societies are for their own uni's students: no join button for anyone else
+  // (the database refuses it too).
+  if (profile.university !== university) {
+    return (
+      <div className="card mt-6">
+        <p className="font-semibold">This society is for {uni} students.</p>
+        <p className="text-sm text-muted">You can still go to its events that are open to all London students.</p>
+      </div>
+    );
+  }
   return <InstantArea>{joinCard(requestSent)}</InstantArea>;
 }

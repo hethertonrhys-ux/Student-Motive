@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatEventTime, nowMs } from "@/lib/time";
 import type { MotiveEvent, Society } from "@/lib/types";
 import { SocietySearch, type SearchableSociety } from "../dashboard/society-search";
+import { DEFAULT_UNI, uniShort } from "@/lib/universities";
 
 export const metadata: Metadata = { title: "Societies" };
 
@@ -16,7 +17,7 @@ export default async function SocietiesPage() {
   const supabase = await createClient();
 
   const [{ data: all }, mine] = await Promise.all([
-    supabase.from("societies").select("id, name, slug, kind, logo_url").order("name").limit(2000),
+    supabase.from("societies").select("id, name, slug, kind, logo_url, university").order("name").limit(2000),
     me
       ? Promise.all([
           supabase.from("society_admins").select("societies(id, name, slug, logo_url)").eq("user_id", me.id),
@@ -45,6 +46,8 @@ export default async function SocietiesPage() {
     .filter((e) => e.events && e.events.society_id && new Date(e.events.ends_at).getTime() > now)
     .sort((a, b) => a.events!.starts_at.localeCompare(b.events!.starts_at));
 
+  // Your own uni's societies first; logged out, LSE.
+  const myUni = me?.university ?? DEFAULT_UNI;
   const runIds = new Set(runs.map((s) => s.id));
   const memberStatus = new Map(memberships.map((m) => [m.societies.id, m.status]));
   const searchable: SearchableSociety[] = ((all ?? []) as Omit<SearchableSociety, "relation">[]).map((s) => ({
@@ -55,10 +58,10 @@ export default async function SocietiesPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="font-display text-3xl font-extrabold tracking-tight">Societies</h1>
-      <p className="text-sm text-muted">Every LSE society, hall and more in one place.</p>
+      <p className="text-sm text-muted">Every {uniShort(myUni)} society, hall and more in one place.</p>
 
       <div className="-mt-2">
-        <SocietySearch societies={searchable} />
+        <SocietySearch societies={searchable} myUni={myUni} />
       </div>
 
       {upcoming.length > 0 && (

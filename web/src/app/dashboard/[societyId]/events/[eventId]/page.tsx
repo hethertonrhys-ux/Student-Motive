@@ -13,6 +13,7 @@ import { LateArrivalForm } from "./late-arrival-form";
 import { BankLedger } from "@/app/e/[id]/bank-ledger";
 import { saveBankLedger } from "@/app/e/[id]/bank-actions";
 import { bankEditorRows } from "@/lib/bank-rows";
+import { audienceLabel } from "@/lib/universities";
 import {
   addLateArrival,
   addPayment,
@@ -63,7 +64,8 @@ export default async function ManageEventPage({ params }: PageProps<"/dashboard/
           <h1 className="font-display text-3xl font-extrabold tracking-tight">{event.title}</h1>
           <p className="text-muted">
             {formatEventTime(event.starts_at, event.ends_at)} · {formatLabel}
-            {event.members_only && " · Members only"}
+            {` · ${audienceLabel(event.audience, society.university)}`}
+            {event.members_only && event.audience !== "members" && " · Only members can join"}
           </p>
         </div>
         <div className="flex gap-2">

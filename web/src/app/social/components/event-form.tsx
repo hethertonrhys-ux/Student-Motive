@@ -12,9 +12,11 @@ type Props = {
   exact?: { address: string | null; lat: number | null; lng: number | null } | null;
   // UK-time values for the date and time inputs when editing.
   defaults?: { date: string; start: string; finish: string };
+  // Where the map starts: the host's uni.
+  centre?: [number, number];
 };
 
-export function EventForm({ action, event, exact, defaults }: Props) {
+export function EventForm({ action, event, exact, defaults, centre }: Props) {
   const [state, formAction, pending] = useActionState(action, {});
   const [pin, setPin] = useState<Point | null>(exact?.lat != null && exact?.lng != null ? { lat: exact.lat, lng: exact.lng } : null);
   const [area, setArea] = useState(event?.area ?? "");
@@ -71,6 +73,7 @@ export function EventForm({ action, event, exact, defaults }: Props) {
       <fieldset className="space-y-3">
         <legend className="label">Location</legend>
         <PlacePicker
+          centre={centre}
           pin={pin}
           onPick={(point, name, detail) => {
             setPin(point);

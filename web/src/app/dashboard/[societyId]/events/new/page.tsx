@@ -17,7 +17,7 @@ export default async function NewEventPage({ params }: PageProps<"/dashboard/[so
       <Link href={`/dashboard/${societyId}`} className="text-sm font-semibold text-muted hover:text-ink">← {society.name}</Link>
       <h1 className="mt-3 mb-8 font-display text-3xl font-extrabold tracking-tight">Post an event</h1>
       <div className="card">
-        <EventForm action={createEvent.bind(null, societyId)} venues={venues} />
+        <EventForm action={createEvent.bind(null, societyId)} venues={venues} uni={society.university} />
       </div>
     </div>
   );

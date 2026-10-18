@@ -3,6 +3,7 @@ import Link from "next/link";
 import { HIDE, InstantArea, InstantFormButton } from "@/components/instant";
 import { requireManagedSociety } from "@/lib/society";
 import { InviteForm } from "./invite-form";
+import { DEFAULT_UNI, uniById } from "@/lib/universities";
 import { approveMember, inviteMembers, removeInvite, removeMember } from "./actions";
 
 export const metadata: Metadata = { title: "Members" };
@@ -51,7 +52,7 @@ export default async function MembersPage({ params }: PageProps<"/dashboard/[soc
       )}
 
       <section className="card mt-8">
-        <InviteForm action={inviteMembers.bind(null, societyId)} />
+        <InviteForm action={inviteMembers.bind(null, societyId)} emailDomain={(uniById(society.university) ?? uniById(DEFAULT_UNI)!).domains[0]} />
       </section>
 
       <section className="mt-8">
