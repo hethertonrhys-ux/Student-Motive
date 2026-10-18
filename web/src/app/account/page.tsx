@@ -22,10 +22,15 @@ export default async function AccountPage() {
   return (
     <div className="mx-auto max-w-xl px-4 py-10">
       <h1 className="font-display text-3xl font-extrabold tracking-tight">Your profile</h1>
-      <p className="mt-1 text-muted">
-        Other students see this when they find you or you join events. Your email is never shown.{" "}
-        <Link href={`/u/${me.id}`} className="font-semibold text-brand">See your profile →</Link>
-      </p>
+      <p className="mt-1 text-muted">Other students see this when they find you or you join events. Your email is never shown.</p>
+      {/* See your profile exactly as other students do. */}
+      <Link href={`/u/${me.id}`} className="btn mt-4 w-full gap-2 py-3 text-base sm:w-auto">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden>
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+        Preview profile
+      </Link>
       <div className="card mt-6">
         <PhotoPicker name={data?.display_name ?? ""} url={data?.avatar_url ?? null} />
       </div>
