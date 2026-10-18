@@ -5,8 +5,8 @@ import { getProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatEventTime, nowMs } from "@/lib/time";
 import type { MotiveEvent, Society } from "@/lib/types";
-import { SocietySearch, type SearchableSociety } from "../dashboard/society-search";
-import { DEFAULT_UNI, uniShort } from "@/lib/universities";
+import { SocietySearch, type Relation, type SearchableSociety } from "../dashboard/society-search";
+import { uniShort } from "@/lib/universities";
 
 export const metadata: Metadata = { title: "Societies" };
 
@@ -17,7 +17,11 @@ export default async function SocietiesPage() {
   const supabase = await createClient();
 
   const [{ data: all }, mine] = await Promise.all([
-    supabase.from("societies").select("id, name, slug, kind, logo_url, university").order("name").limit(2000),
+    // Only your own uni's societies load with the page (searching every uni
+    // asks the server). Logged out, there's no uni, so nothing loads here.
+    me
+      ? supabase.from("societies").select("id, name, slug, kind, logo_url, university").eq("university", me.university).order("name").limit(2000)
+      : Promise.resolve({ data: [] }),
     me
       ? Promise.all([
           supabase.from("society_admins").select("societies(id, name, slug, logo_url)").eq("user_id", me.id),
@@ -46,22 +50,20 @@ export default async function SocietiesPage() {
     .filter((e) => e.events && e.events.society_id && new Date(e.events.ends_at).getTime() > now)
     .sort((a, b) => a.events!.starts_at.localeCompare(b.events!.starts_at));
 
-  // Your own uni's societies first; logged out, LSE.
-  const myUni = me?.university ?? DEFAULT_UNI;
-  const runIds = new Set(runs.map((s) => s.id));
-  const memberStatus = new Map(memberships.map((m) => [m.societies.id, m.status]));
-  const searchable: SearchableSociety[] = ((all ?? []) as Omit<SearchableSociety, "relation">[]).map((s) => ({
-    ...s,
-    relation: runIds.has(s.id) ? "runs" : memberStatus.get(s.id) === "approved" ? "member" : memberStatus.has(s.id) ? "pending" : null,
-  }));
+  const myUni = me?.university;
+  const relations: Record<string, Relation> = {};
+  for (const m of memberships) relations[m.societies.id] = m.status === "approved" ? "member" : "pending";
+  for (const s of runs) relations[s.id] = "runs";
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="font-display text-3xl font-extrabold tracking-tight">Societies</h1>
-      <p className="text-sm text-muted">Every {uniShort(myUni)} society, hall and more in one place.</p>
+      <p className="text-sm text-muted">
+        {myUni ? `Every ${uniShort(myUni)} society, hall and more in one place.` : "Every society, hall and more across London's unis."}
+      </p>
 
       <div className="-mt-2">
-        <SocietySearch societies={searchable} myUni={myUni} />
+        <SocietySearch societies={(all ?? []) as SearchableSociety[]} myUni={myUni} relations={relations} />
       </div>
 
       {upcoming.length > 0 && (
