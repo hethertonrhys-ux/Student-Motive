@@ -13,8 +13,8 @@ export function Avatar({ name, url, size = 36, ring = false }: { name: string; u
   const style = { width: size, height: size, fontSize: size * 0.38 };
   const ringClass = ring ? "ring-2 ring-live ring-offset-2 ring-offset-[var(--surface)]" : "";
   if (url) {
-    // eslint-disable-next-line @next/next/no-img-element
     // If the photo can't load, this shows a plain coloured circle rather than broken-image text.
+    // eslint-disable-next-line @next/next/no-img-element
     return <img src={url} alt="" title={name} style={{ ...style, background: colour }} className={`shrink-0 rounded-full object-cover ${ringClass}`} />;
   }
   return (

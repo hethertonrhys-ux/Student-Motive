@@ -8,6 +8,8 @@ import { getCards, getFriendships, getHiddenPeople, relationFor } from "@/lib/so
 import { createClient } from "@/lib/supabase/server";
 import { formatEventTime, nowMs } from "@/lib/time";
 import { ProfileMenu } from "./profile-menu";
+import { PhotoGallery } from "./photo-gallery";
+import { getPhotos, getProfileSocieties } from "@/lib/profile-photos";
 
 export const metadata: Metadata = { title: "Profile" };
 
@@ -41,6 +43,12 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
         .order("starts_at")
         .limit(10);
 
+  // Their current photos and societies (both empty if either of you has blocked the other).
+  const [photos, societies] = isBlocked
+    ? [[], []]
+    : await Promise.all([getPhotos(supabase, id, nowMs()), getProfileSocieties(supabase, id)]);
+  const currentPhotos = photos.filter((p) => p.current);
+
   // Friends in common.
   const theirFriends = relation === "self" || isBlocked ? 0 : await mutualCount(supabase, id);
 
@@ -63,6 +71,34 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
         )}
         {relation !== "self" && <ProfileMenu id={id} name={person.name} blockedByMe={isBlocked} />}
       </div>
+
+      {societies.length > 0 && (
+        <section className="mt-6">
+          <h2 className="text-sm font-bold tracking-wide text-muted uppercase">Societies</h2>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {societies.map((s) => (
+              <li key={s.id}>
+                <Link href={`/s/${s.slug}`} className="inline-flex items-center gap-2 rounded-full border border-line bg-surface py-1 pr-3 pl-1 text-sm font-semibold transition hover:border-brand">
+                  <Avatar name={s.name} url={s.logo_url} size={24} />
+                  {s.name}
+                  {s.is_committee && <span className="rounded-full bg-brand-soft px-1.5 py-0.5 text-[10px] font-bold text-brand">Committee</span>}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {currentPhotos.length > 0 && (
+        <section className="mt-6">
+          <PhotoGallery photos={currentPhotos.map((p) => ({ id: p.id, url: p.url }))} canReport={relation !== "self"} />
+        </section>
+      )}
+      {relation === "self" && currentPhotos.length === 0 && (
+        <p className="card mt-6 text-sm text-muted">
+          Add up to 5 photos of things you like or get up to. <Link href="/account" className="font-semibold text-brand">Add photos →</Link>
+        </p>
+      )}
 
       {(events ?? []).length > 0 && (
         <section className="mt-8">

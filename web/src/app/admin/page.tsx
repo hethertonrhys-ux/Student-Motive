@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Society } from "@/lib/types";
 import { AddSocietyForm } from "./add-society-form";
 import { AllowEmailForm } from "./allow-email-form";
+import { ReportedPhotos } from "./reported-photos";
 import { approveClaim, deleteReportedMessage, dismissReport, hideReportedEvent, rejectClaim, removeAllowedEmail } from "./actions";
 import { getCards } from "@/lib/social";
 
@@ -126,6 +127,8 @@ export default async function AdminPage() {
           ))}
         </ul>
       </section>
+
+      <ReportedPhotos />
 
       <section className="mt-10">
         <h2 className="font-display text-xl font-bold">Who can join</h2>

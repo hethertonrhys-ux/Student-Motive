@@ -13,6 +13,7 @@ Project ID: `xrpbmcoptyrpgkdowfdt` (London region)
 - `migrations/20261020000000_social.sql`: friends, profiles, student-hosted events, event chats and private messages.
 - `migrations/20261021000000_profile_photos.sql`: profile photos (the `avatars` storage bucket).
 - `migrations/20261022000000_social_section.sql`: the Social section (students hosting their own events), in its own tables: `social_events`, `social_event_members`, `social_event_addresses`, `social_reports`.
+- `migrations/20261023000000_profile_upgrade.sql`: profile upgrade. Societies on profiles (a read-only `profile_societies` function, no Societies changes), "My 5" photos (`profile_photos`, private `profile-photos` bucket), `profile_settings`, and `profile_photo_reports`.
 - `seed.sql`: starter data (LSE buildings, LSE halls, other universities, first society).
 
 ## Running them
