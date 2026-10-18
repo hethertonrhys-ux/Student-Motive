@@ -3,7 +3,7 @@
 
 import { londonInputToIso } from "./time";
 
-export type SocialCategory = "sport" | "social" | "study" | "nightlife" | "food" | "other";
+export type SocialCategory = "sport" | "social" | "study" | "nightlife" | "food" | "learn" | "other";
 export type MemberStatus = "going" | "pending" | "declined";
 
 export const SOCIAL_CATEGORIES: { value: SocialCategory; label: string }[] = [
@@ -12,6 +12,7 @@ export const SOCIAL_CATEGORIES: { value: SocialCategory; label: string }[] = [
   { value: "study", label: "Study" },
   { value: "nightlife", label: "Nightlife" },
   { value: "food", label: "Food" },
+  { value: "learn", label: "Learn" },
   { value: "other", label: "Other" },
 ];
 
