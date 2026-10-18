@@ -99,3 +99,28 @@ export async function reportPhoto(id: string, reason: string): Promise<Result> {
   const { error } = await supabase.from("profile_photo_reports").insert({ photo_id: id, reason: clean });
   return error ? { error: "Couldn't send the report. Please try again." } : {};
 }
+
+// Re-crop a photo that's already in your 5: the cropped version replaces the
+// file (same place in the order). "backup" is the old photo, put back if the
+// new one can't be saved.
+export async function recropMyFivePhoto(id: string, formData: FormData): Promise<Result> {
+  const me = await getProfile();
+  if (!me) return { error: "Log in first." };
+  const file = formData.get("photo");
+  const backup = formData.get("backup");
+  if (!(file instanceof File) || file.type !== "image/jpeg" || file.size === 0 || file.size > 3 * 1024 * 1024) {
+    return { error: "That crop couldn't be saved. Please try again." };
+  }
+  const supabase = await createClient();
+  const { data: photo } = await supabase.from("profile_photos").select("path").eq("id", id).eq("user_id", me.id).maybeSingle();
+  if (!photo) return { error: "Photo not found." };
+  const bucket = supabase.storage.from(PHOTO_BUCKET);
+  await bucket.remove([photo.path]);
+  const { error } = await bucket.upload(photo.path, file, { contentType: "image/jpeg" });
+  if (error) {
+    if (backup instanceof File && backup.size > 0) await bucket.upload(photo.path, backup, { contentType: backup.type || "image/jpeg" });
+    return { error: "That crop couldn't be saved. Please try again." };
+  }
+  refresh(me.id);
+  return {};
+}

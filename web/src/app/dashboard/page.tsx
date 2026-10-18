@@ -68,7 +68,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       <h1 className="font-display text-3xl font-extrabold tracking-tight">Hi{profile.display_name ? `, ${profile.display_name.split(" ")[0]}` : ""}</h1>
       <p className="mt-1 text-muted">Signed in as {profile.email}</p>
       <div className="mt-5 flex flex-wrap gap-2">
-        <Link href="/host/new" className="btn">+ Host an event</Link>
+        <Link href="/social/new" className="btn">+ Host an event</Link>
         <Link href="/account" className="btn-ghost">Edit your profile</Link>
       </div>
 
