@@ -1,6 +1,7 @@
 "use server";
 
-import { requireProfile } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
+import { getUserId, requireProfile } from "@/lib/auth";
 import { getCards } from "@/lib/social";
 import { createClient } from "@/lib/supabase/server";
 
@@ -64,4 +65,23 @@ export async function reportMessage(messageId: string, reason: string): Promise<
   const supabase = await createClient();
   const { error } = await supabase.from("reports").insert({ message_id: messageId, reason: reason.slice(0, 200) || "Reported message" });
   return error ? { error: "Couldn't send the report. Try again." } : {};
+}
+
+// How many unread messages you have across all chats (for the bottom bar).
+export async function getUnreadCount(): Promise<number> {
+  if (!(await getUserId())) return 0;
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("unread_message_count");
+  return Number(data ?? 0);
+}
+
+// Opening a chat: mark it read and return the new unread total, so the badge
+// clears straight away. The Messages list is refreshed too.
+export async function markThreadRead(threadId: string): Promise<number> {
+  if (!UUID.test(threadId) || !(await getUserId())) return 0;
+  const supabase = await createClient();
+  await supabase.rpc("mark_thread_read", { tid: threadId });
+  const { data } = await supabase.rpc("unread_message_count");
+  revalidatePath("/chats");
+  return Number(data ?? 0);
 }

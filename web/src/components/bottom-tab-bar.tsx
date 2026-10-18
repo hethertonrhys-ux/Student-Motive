@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, type ComponentType, type SVGProps } from "react";
+import { useEffect, useState, type ComponentType, type SVGProps } from "react";
+import { getUnreadCount } from "@/app/chats/actions";
 import {
   ChatBubbleOvalLeftIcon as ChatOutline,
   MapPinIcon as MapOutline,
@@ -38,9 +39,35 @@ export type BottomTabBarProps = {
   unread: number; // unread messages
 };
 
+// Update the Messages badge from anywhere (e.g. when a chat is opened).
+export function setUnread(count: number) {
+  window.dispatchEvent(new CustomEvent("fn-unread", { detail: count }));
+}
+
 // The main navigation: a bar fixed to the bottom of every page, like an app.
-export function BottomTabBar({ meId, avatarUrl, name, socialRequests, unread }: BottomTabBarProps) {
+export function BottomTabBar({ meId, avatarUrl, name, socialRequests, unread: loadedUnread }: BottomTabBarProps) {
   const pathname = usePathname();
+  // The unread count the page loaded with, kept up to date here: cleared when
+  // you open a chat, and checked every minute (and when you come back to the
+  // app) so new messages bring the badge back.
+  const [latest, setLatest] = useState<{ base: number; count: number } | null>(null);
+  const unread = latest && latest.base === loadedUnread ? latest.count : loadedUnread;
+  useEffect(() => {
+    if (!meId) return;
+    const update = (count: number) => setLatest({ base: loadedUnread, count });
+    const onUnread = (e: Event) => update((e as CustomEvent<number>).detail);
+    const check = () => {
+      if (document.visibilityState === "visible") getUnreadCount().then(update, () => {});
+    };
+    window.addEventListener("fn-unread", onUnread);
+    document.addEventListener("visibilitychange", check);
+    const timer = setInterval(check, 60_000);
+    return () => {
+      window.removeEventListener("fn-unread", onUnread);
+      document.removeEventListener("visibilitychange", check);
+      clearInterval(timer);
+    };
+  }, [meId, loadedUnread]);
   const login = (next: string) => `/login?next=${encodeURIComponent(next)}`;
   const meHref = meId ? `/u/${meId}` : login("/account");
 

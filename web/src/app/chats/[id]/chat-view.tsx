@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Avatar } from "@/components/avatar";
-import { deleteMessage, fetchMessages, reportMessage, sendMessage, type ChatMessage } from "../actions";
+import { setUnread } from "@/components/bottom-tab-bar";
+import { deleteMessage, fetchMessages, markThreadRead, reportMessage, sendMessage, type ChatMessage } from "../actions";
 
 const POLL_MS = 4000;
 const time = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
@@ -26,6 +27,11 @@ export function ChatView({ threadId, meId, initial, hidden }: { threadId: string
       lastAt.current = next.at(-1)?.created_at ?? lastAt.current;
       return next;
     });
+
+  // Opening the chat marks it read and clears the badge straight away.
+  useEffect(() => {
+    markThreadRead(threadId).then(setUnread, () => {});
+  }, [threadId]);
 
   // Check for new messages every few seconds while the chat is open.
   useEffect(() => {
