@@ -398,6 +398,11 @@ Phases 1–3 are what you asked to see first. Phases 4–8 can be reordered;
   is the moment to check tilt, the 3D buildings and the pin positions.
   Everything around the map (time pills, filter, search, the event card,
   the List view) is shared React Native.
+- **Phase 4: done.** Societies tab (own-uni search, "Search all London
+  unis", your societies, societies you run, upcoming events) and the
+  society page (join with your name, request sent, leave, the other-uni
+  message, the Unclaimed label and claim link). The committee dashboard
+  and the claim form open on the website until phase 9.
 
 ### Things to decide before phase 0
 

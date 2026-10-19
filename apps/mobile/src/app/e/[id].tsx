@@ -22,9 +22,8 @@ import { ShareButton } from "@/components/share-button";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
 import { useProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
+import { SITE_URL } from "@/lib/site";
 import { useSession } from "@/providers/session";
-
-const SITE_URL = process.env.EXPO_PUBLIC_SITE_URL ?? "https://studentfunction.com";
 
 // A society event (or a student-hosted one): the details, who can come,
 // and the "I'm going" button. Sign-up lists, tables and results (phase 5)

@@ -3,7 +3,7 @@ import { Link } from "expo-router";
 import { Pressable, ScrollView, TextInput, View, useColorScheme } from "react-native";
 import { CATEGORY_STYLE, MAP_CATEGORIES, distanceMetres, eventStatus, howFar, mapCategoryLabel, timeFormat, type MapCategory, type MapEvent } from "@function/shared";
 import { Button, Muted, T } from "@/components/ui";
-import { useMounted } from "@/lib/use-mounted";
+import { Icon } from "@/components/icon";
 import { PIN_ICON } from "./types";
 
 // The things you tap on around the map: the filter panel, the search bar
@@ -15,8 +15,6 @@ const useInk = () => (useColorScheme() === "dark" ? "#f2f1fb" : "#15142b");
 // A round button with an icon (filter, search, list).
 export function RoundButton({ icon, label, active, onPress, testID }: { icon: keyof typeof Ionicons.glyphMap; label: string; active?: boolean; onPress: () => void; testID?: string }) {
   const ink = useInk();
-  // The icon font isn't there when the web page is pre-rendered, so the icon waits for the screen.
-  const mounted = useMounted();
   return (
     <Pressable
       onPress={onPress}
@@ -25,7 +23,7 @@ export function RoundButton({ icon, label, active, onPress, testID }: { icon: ke
       testID={testID}
       className={`h-10 w-10 items-center justify-center rounded-full border shadow-lg ${active ? "border-brand bg-brand-soft" : "border-line bg-surface"}`}
     >
-      {mounted && <Ionicons name={icon} size={22} color={active ? "#DA291C" : ink} />}
+      <Icon name={icon} size={22} color={active ? "#DA291C" : ink} />
     </Pressable>
   );
 }
