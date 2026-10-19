@@ -1,5 +1,5 @@
 import { MailLink } from "@/components/landing";
-import { DraftBanner, H2, Li, P, ProsePage } from "@/components/prose-page";
+import { H2, Li, P, ProsePage } from "@/components/prose-page";
 import { CONTACT_EMAIL } from "@/lib/site";
 
 export const generateMetadata = () => ({ title: "Terms of use · Function" });
@@ -7,7 +7,6 @@ export const generateMetadata = () => ({ title: "Terms of use · Function" });
 export default function TermsPage() {
   return (
     <ProsePage title="Terms of use" updated="15 October 2026">
-      <DraftBanner />
       <P>By using Function you agree to these terms.</P>
 
       <H2>Who can use Function</H2>
@@ -21,7 +20,7 @@ export default function TermsPage() {
 
       <H2>Hosting your own events</H2>
       <Li>You&apos;re responsible for events you host, including who you invite and keeping people safe.</Li>
-      <Li>Don&apos;t charge entry or sell tickets through Function, and follow the law, including on alcohol.</Li>
+      <Li>Don&apos;t collect money through Function unless it offers a ticketing feature for your event. Follow the law, including on alcohol.</Li>
       <Li>Meet people you don&apos;t know in public places first, and tell a friend where you&apos;re going.</Li>
 
       <H2>Friends and messages</H2>

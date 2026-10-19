@@ -25,7 +25,7 @@ export default function TermsPage() {
       <h2>Hosting your own events</h2>
       <ul>
         <li>You&apos;re responsible for events you host, including who you invite and keeping people safe.</li>
-        <li>Don&apos;t charge entry or sell tickets through Function, and follow the law, including on alcohol.</li>
+        <li>Don&apos;t collect money through Function unless it offers a ticketing feature for your event. Follow the law, including on alcohol.</li>
         <li>Meet people you don&apos;t know in public places first, and tell a friend where you&apos;re going.</li>
       </ul>
 

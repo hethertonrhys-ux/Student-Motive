@@ -1,5 +1,5 @@
 import { MailLink } from "@/components/landing";
-import { B, DraftBanner, H2, Li, P, ProsePage } from "@/components/prose-page";
+import { B, H2, Li, P, ProsePage } from "@/components/prose-page";
 import { CONTACT_EMAIL } from "@/lib/site";
 
 export const generateMetadata = () => ({ title: "Privacy policy · Function" });
@@ -7,7 +7,6 @@ export const generateMetadata = () => ({ title: "Privacy policy · Function" });
 export default function PrivacyPage() {
   return (
     <ProsePage title="Privacy policy" updated="15 October 2026">
-      <DraftBanner />
       <P>
         This policy explains what personal data Function collects, why, and your rights under UK data protection law
         (UK GDPR and the Data Protection Act 2018). Function is run by its founders, who are the data controller.
