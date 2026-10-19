@@ -4,7 +4,8 @@ import { Link } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { addSociety, allowEmail, approveClaim, DEFAULT_UNI, deleteReportedMessage, dismissPhotoReports, dismissReport, hideReportedEvent, loadAdmin, rejectClaim, removeAllowedEmail, removeReportedPhoto, SOCIETY_KINDS, UNIVERSITIES } from "@function/shared";
+import { addSociety, allowEmail, approveClaim, DEFAULT_UNI, deleteReportedMessage, dismissPhotoReports, dismissReport, dismissSocialReport, hideReportedEvent, hideReportedSocialEvent, loadAdmin, loadSocialReports, rejectClaim, removeAllowedEmail, removeReportedPhoto, SOCIETY_KINDS, UNIVERSITIES } from "@function/shared";
+import { AdminTabs } from "@/components/admin-tabs";
 import { BackButton } from "@/components/back-button";
 import { LinkButton } from "@/components/event/panels";
 import { Select } from "@/components/select";
@@ -12,12 +13,16 @@ import { Button, Card, Heading, Input, Label, Muted, T } from "@/components/ui";
 import { useProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 
-// The Function team's page: requests to manage societies, reports,
-// reported photos, who can join, adding societies, every society.
+// The Function team's panel, reached from the Me tab. Overview: requests to
+// manage societies, reports (society events, messages, people and Social
+// plans), reported photos, who can join, adding societies, every society.
+// Users and Events have their own sections. The database refuses anyone
+// who isn't an admin, so this screen being hidden is only a courtesy.
 export default function AdminScreen() {
   const { profile, loading } = useProfile();
   const queryClient = useQueryClient();
   const data = useQuery({ queryKey: ["admin"], queryFn: () => loadAdmin(supabase), enabled: !!profile?.is_admin });
+  const socialReports = useQuery({ queryKey: ["admin", "social-reports"], queryFn: () => loadSocialReports(supabase), enabled: !!profile?.is_admin });
   const refresh = () => void queryClient.invalidateQueries({ queryKey: ["admin"] });
   const d = data.data;
   const personName = (id: string | null | undefined) => (id ? (d?.people.get(id)?.name ?? "Member") : "someone");
@@ -25,8 +30,8 @@ export default function AdminScreen() {
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10" keyboardShouldPersistTaps="handled">
-        <BackButton fallback={"/dashboard"} />
-        <Heading className="mt-3">Admin</Heading>
+        <BackButton fallback={"/(tabs)/me"} />
+        <Heading className="mt-3">Admin panel</Heading>
         {loading ? (
           <Muted className="mt-6">Loading…</Muted>
         ) : !profile?.is_admin ? (
@@ -35,6 +40,7 @@ export default function AdminScreen() {
           <Muted className="mt-6">Loading…</Muted>
         ) : (
           <>
+            <AdminTabs current="overview" />
             <Section title={`Requests to manage a society (${d.claims.length})`} empty={d.claims.length === 0 ? "Nothing waiting." : undefined}>
               {d.claims.map((c) => (
                 <Card key={c.id} className="gap-3" testID={`admin-claim-${c.id}`}>
@@ -72,6 +78,22 @@ export default function AdminScreen() {
                     {r.event_id && <Button className="py-2" onPress={() => void hideReportedEvent(supabase, r.id, r.event_id!).then(refresh)} testID="hide-event">Hide event</Button>}
                     {r.message_id && !r.messages?.deleted_at && <Button className="py-2" onPress={() => void deleteReportedMessage(supabase, r.id, r.message_id!).then(refresh)} testID="delete-reported-message">Delete message</Button>}
                     <Button variant="ghost" className="py-2" onPress={() => void dismissReport(supabase, r.id).then(refresh)} testID="dismiss-report">Dismiss</Button>
+                  </View>
+                </Card>
+              ))}
+            </Section>
+
+            <Section title={`Reported Social plans (${socialReports.data?.length ?? 0})`} empty={!socialReports.data?.length ? "No open reports." : undefined}>
+              {(socialReports.data ?? []).map((r) => (
+                <Card key={r.id} className="gap-3" testID={`admin-social-report-${r.id}`}>
+                  <View>
+                    <Link href={`/social/${r.event_id}` as never} asChild><Pressable><T variant="bold" className="text-brand">{r.social_events?.title ?? "Social plan"}</T></Pressable></Link>
+                    <T className="text-sm">{r.reason}</T>
+                    {r.social_events?.is_hidden && <Muted className="mt-1 text-sm">Already hidden.</Muted>}
+                  </View>
+                  <View className="flex-row flex-wrap gap-2">
+                    {!r.social_events?.is_hidden && <Button className="py-2" onPress={() => void hideReportedSocialEvent(supabase, r.id, r.event_id).then(refresh)} testID="hide-social-event">Hide plan</Button>}
+                    <Button variant="ghost" className="py-2" onPress={() => void dismissSocialReport(supabase, r.id).then(refresh)} testID="dismiss-social-report">Dismiss</Button>
                   </View>
                 </Card>
               ))}

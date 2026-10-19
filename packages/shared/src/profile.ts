@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isCountryCode } from "./countries";
 import { getPhotos, getProfileSocieties, PHOTO_BUCKET, type ProfilePhoto, type ProfileSociety } from "./profile-photos";
 import { MAX_PROMPTS, promptById, TWO_TRUTHS_ID } from "./prompts";
 import { getCards, getFriendships, getHiddenPeople, relationFor, type PersonCard, type Relation } from "./social";
@@ -117,6 +118,7 @@ export type MyProfile = {
   graduation_year: number | null;
   university: string;
   course: string;
+  country: string | null;
   avatar_url: string | null;
   photos: ProfilePhoto[];
   showSocieties: boolean;
@@ -126,14 +128,14 @@ export type MyProfile = {
 
 export async function loadMyProfile(supabase: SupabaseClient, myId: string): Promise<MyProfile> {
   const [{ data }, photos, { data: settings }, { data: prompts }, { data: twoTruths }] = await Promise.all([
-    supabase.from("profiles").select("display_name, full_name, nickname, graduation_year, university, course, avatar_url").eq("id", myId).single(),
+    supabase.from("profiles").select("display_name, full_name, nickname, graduation_year, university, course, country, avatar_url").eq("id", myId).single(),
     getPhotos(supabase, myId),
     supabase.from("profile_settings").select("show_societies").eq("user_id", myId).maybeSingle(),
     supabase.from("profile_prompts").select("prompt_id, answer").eq("user_id", myId).order("position"),
     // Your own Two truths and a lie (only you can read the lie).
     supabase.from("two_truths").select("s1, s2, s3, lie").eq("user_id", myId).maybeSingle(),
   ]);
-  const row = (data ?? {}) as { display_name?: string | null; full_name?: string | null; nickname?: string | null; graduation_year?: number | null; university?: string | null; course?: string | null; avatar_url?: string | null };
+  const row = (data ?? {}) as { display_name?: string | null; full_name?: string | null; nickname?: string | null; graduation_year?: number | null; university?: string | null; course?: string | null; country?: string | null; avatar_url?: string | null };
   return {
     display_name: row.display_name ?? "",
     full_name: row.full_name ?? "",
@@ -141,6 +143,7 @@ export async function loadMyProfile(supabase: SupabaseClient, myId: string): Pro
     graduation_year: row.graduation_year ?? null,
     university: row.university ?? "",
     course: row.course ?? "",
+    country: row.country ?? null,
     avatar_url: row.avatar_url ?? null,
     photos,
     showSocieties: (settings as { show_societies: boolean } | null)?.show_societies ?? true,
@@ -155,7 +158,7 @@ export function graduationYears(now = new Date()): number[] {
   return Array.from({ length: 8 }, (_, i) => first + i);
 }
 
-export type AccountDetailsInput = { fullName: string; nickname: string; graduationYear: number | null; course?: string; university?: string | null };
+export type AccountDetailsInput = { fullName: string; nickname: string; graduationYear: number | null; course?: string; university?: string | null; country?: string | null };
 
 // Full name, nickname, graduation year (and course on the profile editor).
 // What other students see (display_name) is the nickname if set, otherwise
@@ -171,9 +174,18 @@ export async function saveAccountDetails(supabase: SupabaseClient, myId: string,
   if (!graduationYears().includes(input.graduationYear)) return { error: "That graduation year doesn't look right." };
   const update: Record<string, unknown> = { full_name: fullName, nickname: nickname || null, graduation_year: input.graduationYear, display_name: nickname || fullName };
   if (input.course !== undefined) update.course = clean(input.course, 60) || null;
+  if (input.country !== undefined) update.country = isCountryCode(input.country) ? input.country : null;
   if (input.university) update.university = input.university;
   const { error } = await supabase.from("profiles").update(update).eq("id", myId);
   return error ? { error: "Couldn't save. Please try again." } : {};
+}
+
+// Poker stats for the little card at the table: counts only, no money.
+export type PokerStats = { games_played: number; best_finish: number | null };
+export async function loadPokerStats(supabase: SupabaseClient, id: string): Promise<PokerStats> {
+  const { data } = await supabase.rpc("poker_stats", { person: id });
+  const row = (data ?? {}) as Partial<PokerStats>;
+  return { games_played: Number(row.games_played ?? 0), best_finish: row.best_finish ?? null };
 }
 
 // Kept for the website: name and course only.

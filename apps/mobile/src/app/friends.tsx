@@ -53,7 +53,7 @@ export default function FriendsScreen() {
                   <View className="mt-8" testID="incoming">
                     <PeopleSection title={`Friend requests (${data.data.incoming.length})`}>
                       {data.data.incoming.map((p, i) => (
-                        <PersonRow key={p.id} id={p.id} name={p.name} avatarUrl={p.avatar_url} detail={p.course} first={i === 0}>
+                        <PersonRow key={p.id} id={p.id} name={p.name} avatarUrl={p.avatar_url} country={p.country} detail={p.course} first={i === 0}>
                           <FriendButton id={p.id} relation="incoming" compact onChanged={refresh} />
                         </PersonRow>
                       ))}
@@ -63,7 +63,7 @@ export default function FriendsScreen() {
                 <View className="mt-8" testID="friends">
                   <PeopleSection title={`Your friends (${data.data.friends.length})`}>
                     {data.data.friends.map((p, i) => (
-                      <PersonRow key={p.id} id={p.id} name={p.name} avatarUrl={p.avatar_url} detail={p.course} first={i === 0}>
+                      <PersonRow key={p.id} id={p.id} name={p.name} avatarUrl={p.avatar_url} country={p.country} detail={p.course} first={i === 0}>
                         <FriendButton id={p.id} relation="friends" compact onChanged={refresh} />
                       </PersonRow>
                     ))}
@@ -74,7 +74,7 @@ export default function FriendsScreen() {
                   <View className="mt-8" testID="suggestions">
                     <PeopleSection title="People you've been to events with">
                       {data.data.suggestions.map((p, i) => (
-                        <PersonRow key={p.id} id={p.id} name={p.name} avatarUrl={p.avatar_url} detail={`${p.shared_events} ${Number(p.shared_events) === 1 ? "event" : "events"} together${p.course ? ` · ${p.course}` : ""}`} first={i === 0}>
+                        <PersonRow key={p.id} id={p.id} name={p.name} avatarUrl={p.avatar_url} country={p.country} detail={`${p.shared_events} ${Number(p.shared_events) === 1 ? "event" : "events"} together${p.course ? ` · ${p.course}` : ""}`} first={i === 0}>
                           <FriendButton id={p.id} relation="none" compact onChanged={refresh} />
                         </PersonRow>
                       ))}
@@ -85,7 +85,7 @@ export default function FriendsScreen() {
                   <View className="mt-8" testID="outgoing">
                     <PeopleSection title="Requests you've sent">
                       {data.data.outgoing.map((p, i) => (
-                        <PersonRow key={p.id} id={p.id} name={p.name} avatarUrl={p.avatar_url} detail={p.course} first={i === 0}>
+                        <PersonRow key={p.id} id={p.id} name={p.name} avatarUrl={p.avatar_url} country={p.country} detail={p.course} first={i === 0}>
                           <FriendButton id={p.id} relation="outgoing" compact onChanged={refresh} />
                         </PersonRow>
                       ))}
@@ -137,7 +137,7 @@ function PeopleSearch({ myId, onChanged }: { myId: string; onChanged: () => void
           {searching && !results && <Muted className="px-4 py-3 text-sm">Searching…</Muted>}
           {results?.length === 0 && <Muted className="px-4 py-3 text-sm">Nobody called &ldquo;{query.trim()}&rdquo; yet.</Muted>}
           {results?.map((p, i) => (
-            <PersonRow key={p.id} id={p.id} name={p.name} avatarUrl={p.avatar_url} detail={p.course} first={i === 0}>
+            <PersonRow key={p.id} id={p.id} name={p.name} avatarUrl={p.avatar_url} country={p.country} detail={p.course} first={i === 0}>
               <FriendButton id={p.id} relation={p.relation} compact onChanged={onChanged} />
             </PersonRow>
           ))}

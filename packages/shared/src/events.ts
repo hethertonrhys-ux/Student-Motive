@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { MapCategory } from "./map-categories";
 import { socialToMapCategory } from "./map-categories";
-import { getCards } from "./social";
+import { getCards, type PersonCard } from "./social";
 import type { SocialCategory } from "./social-events";
 import { nextLondonSixAm } from "./time";
 import type { MotiveEvent, Society, Venue } from "./types";
@@ -25,65 +25,81 @@ export type FeedItem = {
   by: string;
   href: string;
   imageUrl: string | null;
+  // For the friends / my-societies filters and recommendations.
+  hostId: string | null;
+  societyId: string | null;
+  // The society's uni, or the host's.
+  university: string | null;
 };
 export type FeedGroup = { key: "tonight" | "tomorrow" | "later"; title: string; items: FeedItem[] };
 
-type EventRow = {
+export type FeedEventRow = {
   id: string; title: string; category: MotiveEvent["category"]; free_food: boolean; starts_at: string; ends_at: string; going_count: number;
   location_note: string | null; image_url: string | null; venues: { name: string } | null;
-  societies: { name: string; university: string } | null; host_user_id: string | null; visibility: "public" | "friends";
+  society_id: string | null; societies: { name: string; university: string } | null; host_user_id: string | null; visibility: "public" | "friends";
   event_tables: { started_at: string | null }[] | null;
 };
-type SocialRow = { id: string; title: string; category: SocialCategory; starts_at: string; ends_at: string; going_count: number; area: string; host_id: string; friends_only: boolean };
+export type FeedSocialRow = { id: string; title: string; category: SocialCategory; starts_at: string; ends_at: string; going_count: number; area: string; host_id: string; friends_only: boolean };
+
+// The columns a list of society events needs (the same for the feed and recommendations).
+export const FEED_EVENT_SELECT = "id, title, category, free_food, starts_at, ends_at, going_count, location_note, image_url, venues(name), society_id, societies(name, university), host_user_id, visibility, event_tables(started_at)";
+export const FEED_SOCIAL_SELECT = "id, title, category, starts_at, ends_at, going_count, area, host_id, friends_only";
+
+export function feedItemFromEvent(row: FeedEventRow, hosts: Map<string, PersonCard>, myUni: string | null): FeedItem {
+  const host = row.host_user_id ? hosts.get(row.host_user_id) : null;
+  return {
+    id: row.id,
+    title: row.title,
+    category: row.category as MapCategory,
+    freeFood: row.free_food,
+    // A table the committee started early makes the event live early.
+    startsAt: [row.starts_at, ...(row.event_tables ?? []).map((t) => t.started_at).filter((x): x is string => !!x)].sort()[0],
+    endsAt: row.ends_at,
+    going: row.going_count,
+    place: [row.venues?.name, row.location_note].filter(Boolean).join(" · "),
+    by: row.societies
+      ? row.societies.university === myUni ? row.societies.name : `${row.societies.name} · ${uniShort(row.societies.university)}`
+      : `Hosted by ${host?.name ?? "a student"}${row.visibility === "friends" ? " · Friends only" : ""}`,
+    href: `/e/${row.id}`,
+    imageUrl: row.image_url,
+    hostId: row.host_user_id,
+    societyId: row.society_id,
+    university: row.societies?.university ?? host?.university ?? null,
+  };
+}
+
+export function feedItemFromSocial(row: FeedSocialRow, hosts: Map<string, PersonCard>): FeedItem {
+  const host = hosts.get(row.host_id);
+  return {
+    id: row.id,
+    title: row.title,
+    category: socialToMapCategory(row.category),
+    freeFood: false,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    going: row.going_count + 1, // the host counts as going
+    place: row.area,
+    by: `Hosted by ${host?.name ?? "a student"}${row.friends_only ? " · Friends only" : ""}`,
+    href: `/social/${row.id}`,
+    imageUrl: null,
+    hostId: row.host_id,
+    societyId: null,
+    university: host?.university ?? null,
+  };
+}
 
 export async function loadFeed(supabase: SupabaseClient, myUni: string | null, now = Date.now(), days = 14): Promise<FeedGroup[]> {
   const from = new Date(now).toISOString();
   const until = new Date(now + days * 86_400_000).toISOString();
   const [{ data }, { data: socialData }] = await Promise.all([
-    supabase
-      .from("events")
-      .select("id, title, category, free_food, starts_at, ends_at, going_count, location_note, image_url, venues(name), societies(name, university), host_user_id, visibility, event_tables(started_at)")
-      .eq("is_cancelled", false).gt("ends_at", from).lt("starts_at", until).order("starts_at").limit(300),
-    supabase
-      .from("social_events")
-      .select("id, title, category, starts_at, ends_at, going_count, area, host_id, friends_only")
-      .eq("is_cancelled", false).gt("ends_at", from).lt("starts_at", until).order("starts_at").limit(300),
+    supabase.from("events").select(FEED_EVENT_SELECT).eq("is_cancelled", false).gt("ends_at", from).lt("starts_at", until).order("starts_at").limit(300),
+    supabase.from("social_events").select(FEED_SOCIAL_SELECT).eq("is_cancelled", false).gt("ends_at", from).lt("starts_at", until).order("starts_at").limit(300),
   ]);
-  const rows = (data ?? []) as unknown as EventRow[];
-  const socials = (socialData ?? []) as SocialRow[];
+  const rows = (data ?? []) as unknown as FeedEventRow[];
+  const socials = (socialData ?? []) as FeedSocialRow[];
   const hosts = await getCards(supabase, [...rows.map((r) => r.host_user_id).filter((x): x is string => !!x), ...socials.map((r) => r.host_id)]);
 
-  const items: FeedItem[] = [
-    ...rows.map((row) => ({
-      id: row.id,
-      title: row.title,
-      category: row.category as MapCategory,
-      freeFood: row.free_food,
-      // A table the committee started early makes the event live early.
-      startsAt: [row.starts_at, ...(row.event_tables ?? []).map((t) => t.started_at).filter((x): x is string => !!x)].sort()[0],
-      endsAt: row.ends_at,
-      going: row.going_count,
-      place: [row.venues?.name, row.location_note].filter(Boolean).join(" · "),
-      by: row.societies
-        ? row.societies.university === myUni ? row.societies.name : `${row.societies.name} · ${uniShort(row.societies.university)}`
-        : `Hosted by ${hosts.get(row.host_user_id ?? "")?.name ?? "a student"}${row.visibility === "friends" ? " · Friends only" : ""}`,
-      href: `/e/${row.id}`,
-      imageUrl: row.image_url,
-    })),
-    ...socials.map((row) => ({
-      id: row.id,
-      title: row.title,
-      category: socialToMapCategory(row.category),
-      freeFood: false,
-      startsAt: row.starts_at,
-      endsAt: row.ends_at,
-      going: row.going_count + 1, // the host counts as going
-      place: row.area,
-      by: `Hosted by ${hosts.get(row.host_id)?.name ?? "a student"}${row.friends_only ? " · Friends only" : ""}`,
-      href: `/social/${row.id}`,
-      imageUrl: null,
-    })),
-  ].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const items: FeedItem[] = [...rows.map((row) => feedItemFromEvent(row, hosts, myUni)), ...socials.map((row) => feedItemFromSocial(row, hosts))].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 
   const tonightEnds = nextLondonSixAm(now);
   const tomorrowEnds = nextLondonSixAm(now, 1);

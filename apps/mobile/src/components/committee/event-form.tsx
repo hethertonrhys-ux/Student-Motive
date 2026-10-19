@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
-import { AUDIENCES, CATEGORIES, DEFAULT_SEATS, FORMATS, POKER_STAKES, audienceLabel, isoToLondonInput, uniById, uniShort, type Audience, type EventFormat, type EventInput, type EventTable, type MotiveEvent, type TableDraft, type Venue } from "@function/shared";
+import { type Audience, audienceLabel, AUDIENCES, CATEGORIES, checkEventSpan, DEFAULT_SEATS, type EventFormat, type EventInput, type EventTable, FORMATS, isoToLondonInput, type MotiveEvent, POKER_STAKES, type TableDraft, uniById, uniShort, type Venue } from "@function/shared";
 import { DateField, TimeField } from "@/components/fields/date-time";
 import { Icon } from "@/components/icon";
 import { pickPhotos, type Picked } from "@/components/photos/pick-photos";
@@ -64,6 +64,8 @@ export function CommitteeEventForm({ onSubmit, venues, event, tables = [], uni }
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const custom = venueId === "custom";
+  // Pointed out as soon as both times are in, before Save.
+  const timeCheck = checkEventSpan(`${startDate}T${startTime}`, `${endDate}T${endTime}`);
 
   const venueOptions = [{ value: "custom", label: "Somewhere else (pick it on a map)" }, ...VENUE_GROUPS.flatMap((g) => venues.filter((v) => v.kind === g.kind).map((v) => ({ value: v.id, label: `${v.name}${v.short_name ? ` (${v.short_name})` : ""}`, group: g.label })))];
   const updateTable = (i: number, change: Partial<TableDraft>) => setDrafts((cur) => cur.map((t, j) => (j === i ? { ...t, ...change } : t)));
@@ -105,6 +107,7 @@ export function CommitteeEventForm({ onSubmit, venues, event, tables = [], uni }
             <View className="flex-[3]"><DateField value={endDate} onChange={setEndDate} testID="ev-end-date" accessibilityLabel="End date" /></View>
             <View className="flex-[2]"><TimeField value={endTime} onChange={setEndTime} testID="ev-end-time" accessibilityLabel="End time" /></View>
           </View>
+          {timeCheck && <T variant="semibold" className="mt-2 rounded-xl bg-danger/10 px-3.5 py-2.5 text-sm text-danger" testID="ev-time-warning">{timeCheck.message}</T>}
         </View>
       </View>
       <Muted className="-mt-3 text-xs">UK time.</Muted>
@@ -238,7 +241,7 @@ export function CommitteeEventForm({ onSubmit, venues, event, tables = [], uni }
       {isEdit && <Check checked={isCancelled} onPress={() => setIsCancelled((c) => !c)} title="Mark as cancelled" danger testID="ev-cancelled" />}
 
       {error && <T variant="semibold" className="rounded-xl bg-danger/10 px-3.5 py-2.5 text-sm text-danger" testID="ev-error">{error}</T>}
-      <Button onPress={() => void submit()} disabled={saving} testID="ev-submit">{saving ? "Saving…" : isEdit ? "Save changes" : "Post event"}</Button>
+      <Button onPress={() => void submit()} disabled={saving || !!timeCheck?.blocked} testID="ev-submit">{saving ? "Saving…" : isEdit ? "Save changes" : "Post event"}</Button>
     </View>
   );
 }

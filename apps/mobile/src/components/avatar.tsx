@@ -13,13 +13,14 @@ export function initials(name: string) {
   return ((parts[0]?.[0] ?? "?") + (parts.length > 1 ? parts.at(-1)![0] : "")).toUpperCase();
 }
 
-// ring: a brand-coloured ring, used to mark "you" in a list.
-export function Avatar({ name, url, size = 36, ring = false }: { name: string; url?: string | null; size?: number; ring?: boolean }) {
+// ring: a brand-coloured ring, used to mark "you" in a list (ringColor for
+// another meaning, such as amber for a host).
+export function Avatar({ name, url, size = 36, ring = false, ringColor = "#DA291C" }: { name: string; url?: string | null; size?: number; ring?: boolean; ringColor?: string }) {
   const [failed, setFailed] = useState(false);
   let hash = 2166136261;
   for (const ch of name) hash = Math.imul(hash ^ ch.charCodeAt(0), 16777619);
   const colour = COLOURS[(hash >>> 0) % COLOURS.length];
-  const ringStyle = ring ? { borderWidth: 2, borderColor: "#DA291C" } : {};
+  const ringStyle = ring ? { borderWidth: 2, borderColor: ringColor } : {};
   if (url && !failed) {
     return <Image source={{ uri: url }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colour, ...ringStyle }} contentFit="cover" onError={() => setFailed(true)} />;
   }

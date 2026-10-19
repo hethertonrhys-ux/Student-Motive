@@ -3,6 +3,7 @@ import { useState, type ReactNode } from "react";
 import { Alert, Platform, Pressable, View } from "react-native";
 import { joinEvent, leaveEvent, saveName, type MotiveEvent, type Person } from "@function/shared";
 import { Avatar } from "@/components/avatar";
+import { Flag } from "@/components/flag";
 import { Button, Card, Input, Muted, T } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 
@@ -81,7 +82,7 @@ export function EntryPanel({ event, people, me, tap, busy }: { event: MotiveEven
   );
 }
 
-export function WhosComing({ people, meId, numbered, finished }: { people: Person[]; meId: string; numbered: boolean; finished: boolean }) {
+export function WhosComing({ people, meId, numbered, finished, hostIds }: { people: Person[]; meId: string; numbered: boolean; finished: boolean; hostIds?: Set<string> }) {
   const ordered = finished && people.some((p) => p.finishPosition) ? [...people].sort((a, b) => (a.finishPosition ?? 999) - (b.finishPosition ?? 999)) : people;
   return (
     <Card testID="whos-coming">
@@ -90,8 +91,10 @@ export function WhosComing({ people, meId, numbered, finished }: { people: Perso
         {ordered.map((p, i) => (
           <View key={p.userId} className="flex-row items-center gap-2">
             {numbered && <T className="w-6 text-right text-sm text-muted">{p.finishPosition ?? (finished ? "" : i + 1)}</T>}
-            <Avatar name={p.name} url={p.avatarUrl} size={28} ring={p.userId === meId} />
+            <Avatar name={p.name} url={p.avatarUrl} size={28} ring={p.userId === meId || !!hostIds?.has(p.userId)} />
             <T variant="semibold">{p.userId === meId ? `${p.name} (you)` : p.name}</T>
+            <Flag code={p.country} size={14} />
+            {hostIds?.has(p.userId) && <HostPill />}
           </View>
         ))}
       </View>
@@ -165,6 +168,15 @@ export function HostedJoinCard({ event, mine, hostName, full, tap, busy, chat }:
   );
 }
 
+// The amber "Host" badge used on Social events, for society committees too.
+export function HostPill({ testID = "host-pill" }: { testID?: string }) {
+  return (
+    <View className="rounded-full bg-amber-100 px-2 py-0.5" testID={testID}>
+      <T variant="bold" className="text-[11px] text-amber-800">Host</T>
+    </View>
+  );
+}
+
 // A list of people with a title, like the website's bordered lists.
 export function PeopleSection({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -175,14 +187,17 @@ export function PeopleSection({ title, children }: { title: string; children: Re
   );
 }
 
-export function PersonRow({ id, name, avatarUrl, detail, children, first }: { id: string; name: string; avatarUrl?: string | null; detail?: string | null; children?: ReactNode; first?: boolean }) {
+export function PersonRow({ id, name, avatarUrl, detail, children, first, country }: { id: string; name: string; avatarUrl?: string | null; detail?: string | null; children?: ReactNode; first?: boolean; country?: string | null }) {
   return (
     <View className={`flex-row items-center gap-3 px-4 py-3 ${first ? "" : "border-t border-line"}`}>
       <Link href={`/u/${id}` as never} asChild>
         <Pressable className="min-w-0 flex-1 flex-row items-center gap-3">
           <Avatar name={name} url={avatarUrl} size={40} />
           <View className="min-w-0 flex-1">
-            <T variant="semibold" numberOfLines={1}>{name}</T>
+            <View className="flex-row items-center gap-1.5">
+              <T variant="semibold" numberOfLines={1} className="shrink">{name}</T>
+              <Flag code={country} size={14} />
+            </View>
             {detail && <Muted className="text-xs" numberOfLines={1}>{detail}</Muted>}
           </View>
         </Pressable>

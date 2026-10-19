@@ -6,14 +6,12 @@ import { loadDashboard } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
-import { useProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
 // The committee's home: societies you run, and your requests to manage one.
 export default function DashboardScreen() {
   const { session } = useSession();
-  const { profile } = useProfile();
   const myId = session?.user.id ?? null;
   const data = useQuery({ queryKey: ["dashboard", myId], queryFn: () => loadDashboard(supabase, myId!), enabled: !!myId });
   return (
@@ -32,11 +30,6 @@ export default function DashboardScreen() {
           <Muted className="mt-6">Loading…</Muted>
         ) : (
           <>
-            {profile?.is_admin && (
-              <Link href={"/admin" as never} asChild>
-                <Button variant="ghost" className="mt-4 self-start" testID="admin-link">Function admin</Button>
-              </Link>
-            )}
             <T variant="display" className="mt-8 text-xl">Societies you run</T>
             <View className="mt-3 gap-3" testID="run-list">
               {data.data.societies.map((s) => (

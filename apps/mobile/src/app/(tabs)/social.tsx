@@ -3,10 +3,14 @@ import { Link, useIsFocused } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { loadSocialTab, matchesDiscover, nowMs, type DiscoverFilters, type SocialTab } from "@function/shared";
+import { RECOMMEND_LIMIT, filterContextKey, isPersonalFiltering, loadSocialRecommendations, loadSocialTab, matchesDiscover, matchesPersonalFilters, nowMs, type DiscoverFilters, type SocialEvent, type SocialTab } from "@function/shared";
+import { EMPTY_RECOMMENDED_SOCIAL, ListModeSwitch, RECOMMEND_ERROR, type ListMode } from "@/components/recommended-events";
 import { SocialEventCard } from "@/components/social/event-card";
 import { EMPTY_FILTERS, Filters } from "@/components/social/filters";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
+import { useFilterContext } from "@/lib/filter-context";
+import { usePersonalFilters } from "@/lib/personal-filters";
+import { useProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { usePullToRefresh, useRefetchOnFocus } from "@/lib/use-refetch-on-focus";
 import { useSession } from "@/providers/session";
@@ -19,14 +23,31 @@ export default function SocialScreen() {
   const focused = useIsFocused();
   const [tab, setTab] = useState<SocialTab>("discover");
   const [filters, setFilters] = useState<DiscoverFilters>(EMPTY_FILTERS);
+  const [mode, setMode] = useState<ListMode>("all");
+  const { profile, loading: profileLoading } = useProfile();
+  const { context: who, ready: whoReady } = useFilterContext();
+  const [personal, setPersonal] = usePersonalFilters();
+  const personalOn = !!myId && whoReady && isPersonalFiltering(personal);
+  const keep = (e: SocialEvent) => matchesDiscover(e, filters, now) && (!personalOn || matchesPersonalFilters({ hostId: e.host_id, societyId: null }, who, personal));
+  const recommending = tab === "discover" && mode === "recommended" && !!myId;
+  // Friends and societies are part of the key, so a new friend or society refreshes the picks.
+  const recs = useQuery({ queryKey: ["recommended", "social", myId, filterContextKey(who)], queryFn: () => loadSocialRecommendations(supabase, { id: myId!, university: profile?.university ?? null }, who), enabled: recommending && !!profile && whoReady });
+  useRefetchOnFocus(recs);
+  const recsFailed = recs.isError || (recommending && !profileLoading && !profile);
   // Waits for the saved login to be read, so a cold start fetches once, not twice.
   const data = useQuery({ queryKey: ["social-tab", tab, myId], queryFn: () => loadSocialTab(supabase, myId, tab), enabled: !loading, refetchInterval: focused ? 60_000 : false });
   useRefetchOnFocus(data);
-  const pull = usePullToRefresh(data.refetch);
+  const pull = usePullToRefresh(() => Promise.all([data.refetch(), recommending ? recs.refetch() : Promise.resolve(null)]));
   const d = data.data;
   const now = nowMs();
-  const filtered = Boolean(filters.categories.length || filters.date || filters.type || filters.available || filters.q.trim());
-  const shown = useMemo(() => (d && tab === "discover" ? d.events.filter((e) => matchesDiscover(e, filters, now)) : (d?.events ?? [])), [d, tab, filters, now]);
+  const filtered = Boolean(filters.categories.length || filters.date || filters.type || filters.available || filters.q.trim() || personalOn);
+  const shown = useMemo(() => {
+    if (recommending) return (recs.data?.items ?? []).map((r) => r.event).filter(keep).slice(0, RECOMMEND_LIMIT);
+    return d && tab === "discover" ? d.events.filter(keep) : (d?.events ?? []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [d, tab, filters, now, recommending, recs.data, personalOn, who, personal]);
+  const notes = useMemo(() => new Map((recs.data?.items ?? []).map((r) => [r.event.id, r.reasons.join(" · ")])), [recs.data]);
+  const hostOf = (hostId: string) => (recommending ? recs.data?.hosts.get(hostId) : d?.hosts.get(hostId));
   const hostingBadge = d?.hostingBadge ?? 0;
   const totalPending = d ? Object.values(d.pending).reduce((a, b) => a + b, 0) : 0;
   const hostHref = myId ? "/social/new" : { pathname: "/login", params: { next: "/social/new" } };
@@ -58,7 +79,12 @@ export default function SocialScreen() {
         {tab === "discover" && (
           <View className="mt-3">
             <Muted className="mb-3 text-sm">Plans hosted by students. Join one or start your own.</Muted>
-            <Filters filters={filters} onChange={setFilters} />
+            <Filters filters={filters} onChange={setFilters} personal={myId ? personal : undefined} onPersonalChange={myId ? setPersonal : undefined} />
+            {myId && (
+              <View className="mt-3">
+                <ListModeSwitch mode={mode} onChange={setMode} allLabel="All plans" testID="social-mode" />
+              </View>
+            )}
           </View>
         )}
         {tab === "hosting" && totalPending > 0 && (
@@ -74,22 +100,23 @@ export default function SocialScreen() {
         )}
 
         <View className="mt-5 gap-3" testID="social-list">
-          {data.isPending && <Muted>Loading…</Muted>}
-          {data.isError && <T variant="semibold" className="text-sm text-danger">Couldn&apos;t load events. Pull down to try again.</T>}
+          {(recommending ? recs.isPending && !recsFailed : data.isPending) && <Muted>{recommending ? "Finding plans for you…" : "Loading…"}</Muted>}
+          {(recommending ? recsFailed : data.isError) && <T variant="semibold" className="text-sm text-danger">{recommending ? RECOMMEND_ERROR : "Couldn't load events. Pull down to try again."}</T>}
           {shown.map((e) => (
-            <SocialEventCard key={e.id} event={e} host={tab === "hosting" ? null : d?.hosts.get(e.host_id)} status={d?.status[e.id]} pending={d?.pending[e.id]} />
+            <SocialEventCard key={e.id} event={e} host={tab === "hosting" ? null : hostOf(e.host_id)} status={d?.status[e.id]} pending={d?.pending[e.id]} note={recommending ? notes.get(e.id) : undefined} />
           ))}
-          {d && shown.length === 0 && (tab === "discover" || myId) && (
+          {(recommending ? !!recs.data : !!d) && shown.length === 0 && (tab === "discover" || myId) && (
             <Card className="items-center py-10">
               <T variant="semibold" className="text-center">
-                {tab === "discover" ? (filtered ? "Nothing matches those filters. Try clearing some." : "No events yet. Be the first to host one!") : tab === "hosting" ? "You're not hosting anything yet." : "You haven't joined anything yet. Have a look in Discover."}
+                {recommending ? (filtered ? "Nothing recommended matches. Try All plans." : EMPTY_RECOMMENDED_SOCIAL) : tab === "discover" ? (filtered ? "Nothing matches those filters. Try clearing some." : "No events yet. Be the first to host one!") : tab === "hosting" ? "You're not hosting anything yet." : "You haven't joined anything yet. Have a look in Discover."}
               </T>
-              {tab !== "going" && !filtered && (
+              {tab !== "going" && !filtered && !recommending && (
                 <Link href={hostHref as never} asChild>
                   <Button className="mt-4">Host an event</Button>
                 </Link>
               )}
               {tab === "going" && <Button className="mt-4" onPress={() => setTab("discover")}>Discover events</Button>}
+              {recommending && <Button className="mt-4" onPress={() => setMode("all")} testID="show-all-plans">Show all plans</Button>}
             </Card>
           )}
         </View>

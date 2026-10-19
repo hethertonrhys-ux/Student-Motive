@@ -24,6 +24,20 @@ export const setAlsoTables = async (supabase: SupabaseClient, eventId: string, t
 export const joinTableWaitlist = async (supabase: SupabaseClient, eventId: string, tableId: string): Promise<Result> => done(await supabase.rpc("join_table_waitlist", { eid: eventId, tid: tableId }));
 export const leaveTableWaitlist = async (supabase: SupabaseClient, eventId: string): Promise<Result> => done(await supabase.rpc("leave_table_waitlist", { eid: eventId }));
 export const confirmSeat = async (supabase: SupabaseClient, eventId: string): Promise<Result> => done(await supabase.rpc("confirm_seat", { eid: eventId }));
+// A chosen seat (seat number) or, with null, any empty seat at the table. Joins the event if needed.
+export const takeSeat = async (supabase: SupabaseClient, eventId: string, tableId: string, seat: number | null): Promise<Result> => done(await supabase.rpc("take_seat", { eid: eventId, tid: tableId, seat }));
+// The event's group chat (only people who may use it get an id back) and
+// who counts as its host (the student hosting, or the society's committee).
+export async function loadEventChat(supabase: SupabaseClient, eventId: string): Promise<string | null> {
+  const { data } = await supabase.from("threads").select("id").eq("event_id", eventId).maybeSingle();
+  return (data as { id: string } | null)?.id ?? null;
+}
+export async function loadEventHosts(supabase: SupabaseClient, eventId: string): Promise<Set<string>> {
+  const { data } = await supabase.rpc("event_hosts", { eid: eventId });
+  return new Set(((data ?? []) as (string | { event_hosts: string })[]).map((x) => (typeof x === "string" ? x : x.event_hosts)));
+}
+// Committee: reshuffle everyone at a table; each player is told their new seat.
+export const randomiseSeats = async (supabase: SupabaseClient, eventId: string, tableId: string): Promise<Result> => done(await supabase.rpc("randomise_table_seats", { eid: eventId, tid: tableId }));
 
 // Reporting your own result (e.g. leaving early) and settle-ups with tablemates.
 export const recordMyResult = async (supabase: SupabaseClient, eventId: string, netPence: number): Promise<Result> => done(await supabase.rpc("record_my_result", { eid: eventId, net_pence: netPence }));

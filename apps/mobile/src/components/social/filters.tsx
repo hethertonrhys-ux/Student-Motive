@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Pressable, View } from "react-native";
-import { SOCIAL_CATEGORIES, type DiscoverFilters, type SocialCategory } from "@function/shared";
+import { SOCIAL_CATEGORIES, personalFilterCount, type DiscoverFilters, type PersonalFilters, type SocialCategory } from "@function/shared";
 import { DateField } from "@/components/fields/date-time";
 import { Icon } from "@/components/icon";
+import { PersonalFilterBoxes } from "@/components/personal-filters";
 import { Input, Muted, T } from "@/components/ui";
 
 type Menu = "category" | "date" | "type" | null;
@@ -12,14 +13,18 @@ export const EMPTY_FILTERS: DiscoverFilters = { categories: [], date: "", type: 
 // Discover search and filters. Only the search bar shows until you tap it;
 // then the filters appear underneath. Changing them doesn't ask the
 // database: the list underneath narrows straight away.
-export function Filters({ filters, onChange }: { filters: DiscoverFilters; onChange: (next: DiscoverFilters) => void }) {
+export function Filters({ filters, onChange, personal, onPersonalChange }: { filters: DiscoverFilters; onChange: (next: DiscoverFilters) => void; personal?: PersonalFilters; onPersonalChange?: (next: PersonalFilters) => void }) {
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState<Menu>(null);
   const { categories, date, type, available, q } = filters;
   const picked = /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "";
-  const filterCount = [categories.length, date, type, available].filter(Boolean).length;
+  const personalCount = personal ? personalFilterCount(personal) : 0;
+  const filterCount = [categories.length, date, type, available].filter(Boolean).length + personalCount;
   const set = (changes: Partial<DiscoverFilters>) => onChange({ ...filters, ...changes });
-  const clearFilters = () => set({ categories: [], date: "", type: "", available: false });
+  const clearFilters = () => {
+    set({ categories: [], date: "", type: "", available: false });
+    if (personal && onPersonalChange && personalCount) onPersonalChange({ friendsHosting: false, mySocieties: false });
+  };
   const close = () => {
     setOpen(false);
     setMenu(null);
@@ -91,6 +96,11 @@ export function Filters({ filters, onChange }: { filters: DiscoverFilters; onCha
               <Chip active={!type} onPress={() => pick({ type: "" })}>Both</Chip>
               <Chip active={type === "open"} onPress={() => pick({ type: "open" })} testID="type-open">Open only</Chip>
               <Chip active={type === "private"} onPress={() => pick({ type: "private" })}>Private only</Chip>
+            </View>
+          )}
+          {personal && onPersonalChange && (
+            <View className="rounded-2xl border border-line bg-surface px-2 py-1">
+              <PersonalFilterBoxes filters={personal} onChange={onPersonalChange} compact testID="social-personal" />
             </View>
           )}
           {filterCount > 0 && (

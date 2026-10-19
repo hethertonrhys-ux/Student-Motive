@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getCards, type PersonCard } from "./social";
 import { SOCIAL_CATEGORIES, SOCIAL_EVENT_FIELDS, type MemberStatus, type SocialCategory, type SocialEvent } from "./social-events";
+import { END_SAME_AS_START, MAX_SOCIAL_HOURS, TOO_LONG_SOCIAL } from "./event-times";
 import { londonInputToIso, nowMs } from "./time";
 
 // The Social section (students hosting their own plans): reads and taps,
@@ -183,7 +184,9 @@ export function readSocialEventInput(input: SocialEventInput): ParsedSocialEvent
   if (input.finish) {
     const sameDay = londonInputToIso(`${input.date}T${input.finish}`);
     if (!sameDay) return { error: "Check the finish time." };
+    if (sameDay === startsAt) return { error: END_SAME_AS_START };
     endsAt = new Date(sameDay) > new Date(startsAt) ? sameDay : new Date(new Date(sameDay).getTime() + 24 * 3600e3).toISOString();
+    if (new Date(endsAt).getTime() - new Date(startsAt).getTime() > MAX_SOCIAL_HOURS * 3600e3) return { error: TOO_LONG_SOCIAL };
   }
   if (!(Math.abs(lat) <= 90 && Math.abs(lng) <= 180)) return { error: "Search for the place or tap the map to show where it is." };
   if (!area) return { error: "Add the place name everyone sees, e.g. Powerleague Shoreditch." };

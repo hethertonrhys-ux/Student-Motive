@@ -20,7 +20,7 @@ export default function NotificationsScreen() {
   const data = useQuery({ queryKey: ["notifications", myId], queryFn: () => loadNotifications(supabase, myId!), enabled: !!myId });
   useMarkNotificationsSeen();
   const n = data.data;
-  const empty = n && n.posts.length === 0 && n.requests.length === 0 && n.moves.length === 0 && n.plays.length === 0;
+  const empty = n && n.posts.length === 0 && n.requests.length === 0 && n.moves.length === 0 && n.seats.length === 0 && n.plays.length === 0;
 
   return (
     <SafeAreaView className="flex-1 bg-bg">
@@ -62,6 +62,18 @@ export default function NotificationsScreen() {
                     <Pressable className={`px-4 py-3 ${i > 0 ? "border-t border-line" : ""}`}>
                       <T className="text-sm">A seat opened up: you&apos;ve been moved to <T variant="bold" className="text-sm">{m.table}</T> at <T variant="semibold" className="text-sm text-brand">{m.event}</T></T>
                       <Muted className="text-xs">{ago(m.at)}</Muted>
+                    </Pressable>
+                  </Link>
+                ))}
+              </List>
+            )}
+            {n.seats.length > 0 && (
+              <List>
+                {n.seats.map((s, i) => (
+                  <Link key={s.id} href={`/e/${s.eventId}` as never} asChild>
+                    <Pressable className={`px-4 py-3 ${i > 0 ? "border-t border-line" : ""}`} testID={`seat-change-${s.id}`}>
+                      <T className="text-sm">Seats reshuffled: you&apos;re now in <T variant="bold" className="text-sm">Seat {s.seatNo ?? "?"}</T> at <T variant="bold" className="text-sm">{s.table}</T> for <T variant="semibold" className="text-sm text-brand">{s.event}</T></T>
+                      <Muted className="text-xs">{ago(s.at)}</Muted>
                     </Pressable>
                   </Link>
                 ))}

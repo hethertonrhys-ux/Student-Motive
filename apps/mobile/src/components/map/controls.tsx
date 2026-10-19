@@ -1,10 +1,11 @@
 import type Ionicons from "@expo/vector-icons/Ionicons";
 import { Link } from "expo-router";
-import { Modal, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
+import { Modal, Platform, Pressable, ScrollView, TextInput, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { CATEGORY_STYLE, MAP_CATEGORIES, distanceMetres, eventStatus, howFar, mapCategoryLabel, timeFormat, type MapCategory, type MapEvent } from "@function/shared";
+import { CATEGORY_STYLE, MAP_CATEGORIES, type MapCategory, type MapEvent, type PersonalFilters, distanceMetres, eventStatus, howFar, isPersonalFiltering, mapCategoryLabel, personalFilterCount, timeFormat } from "@function/shared";
 import { Button, Muted, T } from "@/components/ui";
 import { Icon } from "@/components/icon";
+import { PersonalFilterBoxes } from "@/components/personal-filters";
 import { usePlaceholderColor, useTheme } from "@/lib/theme";
 import { PIN_ICON } from "./types";
 
@@ -28,15 +29,25 @@ export function RoundButton({ icon, label, active, onPress, testID }: { icon: ke
   );
 }
 
-export function FilterPanel({ open, selected, onChange, onClose }: { open: boolean; selected: MapCategory[]; onChange: (next: MapCategory[]) => void; onClose: () => void }) {
+export function FilterPanel({ open, selected, onChange, onClose, personal, onPersonalChange }: { open: boolean; selected: MapCategory[]; onChange: (next: MapCategory[]) => void; onClose: () => void; personal?: PersonalFilters; onPersonalChange?: (next: PersonalFilters) => void }) {
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const top = insets.top + 12 + 44 + 8;
   const toggle = (value: MapCategory) => onChange(selected.includes(value) ? selected.filter((c) => c !== value) : [...selected, value]);
   // A modal sits above the map and its pins on every platform, so the panel
   // is solid and nothing shows through it. Tapping outside closes it.
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <Pressable accessibilityLabel="Close filters" onPress={onClose} className="flex-1 bg-black/20" />
-      <View accessibilityRole="none" className="absolute right-3 w-72 max-w-[calc(100%-24px)] rounded-2xl border border-line bg-surface p-2 shadow-xl" style={{ top: insets.top + 12 + 44 + 8, ...(Platform.OS === "web" ? { boxShadow: "0 12px 32px rgba(0,0,0,0.25)" } : null) }} testID="filter-panel">
+      {/* Short screens: the list scrolls, the heading and Done stay put. */}
+      <View accessibilityRole="none" className="absolute right-3 w-72 max-w-[calc(100%-24px)] rounded-2xl border border-line bg-surface p-2 shadow-xl" style={{ top, maxHeight: Math.max(240, windowHeight - top - 16), ...(Platform.OS === "web" ? { boxShadow: "0 12px 32px rgba(0,0,0,0.25)" } : null) }} testID="filter-panel">
+        <ScrollView className="shrink" bounces={false} keyboardShouldPersistTaps="handled">
+        {personal && onPersonalChange && (
+          <View className="border-b border-line px-0 pb-2 pt-1">
+            <T variant="display-bold" className="px-2 pb-1">Just for me</T>
+            <PersonalFilterBoxes filters={personal} onChange={onPersonalChange} testID="filter-personal" />
+          </View>
+        )}
         <View className="flex-row items-center justify-between px-2 pb-2 pt-1">
           <T variant="display-bold">Categories</T>
           <View className="flex-row gap-3">
@@ -59,8 +70,9 @@ export function FilterPanel({ open, selected, onChange, onClose }: { open: boole
             );
           })}
         </View>
+        </ScrollView>
         <View className="flex-row items-center justify-between gap-2 px-2 pt-2">
-          <Muted className="text-xs">{selected.length === 0 ? "Nothing ticked: showing everything" : `${selected.length} selected`}</Muted>
+          <Muted className="text-xs">{selected.length === 0 && !(personal && isPersonalFiltering(personal)) ? "Nothing ticked: showing everything" : `${selected.length} selected${personal && isPersonalFiltering(personal) ? ` · ${personalFilterCount(personal)} just for me` : ""}`}</Muted>
           <Button onPress={onClose} className="py-1.5" testID="filter-done">Done</Button>
         </View>
       </View>

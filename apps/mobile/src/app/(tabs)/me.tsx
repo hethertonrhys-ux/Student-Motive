@@ -4,6 +4,7 @@ import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { uniShort } from "@function/shared";
 import { Avatar } from "@/components/avatar";
+import { Flag } from "@/components/flag";
 import { Icon } from "@/components/icon";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
 import { useProfile } from "@/lib/profile";
@@ -33,6 +34,7 @@ export default function MeScreen() {
     { href: "/account/notifications", icon: "notifications-circle-outline", title: "Notification settings", detail: "Choose what Function tells you about", testID: "notification-settings" },
     { href: "/friends", icon: "people-outline", title: "Friends", detail: "Requests, people you may know", testID: "friends" },
     { href: "/notifications", icon: "notifications-outline", title: "Notifications", detail: "What's happened lately", testID: "notifications" },
+    ...(profile?.is_admin ? [{ href: "/admin", icon: "shield-checkmark-outline" as const, title: "Admin panel", detail: "Function team: users, events, reports", testID: "admin-panel" }] : []),
   ];
 
   return (
@@ -51,7 +53,10 @@ export default function MeScreen() {
             <Card className="mt-6 items-center gap-3">
               <Avatar name={profile.display_name || "You"} size={88} />
               <View className="items-center">
-                <T variant="display" className="text-2xl">{profile.display_name || "Add your name"}</T>
+                <View className="flex-row items-center gap-2">
+                  <T variant="display" className="text-2xl">{profile.display_name || "Add your name"}</T>
+                  <Flag code={profile.country} size={20} />
+                </View>
                 <Muted>{uniShort(profile.university)} · {profile.email}</Muted>
               </View>
             </Card>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Pressable, View } from "react-native";
-import { SOCIAL_CATEGORIES, type SocialEvent, type SocialEventInput } from "@function/shared";
+import { checkSocialTimes, SOCIAL_CATEGORIES, type SocialEvent, type SocialEventInput } from "@function/shared";
 import { DateField, TimeField } from "@/components/fields/date-time";
 import { Icon } from "@/components/icon";
 import { PlacePicker, type Point } from "@/components/place/place-picker";
@@ -36,6 +36,8 @@ export function SocialEventForm({ onSubmit, event, exact, defaults, centre }: Pr
   const [friendsOnly, setFriendsOnly] = useState(event?.friends_only ?? false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Pointed out as soon as the times are in: after midnight is fine (a note); the same time, or over 12 hours, isn't.
+  const timeCheck = checkSocialTimes(date, start, finish);
 
   async function submit() {
     setSaving(true);
@@ -81,6 +83,7 @@ export function SocialEventForm({ onSubmit, event, exact, defaults, centre }: Pr
             <TimeField value={finish} onChange={setFinish} testID="finish" accessibilityLabel="Finish time" />
           </View>
         </View>
+        {timeCheck && (timeCheck.tone === "warning" ? <T variant="semibold" className="rounded-xl bg-danger/10 px-3.5 py-2.5 text-sm text-danger" testID="finish-warning">{timeCheck.message}</T> : <Muted className="text-xs" testID="finish-note">{timeCheck.message}</Muted>)}
       </View>
 
       <View className="gap-3">
@@ -146,7 +149,7 @@ export function SocialEventForm({ onSubmit, event, exact, defaults, centre }: Pr
       <T className="rounded-xl bg-brand-soft px-4 py-3 text-sm">Stay safe: meet people you don&apos;t know in public places, and tell a friend where you&apos;re going.</T>
 
       {error && <T variant="semibold" className="text-sm text-danger" testID="form-error">{error}</T>}
-      <Button onPress={() => void submit()} disabled={saving} className="py-3" testID="submit">{saving ? "Saving…" : event ? "Save changes" : "Post event"}</Button>
+      <Button onPress={() => void submit()} disabled={saving || !!timeCheck?.blocked} className="py-3" testID="submit">{saving ? "Saving…" : event ? "Save changes" : "Post event"}</Button>
     </View>
   );
 }
