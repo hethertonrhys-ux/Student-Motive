@@ -1,13 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "expo-router";
-import { Linking, Pressable, RefreshControl, ScrollView, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { formatEventTime, loadSocietiesTab, uniShort } from "@function/shared";
 import { Avatar } from "@/components/avatar";
 import { SocietySearch } from "@/components/society-search";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
 import { useProfile } from "@/lib/profile";
-import { SITE_URL } from "@/lib/site";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
@@ -74,7 +73,8 @@ export default function SocietiesScreen() {
             <T variant="display" className="text-xl">Societies you run</T>
             <View className="mt-3 gap-3">
               {data?.runs.map((s) => (
-                <Pressable key={s.id} onPress={() => Linking.openURL(`${SITE_URL}/dashboard/${s.id}`)}>
+                <Link key={s.id} href={`/dashboard/${s.id}` as never} asChild>
+                <Pressable testID={`manage-${s.id}`}>
                   <Card className="flex-row items-center justify-between gap-4">
                     <View className="flex-1 flex-row items-center gap-3">
                       <Avatar name={s.name} url={s.logo_url} size={36} />
@@ -83,6 +83,7 @@ export default function SocietiesScreen() {
                     <T variant="semibold" className="text-sm text-brand">Manage →</T>
                   </Card>
                 </Pressable>
+                </Link>
               ))}
               {data && data.runs.length === 0 && (
                 <Card>
@@ -90,10 +91,13 @@ export default function SocietiesScreen() {
                 </Card>
               )}
             </View>
-            {/* The committee tools stay on the website until phase 9. */}
             <View className="mt-4 flex-row flex-wrap gap-2">
-              <Button variant="ghost" onPress={() => Linking.openURL(`${SITE_URL}/dashboard/claim`)}>+ Request to manage a society</Button>
-              <Button variant="ghost" onPress={() => Linking.openURL(`${SITE_URL}/dashboard`)}>Society dashboard</Button>
+              <Link href={"/dashboard/claim" as never} asChild>
+                <Button variant="ghost">+ Request to manage a society</Button>
+              </Link>
+              <Link href={"/dashboard" as never} asChild>
+                <Button variant="ghost" testID="dashboard-link">Society dashboard</Button>
+              </Link>
             </View>
           </View>
         )}

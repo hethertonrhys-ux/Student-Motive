@@ -434,6 +434,17 @@ Phases 1–3 are what you asked to see first. Phases 4–8 can be reordered;
   been to events with, requests you've sent) and Notifications (Two truths
   plays, table moves, friend requests, society events; a badge on the Me
   tab until it's opened).
+- **Phase 9: done, native too.** The committee dashboard (societies you
+  run, requests to manage one, the claim form), one society's dashboard
+  (events, society details with a logo), the event form (venues or a pin
+  on the map, cost, standard / sign-up list / tables with levels and
+  seats, who can see it, image, cancel), managing an event (tables with
+  start, move, remove, late arrivals, the waiting list, finishing
+  positions, results per table with who pays who and settling up, the
+  bank per table, sharing results), members (approve, add by email,
+  remove) and the Function admin page (claims, reports, reported photos,
+  who can join, add a society). The app no longer sends anyone to the
+  website for these.
 
 ### Things to decide before phase 0
 

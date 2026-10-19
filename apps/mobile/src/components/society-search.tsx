@@ -1,11 +1,10 @@
 import { Link } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Linking, Pressable, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { KIND_LABEL, logSearchAllUnis, searchAllSocieties, searchOwnSocieties, uniShort, type FoundSociety, type SocietyRelation } from "@function/shared";
 import { Avatar } from "@/components/avatar";
 import { Icon } from "@/components/icon";
 import { Input, Muted, T } from "@/components/ui";
-import { SITE_URL } from "@/lib/site";
 import { supabase } from "@/lib/supabase";
 
 // Searches your own uni's societies (loaded with the tab, so results are
@@ -44,7 +43,6 @@ export function SocietySearch({ societies, myUni, relations = {} }: { societies:
     setWidened(true);
     if (myUni) void logSearchAllUnis(supabase, myUni, query);
   }
-  const claimHref = `${SITE_URL}/dashboard/claim`;
 
   return (
     <View className="mt-8">
@@ -124,12 +122,14 @@ export function SocietySearch({ societies, myUni, relations = {} }: { societies:
               ))}
 
             {(allUnis ? !loading && results.length === 0 : results.length === 0) && (
-              <Pressable onPress={() => Linking.openURL(claimHref)} className={`px-4 py-3 ${!allUnis ? "border-t border-line" : ""}`}>
+              <Link href={"/dashboard/claim" as never} asChild>
+              <Pressable className={`px-4 py-3 ${!allUnis ? "border-t border-line" : ""}`}>
                 <Muted className="text-sm">
                   {allUnis ? `No society called “${query.trim()}” on Function yet. ` : "Not on Function yet? "}
                   <T variant="semibold" className="text-sm text-brand">Run one? Ask to add it →</T>
                 </Muted>
               </Pressable>
+              </Link>
             )}
           </View>
         </>

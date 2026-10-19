@@ -8,7 +8,6 @@ import { categoryLabel, formatCost, formatEventTime, initialOf, isLive, leaveSoc
 import { CompleteProfileCard } from "@/components/complete-profile-card";
 import { Button, Card, Heading, Input, Label, Muted, T } from "@/components/ui";
 import { useProfile } from "@/lib/profile";
-import { SITE_URL } from "@/lib/site";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
@@ -35,7 +34,6 @@ export default function SocietyScreen() {
     );
   }
   const { events, claimed } = page.data;
-  const claimHref = `${SITE_URL}/dashboard/claim?society=${society.id}`;
 
   return (
     <Screen>
@@ -78,9 +76,11 @@ export default function SocietyScreen() {
       {claimed === false && (!profile || profile.university === society.university) && (
         <View className="mt-3 flex-row flex-wrap items-center justify-between gap-2 rounded-2xl border border-dashed border-line px-4 py-3">
           <Muted className="text-sm">Is this your society?</Muted>
-          <Pressable onPress={() => Linking.openURL(claimHref)} testID="claim">
-            <T variant="semibold" className="text-sm text-brand">Claim this page →</T>
-          </Pressable>
+          <Link href={{ pathname: "/dashboard/claim", params: { society: society.id } } as never} asChild>
+            <Pressable testID="claim">
+              <T variant="semibold" className="text-sm text-brand">Claim this page →</T>
+            </Pressable>
+          </Link>
         </View>
       )}
 
@@ -144,7 +144,7 @@ function MembershipCard({ society, membership, loading }: { society: Society; me
     onSuccess: refresh,
   });
   const leave = useMutation({
-    mutationFn: () => leaveSociety(supabase, society.id, session!.user.id),
+    mutationFn: () => leaveSociety(supabase, society.id, session?.user.id ?? ""),
     onMutate: () => setOptimistic("left"),
     onSuccess: refresh,
     onError: () => setOptimistic(null),
@@ -166,7 +166,9 @@ function MembershipCard({ society, membership, loading }: { society: Society; me
     return (
       <Card className="mt-6 flex-row flex-wrap items-center justify-between gap-3">
         <T variant="semibold">You run this society.</T>
-        <Button variant="ghost" onPress={() => Linking.openURL(`${SITE_URL}/dashboard/${society.id}`)}>Open dashboard</Button>
+        <Link href={`/dashboard/${society.id}` as never} asChild>
+          <Button variant="ghost" testID="open-dashboard">Open dashboard</Button>
+        </Link>
       </Card>
     );
   }
