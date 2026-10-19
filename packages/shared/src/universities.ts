@@ -24,7 +24,7 @@ export type University = {
 };
 
 export const UNIVERSITIES: University[] = [
-  { id: "LSE", name: "London School of Economics", short: "LSE", slug: "lse", domains: ["lse.ac.uk"], accent: "#4338ca", centre: [-0.1168, 51.5146] },
+  { id: "LSE", name: "London School of Economics", short: "LSE", slug: "lse", domains: ["lse.ac.uk"], accent: "#DA291C", centre: [-0.1168, 51.5146] },
   { id: "UCL", name: "University College London", short: "UCL", slug: "ucl", domains: ["ucl.ac.uk"], accent: "#0f766e", centre: [-0.134, 51.5246] },
   { id: "KCL", name: "King's College London", short: "King's", slug: "kings", domains: ["kcl.ac.uk"], accent: "#be123c", centre: [-0.116, 51.5115] },
   // Older Imperial accounts still use @ic.ac.uk.

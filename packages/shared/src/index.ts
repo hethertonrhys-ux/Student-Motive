@@ -17,3 +17,4 @@ export * from "./profile-photos";
 export * from "./signup-events";
 export * from "./social";
 export * from "./venues";
+export * from "./welcome";

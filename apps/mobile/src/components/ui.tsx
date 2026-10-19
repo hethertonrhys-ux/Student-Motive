@@ -18,8 +18,10 @@ const FONT: Record<TextVariant, string> = {
   display: "font-display",
   "display-bold": "font-display-bold",
 };
+// Text is ink-coloured unless the classes give it another colour.
+const HAS_COLOUR = /\btext-(ink|muted|brand|brand-ink|live|danger|ok|white|\[)/;
 export function T({ variant = "normal", className = "", ...props }: TextProps & { variant?: TextVariant; className?: string }) {
-  return <Text className={`${FONT[variant]} text-ink ${className}`} {...props} />;
+  return <Text className={`${FONT[variant]} ${HAS_COLOUR.test(className) ? "" : "text-ink"} ${className}`} {...props} />;
 }
 
 export function Heading({ className = "", ...props }: TextProps & { className?: string }) {
@@ -34,7 +36,7 @@ export function Input({ className = "", ...props }: TextInputProps & { className
   return (
     <TextInput
       placeholderTextColor="rgba(94, 93, 120, 0.7)"
-      className={`w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 font-sans text-base text-ink ${className}`}
+      className={`w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 font-sans text-base text-ink web:outline-none web:focus:border-brand ${className}`}
       {...props}
     />
   );
@@ -52,6 +54,8 @@ export function Button({
   const text = variant === "primary" ? "text-brand-ink" : "text-ink";
   return (
     <Pressable
+      role="button"
+      aria-disabled={!!disabled}
       disabled={disabled}
       className={`flex-row items-center justify-center gap-2 rounded-xl px-4 py-2.5 ${box} ${disabled ? "opacity-50" : "active:opacity-90"} ${className}`}
       {...props}
