@@ -5,6 +5,7 @@ import Head from "expo-router/head";
 import { useState } from "react";
 import { Linking, Platform, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BackButton } from "@/components/back-button";
 import { SiteFooter } from "@/components/landing";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
 import { oneTapInstall, useCanOneTapInstall, useDevice } from "@/lib/install";
@@ -41,8 +42,9 @@ export default function InstallPage() {
     <SafeAreaView className="flex-1 bg-bg">
       <Head><title>Get the app · Function</title></Head>
       <ScrollView contentContainerClassName="mx-auto w-full max-w-4xl px-4 py-10">
+        <BackButton fallback="/" className="mb-4" />
         <View className="flex-row items-center gap-4">
-          <Image source={require("../../assets/brand/icon.png")} style={{ width: 56, height: 56, borderRadius: 14 }} />
+          <Image source={Platform.OS === "web" ? { uri: "/icon-192.png" } : require("../../assets/brand/icon.png")} style={{ width: 56, height: 56, borderRadius: 14 }} />
           <View className="flex-1">
             <Heading testID="install-title">Get Function on your phone</Heading>
             <Muted className="mt-1">A few taps. It opens full screen with its own icon, just like an app. Free, and no App Store needed.</Muted>

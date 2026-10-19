@@ -1,10 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
-import { Link } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { deletePhoto, getPhotos, MAX_PHOTOS, restorePhoto } from "@function/shared";
+import { BackButton } from "@/components/back-button";
 import { LinkButton } from "@/components/event/panels";
 import { Card, Heading, Muted, T } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
@@ -34,11 +34,7 @@ export default function ArchiveScreen() {
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-8">
-        <Link href={"/account" as never} asChild>
-          <Pressable className="self-start">
-            <T variant="semibold" className="text-sm text-muted">← Your profile</T>
-          </Pressable>
-        </Link>
+        <BackButton fallback={"/account"} />
         <Heading className="mt-3">Archive</Heading>
         <Muted className="mt-1">Only you can see these. Restore one to put it back on your profile{current >= MAX_PHOTOS ? " (free up a space first: your 5 are full)" : ""}, or delete it for good.</Muted>
         {error && <T variant="semibold" className="mt-4 text-sm text-danger">{error}</T>}

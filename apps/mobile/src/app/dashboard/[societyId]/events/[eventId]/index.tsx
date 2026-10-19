@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { audienceLabel, bankEditorRows, FORMATS, formatEventTime, hasEnded, loadManagedSociety, loadManageEvent, nowMs, promoteEntry, removeEntry, savePositions, setResultsPublished, setTableBank, startingRows, type Person } from "@function/shared";
+import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { LateArrival, TablesAdmin } from "@/components/committee/tables-admin";
 import { LedgerEditor } from "@/components/committee/ledger-editor";
@@ -42,11 +43,7 @@ export default function ManageEventScreen() {
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10" keyboardShouldPersistTaps="handled">
-        <Link href={`/dashboard/${societyId}` as never} asChild>
-          <Pressable className="self-start">
-            <T variant="semibold" className="text-sm text-muted">← {society?.name ?? "Back"}</T>
-          </Pressable>
-        </Link>
+        <BackButton fallback={`/dashboard/${societyId}`} />
         {!society || !d ? (
           <Muted className="mt-3">{managed.isPending || page.isPending ? "Loading…" : "Event not found."}</Muted>
         ) : (

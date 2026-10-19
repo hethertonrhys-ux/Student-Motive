@@ -1,7 +1,9 @@
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { Tabs } from "expo-router";
-import { useColorScheme } from "react-native";
+import { Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNewNotifications, useUnreadMessages } from "@/lib/badges";
+import { useTheme } from "@/lib/theme";
 
 // The five tabs, the same as the website's bottom bar: Map, Societies,
 // Social, Chats, Me.
@@ -14,7 +16,15 @@ const TABS = [
 ] as const;
 
 export default function TabsLayout() {
-  const dark = useColorScheme() === "dark";
+  const { colors } = useTheme();
+  const web = Platform.OS === "web";
+  // On the web the page's own CSS variables colour the bar, so it's right
+  // in dark mode even before the app has started.
+  const tone = (token: string, value: string) => (web ? `var(--${token})` : value);
+  // The bar sits above the home indicator (iPhones with curved screens):
+  // its height grows by the bottom safe-area inset, and never less than 6px.
+  const insets = useSafeAreaInsets();
+  const bottom = Math.max(insets.bottom, 6);
   // Unread messages on Chats; new notifications on Me.
   const unread = useUnreadMessages();
   const fresh = useNewNotifications();
@@ -23,9 +33,10 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: dark ? "#f0564a" : "#DA291C",
-        tabBarInactiveTintColor: dark ? "#a3a2c2" : "#5e5d78",
-        tabBarStyle: { backgroundColor: dark ? "#17162c" : "#ffffff", borderTopColor: dark ? "#2b2a48" : "#e3e2ef" },
+        tabBarActiveTintColor: tone("brand", colors.brand),
+        tabBarInactiveTintColor: tone("muted", colors.muted),
+        // 49 is the bar's usual height; the inset is added on top so the icons and labels keep their room.
+        tabBarStyle: { backgroundColor: tone("surface", colors.surface), borderTopColor: tone("line", colors.line), height: 49 + bottom, paddingBottom: bottom },
         tabBarLabelStyle: { fontFamily: "Figtree_600SemiBold", fontSize: 11 },
       }}
     >
@@ -37,7 +48,7 @@ export default function TabsLayout() {
             title: tab.title,
             tabBarBadge: badge(tab.name),
             tabBarBadgeStyle: { backgroundColor: "#f43f5e", color: "#fff", fontFamily: "Figtree_700Bold", fontSize: 11 },
-            tabBarIcon: ({ color, focused, size }) => <Ionicons name={focused ? tab.icon : (`${tab.icon}-outline` as const)} color={typeof color === "string" ? color : "#5e5d78"} size={size} />,
+            tabBarIcon: ({ color, focused, size }) => <Ionicons name={focused ? tab.icon : (`${tab.icon}-outline` as const)} color={typeof color === "string" ? color : colors.muted} size={size} />,
           }}
         />
       ))}

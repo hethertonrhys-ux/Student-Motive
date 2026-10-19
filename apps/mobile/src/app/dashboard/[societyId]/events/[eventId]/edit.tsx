@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useLocalSearchParams, useRouter } from "expo-router";
-import { Pressable, ScrollView, View } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { deleteEvent, getVenues, loadEventForEdit, loadManagedSociety, updateEvent } from "@function/shared";
+import { BackButton } from "@/components/back-button";
 import { CommitteeEventForm } from "@/components/committee/event-form";
 import { LinkButton } from "@/components/event/panels";
 import { Card, Heading, Muted, T } from "@/components/ui";
@@ -23,11 +24,7 @@ export default function EditEventScreen() {
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10" keyboardShouldPersistTaps="handled">
-        <Link href={`/dashboard/${societyId}` as never} asChild>
-          <Pressable className="self-start">
-            <T variant="semibold" className="text-sm text-muted">← {society?.name ?? "Back"}</T>
-          </Pressable>
-        </Link>
+        <BackButton fallback={`/dashboard/${societyId}`} />
         <View className="mb-8 mt-3 flex-row items-center justify-between gap-4">
           <Heading>Edit event</Heading>
           {page.data && (

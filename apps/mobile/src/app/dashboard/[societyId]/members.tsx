@@ -1,11 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, TextInput, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { approveMember, DEFAULT_UNI, inviteMembers, loadManagedSociety, loadMembers, removeInvite, removeMember, uniById, type InviteResult } from "@function/shared";
+import { BackButton } from "@/components/back-button";
 import { LinkButton } from "@/components/event/panels";
-import { Button, Card, Heading, Label, Muted, T } from "@/components/ui";
+import { Button, Card, Heading, Input, Label, Muted, T } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
@@ -43,11 +44,7 @@ export default function MembersScreen() {
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10" keyboardShouldPersistTaps="handled">
-        <Link href={`/dashboard/${societyId}` as never} asChild>
-          <Pressable className="self-start">
-            <T variant="semibold" className="text-sm text-muted">← {society?.name ?? "Back"}</T>
-          </Pressable>
-        </Link>
+        <BackButton fallback={`/dashboard/${societyId}`} />
         <Heading className="mt-3">Members</Heading>
         {!society ? (
           <Muted className="mt-2">{managed.isPending ? "Loading…" : "You don't run this society."}</Muted>
@@ -75,7 +72,7 @@ export default function MembersScreen() {
             )}
             <Card className="mt-8 gap-3">
               <Label>Add members by email</Label>
-              <TextInput value={emails} onChangeText={setEmails} multiline autoCapitalize="none" autoCorrect={false} placeholder={`a.student@${domain}\nb.student@${domain}`} placeholderTextColor="rgba(94, 93, 120, 0.7)" className="min-h-28 w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 font-sans text-sm text-ink web:outline-none web:focus:border-brand" style={{ textAlignVertical: "top" }} testID="invite-emails" />
+              <Input value={emails} onChangeText={setEmails} multiline autoCapitalize="none" autoCorrect={false} placeholder={`a.student@${domain}\nb.student@${domain}`} className="min-h-28 text-sm" style={{ textAlignVertical: "top" }} testID="invite-emails" />
               <Muted className="text-xs">Paste your SU membership list: one email per line, or separated by commas. People already on Function are approved now; everyone else is approved automatically when they sign up.</Muted>
               {invite.error && <T variant="semibold" className="text-sm text-danger">{invite.error}</T>}
               {invite.added !== undefined && <T variant="semibold" className="text-sm text-ok" testID="invite-added">Added {invite.added} {invite.added === 1 ? "email" : "emails"}.</T>}

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { addSociety, allowEmail, approveClaim, DEFAULT_UNI, deleteReportedMessage, dismissPhotoReports, dismissReport, hideReportedEvent, loadAdmin, rejectClaim, removeAllowedEmail, removeReportedPhoto, SOCIETY_KINDS, UNIVERSITIES } from "@function/shared";
+import { BackButton } from "@/components/back-button";
 import { LinkButton } from "@/components/event/panels";
 import { Select } from "@/components/select";
 import { Button, Card, Heading, Input, Label, Muted, T } from "@/components/ui";
@@ -24,11 +25,7 @@ export default function AdminScreen() {
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10" keyboardShouldPersistTaps="handled">
-        <Link href={"/dashboard" as never} asChild>
-          <Pressable className="self-start">
-            <T variant="semibold" className="text-sm text-muted">← Society dashboard</T>
-          </Pressable>
-        </Link>
+        <BackButton fallback={"/dashboard"} />
         <Heading className="mt-3">Admin</Heading>
         {loading ? (
           <Muted className="mt-6">Loading…</Muted>

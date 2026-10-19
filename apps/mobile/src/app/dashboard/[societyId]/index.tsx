@@ -2,9 +2,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { Link, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, TextInput, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { categoryLabel, formatEventTime, hasEnded, initialOf, isLive, loadManagedSociety, nowMs, updateSociety, type MotiveEvent, type Society } from "@function/shared";
+import { BackButton } from "@/components/back-button";
 import { pickPhotos, type Picked } from "@/components/photos/pick-photos";
 import { Button, Card, Heading, Input, Label, Muted, T } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
@@ -26,12 +27,7 @@ export default function SocietyDashboardScreen() {
 
   return (
     <Screen>
-      <Link href={"/dashboard" as never} asChild>
-        <Pressable className="self-start">
-          <T variant="semibold" className="text-sm text-muted">← Your societies</T>
-        </Pressable>
-      </Link>
-      <Heading className="mt-3">{d.society.name}</Heading>
+      <Heading>{d.society.name}</Heading>
       <View className="mt-3 flex-row flex-wrap gap-2">
         <Link href={`/dashboard/${societyId}/members` as never} asChild>
           <Button variant="ghost" testID="members-link">Members{d.pendingCount ? ` · ${d.pendingCount} waiting` : ""}</Button>
@@ -148,7 +144,7 @@ function SocietyForm({ society }: { society: Society }) {
       </View>
       <View>
         <Label>About</Label>
-        <TextInput value={description} onChangeText={setDescription} multiline maxLength={2000} placeholder="One or two sentences about your society." placeholderTextColor="rgba(94, 93, 120, 0.7)" className="min-h-20 w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 font-sans text-base text-ink web:outline-none web:focus:border-brand" style={{ textAlignVertical: "top" }} testID="soc-description" />
+        <Input value={description} onChangeText={setDescription} multiline maxLength={2000} placeholder="One or two sentences about your society." className="min-h-20" style={{ textAlignVertical: "top" }} testID="soc-description" />
       </View>
       <View className="flex-row flex-wrap gap-5">
         <View className="min-w-[45%] flex-1">
@@ -170,7 +166,10 @@ function SocietyForm({ society }: { society: Society }) {
 function Screen({ children }: { children: React.ReactNode }) {
   return (
     <SafeAreaView className="flex-1 bg-bg">
-      <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10" keyboardShouldPersistTaps="handled">{children}</ScrollView>
+      <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10" keyboardShouldPersistTaps="handled">
+        <BackButton fallback="/dashboard" className="mb-4" />
+        {children}
+      </ScrollView>
     </SafeAreaView>
   );
 }

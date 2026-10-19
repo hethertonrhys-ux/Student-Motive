@@ -1,8 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "expo-router";
-import { Pressable, ScrollView } from "react-native";
+import { ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { createSocialEvent, uniById } from "@function/shared";
+import { BackButton } from "@/components/back-button";
 import { SocialEventForm } from "@/components/social/event-form";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
 import { useProfile } from "@/lib/profile";
@@ -18,11 +19,7 @@ export default function NewSocialEventScreen() {
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-8" keyboardShouldPersistTaps="handled">
-        <Link href="/(tabs)/social" asChild>
-          <Pressable className="self-start">
-            <T variant="semibold" className="text-sm text-muted">← Social</T>
-          </Pressable>
-        </Link>
+        <BackButton fallback={"/(tabs)/social"} />
         <Heading className="mt-3">Host an event</Heading>
         <Muted className="mb-6 mt-1">Five-a-side, a study session, pres, a gallery trip: anything you&apos;re up for.</Muted>
         {!session ? (
