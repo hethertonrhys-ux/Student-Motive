@@ -4,8 +4,8 @@ import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { logSignupEvent } from "@function/shared";
 import { Button, Card, Heading, Muted } from "@/components/ui";
-import { needsWelcome } from "@/lib/profile";
-import { loginPending, welcomed } from "@/lib/storage";
+import { needsAccountDetails } from "@/lib/profile";
+import { loginPending } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
 
 // The login link in the email lands here (on the web as a page, on phones
@@ -23,7 +23,7 @@ export default function AuthCallback() {
       const { data, error } = await supabase.auth.exchangeCodeForSession(code);
       if (error || !data.user) return setFailed(true);
       await loginPending.set(null);
-      if (await needsWelcome(data.user.id, data.user.created_at, await welcomed.get())) {
+      if (await needsAccountDetails(data.user.id)) {
         await logSignupEvent(supabase, "signup_finished");
         router.replace({ pathname: "/welcome", params: { next } });
       } else {

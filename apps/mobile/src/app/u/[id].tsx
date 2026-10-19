@@ -3,10 +3,12 @@ import { Link, useLocalSearchParams } from "expo-router";
 import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { formatEventTime, loadPublicProfile, promptById } from "@function/shared";
+import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { CompleteProfileCard } from "@/components/complete-profile-card";
 import { AvatarZoom, FriendButton, PhotoGallery, ProfileMenu, TwoTruthsGame } from "@/components/profile/people";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
+import { UniTag } from "@/components/uni-tag";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
@@ -48,8 +50,13 @@ export default function PersonScreen() {
     <Screen>
       <Card className="items-center gap-3" testID="person-card">
         <AvatarZoom name={person.name} url={person.avatar_url} size={88} />
-        <View className="items-center">
+        <View className="items-center gap-1">
           <T variant="display-bold" className="text-2xl">{person.name}</T>
+          {person.nickname && person.full_name && person.full_name !== person.name && <Muted testID="full-name">{person.full_name}</Muted>}
+          <View className="flex-row flex-wrap items-center justify-center gap-2">
+            <UniTag id={person.university} />
+            {person.graduation_year && <Muted className="text-sm">Class of {person.graduation_year}</Muted>}
+          </View>
           {person.course && <Muted>{person.course}</Muted>}
         </View>
         {p.prompts.length > 0 && (
@@ -161,7 +168,10 @@ export default function PersonScreen() {
 function Screen({ children }: { children: React.ReactNode }) {
   return (
     <SafeAreaView className="flex-1 bg-bg">
-      <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10">{children}</ScrollView>
+      <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10">
+        <BackButton fallback="/(tabs)/me" className="mb-4" />
+        {children}
+      </ScrollView>
     </SafeAreaView>
   );
 }

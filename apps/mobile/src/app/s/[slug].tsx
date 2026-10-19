@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Linking, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { categoryLabel, formatCost, formatEventTime, initialOf, isLive, leaveSociety, loadMembership, loadSociety, requestToJoin, uniShort, type Membership, type Society } from "@function/shared";
-import { CompleteProfileCard } from "@/components/complete-profile-card";
+import { BackButton } from "@/components/back-button";
 import { Button, Card, Heading, Input, Label, Muted, T } from "@/components/ui";
 import { useProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
@@ -183,7 +183,6 @@ function MembershipCard({ society, membership, loading }: { society: Society; me
             <T variant="semibold" className="text-sm text-muted">Leave</T>
           </Pressable>
         </View>
-        <CompleteProfileCard prompts={membership.prompts} />
       </Card>
     );
   }
@@ -192,7 +191,6 @@ function MembershipCard({ society, membership, loading }: { society: Society; me
       <Card className="mt-6" testID="request-sent">
         <T variant="semibold">Request sent</T>
         <Muted className="text-sm">The committee will approve you once they&apos;ve checked your membership.</Muted>
-        <CompleteProfileCard prompts={membership.prompts} />
       </Card>
     );
   }
@@ -223,7 +221,10 @@ function MembershipCard({ society, membership, loading }: { society: Society; me
 function Screen({ children }: { children: React.ReactNode }) {
   return (
     <SafeAreaView className="flex-1 bg-bg">
-      <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10" keyboardShouldPersistTaps="handled">{children}</ScrollView>
+      <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10" keyboardShouldPersistTaps="handled">
+        <BackButton fallback="/(tabs)/societies" className="mb-4" />
+        {children}
+      </ScrollView>
     </SafeAreaView>
   );
 }

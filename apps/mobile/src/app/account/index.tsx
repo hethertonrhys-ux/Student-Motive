@@ -3,7 +3,10 @@ import { Link, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Platform, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { deleteMyAccount, loadMyProfile, saveProfile, setShowSocieties } from "@function/shared";
+import { deleteMyAccount, loadMyProfile, setShowSocieties } from "@function/shared";
+import { BackButton } from "@/components/back-button";
+import { AccountDetailsForm } from "@/components/account/details-form";
+import { AccountTabs } from "@/app/account/security";
 import { Icon } from "@/components/icon";
 import { MyFive } from "@/components/profile/my-five";
 import { PhotoPicker } from "@/components/profile/photo-picker";
@@ -39,8 +42,9 @@ export default function AccountScreen() {
   const data = me.data;
   return (
     <Screen>
-      <Heading>Your profile</Heading>
-      <Muted className="mt-1">Other students see this when they find you or you join events. Your email is never shown.</Muted>
+      <Heading>Account settings</Heading>
+      <AccountTabs current="profile" />
+      <Muted className="mt-4">Other students see this when they find you or you join events. Your email is never shown.</Muted>
       <Link href={`/u/${myId}` as never} asChild>
         <Button className="mt-4 gap-2 py-3" testID="preview-profile">
           <Icon name="eye-outline" size={20} color="#fff" />
@@ -60,47 +64,14 @@ export default function AccountScreen() {
           <Card className="mt-6">
             <ShowSocietiesToggle myId={myId!} initial={data.showSocieties} />
           </Card>
-          <ProfileForm myId={myId!} name={data.display_name} course={data.course} onSaved={refresh} />
+          <Card className="mt-6">
+            <AccountDetailsForm myId={myId!} email={session.user.email ?? ""} initial={{ fullName: data.full_name, nickname: data.nickname, graduationYear: data.graduation_year, university: data.university, course: data.course }} withCourse submitLabel="Save" onSaved={refresh} />
+          </Card>
           <PromptsEditor initial={data.prompts} uni={profile?.university ?? null} twoTruths={data.twoTruths} onChanged={refresh} />
           <DeleteAccount />
         </>
       )}
     </Screen>
-  );
-}
-
-function ProfileForm({ myId, name: initialName, course: initialCourse, onSaved }: { myId: string; name: string; course: string; onSaved: () => Promise<unknown> }) {
-  const [name, setName] = useState(initialName);
-  const [course, setCourse] = useState(initialCourse);
-  const [state, setState] = useState<{ saved?: boolean; error?: string }>({});
-  const [pending, setPending] = useState(false);
-  useEffect(() => {
-    setName(initialName);
-    setCourse(initialCourse);
-  }, [initialName, initialCourse]);
-  async function save() {
-    setPending(true);
-    const r = await saveProfile(supabase, myId, { name, course });
-    setPending(false);
-    setState(r.error ? { error: r.error } : { saved: true });
-    if (!r.error) await onSaved();
-  }
-  return (
-    <Card className="mt-6 gap-5">
-      <View>
-        <Label>Name</Label>
-        <Input value={name} onChangeText={setName} maxLength={60} placeholder="First and last name" testID="name" />
-      </View>
-      <View>
-        <Label>Course and year <Muted className="text-sm">(optional)</Muted></Label>
-        <Input value={course} onChangeText={setCourse} maxLength={60} placeholder="e.g. Economics, 2nd year" testID="course" />
-      </View>
-      <View className="flex-row items-center gap-3">
-        <Button onPress={() => void save()} disabled={pending} testID="save-profile">{pending ? "Saving…" : "Save"}</Button>
-        {state.saved && !pending && <T variant="semibold" className="text-sm text-ok">Saved ✓</T>}
-        {state.error && <T variant="semibold" className="text-sm text-danger">{state.error}</T>}
-      </View>
-    </Card>
   );
 }
 
@@ -171,7 +142,10 @@ function DeleteAccount() {
 function Screen({ children }: { children: React.ReactNode }) {
   return (
     <SafeAreaView className="flex-1 bg-bg">
-      <ScrollView contentContainerClassName="mx-auto w-full max-w-xl px-4 py-10" keyboardShouldPersistTaps="handled">{children}</ScrollView>
+      <ScrollView contentContainerClassName="mx-auto w-full max-w-xl px-4 py-10" keyboardShouldPersistTaps="handled">
+        <BackButton fallback="/(tabs)/me" className="mb-4" />
+        {children}
+      </ScrollView>
     </SafeAreaView>
   );
 }

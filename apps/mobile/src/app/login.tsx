@@ -4,9 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DEFAULT_UNI, logSignupEvent, uniById, uniFromEmail } from "@function/shared";
+import { BackButton } from "@/components/back-button";
 import { Button, Card, Heading, Input, Label, Muted, T } from "@/components/ui";
-import { needsWelcome } from "@/lib/profile";
-import { arrivalUni, loginPending, welcomed } from "@/lib/storage";
+import { needsSecondFactor } from "@/lib/mfa";
+import { needsAccountDetails } from "@/lib/profile";
+import { arrivalUni, loginPending } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
@@ -108,7 +110,9 @@ export default function LoginScreen() {
   // Logged in: a brand-new account gets one optional "pick a prompt" screen, then on to the app.
   async function arrive(user: { id: string; created_at: string }) {
     await loginPending.set(null);
-    if (await needsWelcome(user.id, user.created_at, await welcomed.get())) {
+    // Accounts with 2FA on give their code before anything else.
+    if (await needsSecondFactor()) return router.replace({ pathname: "/mfa", params: { next } } as never);
+    if (await needsAccountDetails(user.id)) {
       await logSignupEvent(supabase, "signup_finished");
       router.replace({ pathname: "/welcome", params: { next } });
     } else {
@@ -119,7 +123,8 @@ export default function LoginScreen() {
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1">
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="mx-auto w-full max-w-md px-4 py-16">
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="mx-auto w-full max-w-md px-4 py-10">
+          <BackButton fallback="/" className="mb-6" />
           <Heading>Log in to Function</Heading>
           <Muted className="mb-8 mt-2">
             Use your London university email, or the email you were invited with. We&apos;ll email you a code.
