@@ -34,3 +34,14 @@ scan the QR code that `npm start` shows.
 `eas.json` has three profiles: `development`, `preview` (TestFlight /
 internal testing) and `production`. Builds need an Expo account
 (`npx eas login`) and, for iOS, the Apple Developer Program.
+`docs/EXPO_LAUNCH.md` at the repo root is the step-by-step guide: staging
+on Vercel, the domain switch, the first phone builds, and the App Store and
+Google Play listings.
+
+## The web build
+
+`npx expo export --platform web` writes a static site to `dist/`. `vercel.json`
+holds the Vercel settings for it: the build command, the rewrites for pages
+with ids in the address (`/e/<id>` → `/e/[id].html`), the crawler rewrite to
+`api/preview.js` (link previews for shared links), and cache headers.
+`public/` holds the web app manifest, icons and the install poster.

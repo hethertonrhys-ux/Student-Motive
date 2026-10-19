@@ -471,6 +471,16 @@ Phases 1–3 are what you asked to see first. Phases 4–8 can be reordered;
   of Me → Edit profile plus one new database function, with the SQL in
   `supabase/migrations/20261107000000_delete_my_account.sql`. Run the SQL,
   then merge that branch into `expo-app`.
+- **Phase 11: prepared; the rest is yours.** Everything the code can do
+  is done: `apps/mobile/vercel.json` (build, rewrites, link previews,
+  cache headers), the app config for the stores (bundle ids, no non-exempt
+  encryption, links that open the app), a password login path for the
+  stores' review account, and `docs/EXPO_LAUNCH.md`, a step-by-step guide
+  for the staging deploy, the domain switch, the first phone builds, and
+  the App Store and Google Play listings (with the listing text and the
+  privacy answers written out). The staging week, the domain move and the
+  store submissions need your Vercel, Supabase, Apple, Google and Expo
+  accounts, so they're the next thing to do, in the guide's order.
 
 ### Things to decide before phase 0
 

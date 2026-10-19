@@ -20,7 +20,8 @@ export default function LoginScreen() {
   const { session } = useSession();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
-  const [step, setStep] = useState<"email" | "code">("email");
+  const [step, setStep] = useState<"email" | "code" | "password">("email");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [example, setExample] = useState(`you@${uniById(DEFAULT_UNI)!.domains[0]}`);
@@ -84,9 +85,30 @@ export default function LoginScreen() {
       setBusy(false);
       return setError("That code didn't work. Check it, or send a new one.");
     }
+    await arrive(data.user);
+  }
+
+  // Accounts with a password (only the app-review account the Function
+  // team sets up in Supabase; students always use a code).
+  async function logInWithPassword() {
+    const address = email.trim().toLowerCase();
+    if (!address || !password) return setError("Enter your email and password.");
+    setBusy(true);
+    setError(null);
+    verifying.current = true;
+    const { data, error } = await supabase.auth.signInWithPassword({ email: address, password });
+    if (error || !data.user) {
+      verifying.current = false;
+      setBusy(false);
+      return setError("That email and password didn't match.");
+    }
+    await arrive(data.user);
+  }
+
+  // Logged in: a brand-new account gets one optional "pick a prompt" screen, then on to the app.
+  async function arrive(user: { id: string; created_at: string }) {
     await loginPending.set(null);
-    // A brand-new account: one optional "pick a prompt" screen, then on to the app.
-    if (await needsWelcome(data.user.id, data.user.created_at, await welcomed.get())) {
+    if (await needsWelcome(user.id, user.created_at, await welcomed.get())) {
       await logSignupEvent(supabase, "signup_finished");
       router.replace({ pathname: "/welcome", params: { next } });
     } else {
@@ -121,6 +143,25 @@ export default function LoginScreen() {
                 </View>
                 {error && <T variant="semibold" className="text-sm text-danger">{error}</T>}
                 <Button onPress={sendCode} disabled={busy} testID="send-code">{busy ? "Sending…" : "Email me a login code"}</Button>
+                <Pressable onPress={() => { setError(null); setStep("password"); }} className="self-start" testID="use-password">
+                  <Muted className="text-xs">Have a password? (app review accounts only)</Muted>
+                </Pressable>
+              </>
+            ) : step === "password" ? (
+              <>
+                <View>
+                  <Label>Email</Label>
+                  <Input value={email} onChangeText={setEmail} placeholder={example} autoCapitalize="none" autoComplete="email" keyboardType="email-address" textContentType="emailAddress" testID="email" />
+                </View>
+                <View>
+                  <Label>Password</Label>
+                  <Input value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry autoCapitalize="none" autoComplete="password" textContentType="password" onSubmitEditing={logInWithPassword} testID="password" />
+                </View>
+                {error && <T variant="semibold" className="text-sm text-danger">{error}</T>}
+                <Button onPress={logInWithPassword} disabled={busy} testID="log-in-password">{busy ? "Checking…" : "Log in"}</Button>
+                <Pressable onPress={() => { setError(null); setStep("email"); }} className="self-start">
+                  <T variant="semibold" className="text-sm text-brand">Use a login code instead</T>
+                </Pressable>
               </>
             ) : (
               <>
