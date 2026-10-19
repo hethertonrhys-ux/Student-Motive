@@ -294,3 +294,12 @@ export async function removeProfilePhoto(supabase: SupabaseClient, myId: string)
   await removeOldPhotos(supabase, myId, []);
   return {};
 }
+
+// Deletes your account for good: the login, the profile and everything
+// linked to it. Messages you sent stay, shown as from a "Former member".
+export async function deleteMyAccount(supabase: SupabaseClient): Promise<Result> {
+  const { error } = await supabase.rpc("delete_my_account");
+  if (error) return { error: "We couldn't delete your account. Please try again or email us." };
+  await supabase.auth.signOut();
+  return {};
+}

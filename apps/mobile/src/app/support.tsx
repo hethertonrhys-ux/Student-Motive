@@ -19,7 +19,7 @@ export default function SupportPage() {
       <P>Log in, choose &ldquo;Request to manage a society&rdquo;, and we&apos;ll approve you once we&apos;ve checked you&apos;re on the committee.</P>
 
       <H2>How do I delete my account?</H2>
-      <P>In the app: Profile → Delete my account. Or email us and we&apos;ll do it for you.</P>
+      <P>In the app: Me → Edit profile → Delete my account, at the bottom. Or email us and we&apos;ll do it for you.</P>
     </ProsePage>
   );
 }

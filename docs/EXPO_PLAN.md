@@ -468,9 +468,9 @@ Phases 1–3 are what you asked to see first. Phases 4–8 can be reordered;
   carry the website's "Draft" banner and must be reviewed, and "Delete my
   account" (which Apple requires for apps with sign-up; the website never
   had one) is ready on the `delete-account` branch: a button at the bottom
-  of Me → Edit profile plus one new database function, with the SQL in
-  `supabase/migrations/20261107000000_delete_my_account.sql`. Run the SQL,
-  then merge that branch into `expo-app`.
+  of Me → Edit profile plus one new database function
+  (`supabase/migrations/20261107000000_delete_my_account.sql`). The SQL has
+  been run in Supabase and the branch is merged into `expo-app`.
 - **Phase 11: prepared; the rest is yours.** Everything the code can do
   is done: `apps/mobile/vercel.json` (build, rewrites, link previews,
   cache headers), the app config for the stores (bundle ids, no non-exempt
