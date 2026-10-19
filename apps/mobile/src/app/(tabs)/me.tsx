@@ -1,16 +1,17 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "expo-router";
-import { ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { uniShort } from "@function/shared";
 import { Avatar } from "@/components/avatar";
+import { Icon } from "@/components/icon";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
 import { useProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
-// Your own corner: who you're logged in as, and the way out. The full
-// profile (photos, prompts, Two truths) arrives in phase 7.
+// Your own corner: who you're logged in as, your profile, friends,
+// notifications, and the way out.
 export default function MeScreen() {
   const router = useRouter();
   const { session } = useSession();
@@ -22,6 +23,13 @@ export default function MeScreen() {
     queryClient.clear();
     router.replace("/");
   }
+
+  const rows: { href: string; icon: React.ComponentProps<typeof Icon>["name"]; title: string; detail: string; testID: string }[] = [
+    { href: `/u/${session?.user.id}`, icon: "person-circle-outline", title: "My profile", detail: "How other students see you", testID: "my-profile" },
+    { href: "/account", icon: "create-outline", title: "Edit profile", detail: "Photos, prompts, name and course", testID: "edit-profile" },
+    { href: "/friends", icon: "people-outline", title: "Friends", detail: "Requests, people you may know", testID: "friends" },
+    { href: "/notifications", icon: "notifications-outline", title: "Notifications", detail: "What's happened lately", testID: "notifications" },
+  ];
 
   return (
     <SafeAreaView className="flex-1 bg-bg">
@@ -43,9 +51,20 @@ export default function MeScreen() {
                 <Muted>{uniShort(profile.university)} · {profile.email}</Muted>
               </View>
             </Card>
-            <Card className="mt-4">
-              <Muted>Photos, prompts and Two truths and a lie arrive in phase 7.</Muted>
-            </Card>
+            <View className="mt-4 overflow-hidden rounded-2xl border border-line bg-surface">
+              {rows.map((row, i) => (
+                <Link key={row.href} href={row.href as never} asChild>
+                  <Pressable className={`flex-row items-center gap-3 px-4 py-3.5 ${i > 0 ? "border-t border-line" : ""}`} testID={row.testID}>
+                    <Icon name={row.icon} size={24} color="#DA291C" />
+                    <View className="flex-1">
+                      <T variant="semibold">{row.title}</T>
+                      <Muted className="text-xs">{row.detail}</Muted>
+                    </View>
+                    <Icon name="chevron-forward" size={18} color="#5e5d78" />
+                  </Pressable>
+                </Link>
+              ))}
+            </View>
             <Button variant="ghost" className="mt-6" onPress={logOut} testID="log-out">Log out</Button>
           </>
         ) : (

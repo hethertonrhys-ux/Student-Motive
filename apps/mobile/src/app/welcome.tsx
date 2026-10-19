@@ -62,7 +62,7 @@ export default function WelcomeScreen() {
   async function savePrompt(promptId: string, answer: string, previous: string | null) {
     const clean = answer.trim().replace(/\s+/g, " ").slice(0, MAX_ANSWER);
     if (!clean) return null;
-    const { data } = await supabase.from("profile_prompts").select("prompt_id, answer").order("position");
+    const { data } = await supabase.from("profile_prompts").select("prompt_id, answer").eq("user_id", profile!.id).order("position");
     const others = ((data ?? []) as { prompt_id: string; answer: string }[]).filter((a) => a.prompt_id !== promptId && a.prompt_id !== previous);
     const { error } = await supabase.rpc("save_profile_prompts", { answers: [{ prompt_id: promptId, answer: clean }, ...others].slice(0, MAX_PROMPTS) });
     return error ? "Couldn't save. Your answer is kept on this screen; try again." : null;

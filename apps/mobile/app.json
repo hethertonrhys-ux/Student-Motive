@@ -62,6 +62,12 @@
         {
           "locationWhenInUsePermission": "Function uses your location to show what's on near you and walking directions. It stays on your phone."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Function uses your photos for your profile picture and your 5 photos."
+        }
       ]
     ],
     "experiments": {

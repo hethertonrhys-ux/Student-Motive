@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
-import { exampleFor, promptById, TWO_TRUTHS_HELP, TWO_TRUTHS_ID, TWO_TRUTHS_MAX, type TwoTruthsOwn, type Uni } from "@function/shared";
+import { exampleFor, promptById, saveTwoTruths, TWO_TRUTHS_HELP, TWO_TRUTHS_ID, TWO_TRUTHS_MAX, type TwoTruthsOwn, type Uni } from "@function/shared";
 import { Button, Input, Label, Muted, T } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
+import { useSession } from "@/providers/session";
 
 // Write three statements and mark which one is the lie. Used on the
 // welcome step (saves by itself once all three are filled in and a lie is
@@ -25,6 +26,8 @@ export function TwoTruthsForm({
   // Tells the welcome step whether it's complete (so Continue can turn on).
   onReady?: (ready: boolean, save: () => Promise<boolean>) => void;
 }) {
+  const { session } = useSession();
+  const myId = session?.user.id ?? null;
   const prompt = promptById(TWO_TRUTHS_ID)!;
   const examples = exampleFor(prompt, uni).split(" · ");
   const [s, setS] = useState<[string, string, string]>(initial ? [initial.s1, initial.s2, initial.s3] : ["", "", ""]);
@@ -36,18 +39,13 @@ export function TwoTruthsForm({
   const latest = useRef({ s, lie, ready });
   latest.current = { s, lie, ready };
 
+  // Saves the statements and puts the game on your profile (first, on the welcome step).
   async function save(): Promise<boolean> {
     const { s, lie, ready } = latest.current;
-    if (!ready) return false;
-    const { error } = await supabase.rpc("save_two_truths", { one_text: s[0].trim(), two_text: s[1].trim(), three_text: s[2].trim(), lie_is: lie });
-    if (!error && placeFirst) {
-      // Pin the game to the top of the prompts list, keeping any other answers.
-      const { data } = await supabase.from("profile_prompts").select("prompt_id, answer").order("position");
-      const others = ((data ?? []) as { prompt_id: string; answer: string }[]).filter((a) => a.prompt_id !== TWO_TRUTHS_ID);
-      await supabase.rpc("save_profile_prompts", { answers: [{ prompt_id: TWO_TRUTHS_ID, answer: "Two truths and a lie" }, ...others].slice(0, 3) });
-    }
-    setStatus(error ? { error: "Couldn't save. Please try again." } : { saved: true });
-    return !error;
+    if (!ready || !myId || lie === null) return false;
+    const result = await saveTwoTruths(supabase, myId, [s[0], s[1], s[2]], lie, placeFirst);
+    setStatus(result.error ? { error: result.error } : { saved: true });
+    return !result.error;
   }
 
   useEffect(() => {
@@ -92,6 +90,7 @@ export function TwoTruthsForm({
           {onCancel && <Button variant="ghost" onPress={onCancel}>Cancel</Button>}
           <Button
             disabled={!ready || pending}
+            testID="save-two-truths"
             onPress={async () => {
               setPending(true);
               if (await save()) onSaved?.();

@@ -420,6 +420,14 @@ Phases 1–3 are what you asked to see first. Phases 4–8 can be reordered;
   cost, open/private, friends only; the event page with who's going,
   I'm in / request / leave, the host's requests and guest list, edit,
   cancel, report, Message host and the group chat link (chats in phase 8).
+- **Phase 7: done.** Profiles: someone's page (picture zoom, prompts,
+  Two truths and a lie to play, societies, their 5 photos with report,
+  what they're hosting, friends in common, add/accept/remove friend,
+  block and report) and your editor (profile picture with a cropper,
+  My 5 with add, reorder, remove, re-crop on the web, the Archive with
+  restore and delete, show-societies, name and course, prompts and Two
+  truths). On the phone the photo library's own cropper is used; the web
+  has the site's drag-and-zoom cropper.
 
 ### Things to decide before phase 0
 
