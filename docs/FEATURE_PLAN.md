@@ -244,6 +244,15 @@ A second, independent read of the code added these, all now part of the plan:
   events drop off the list seven days after the event ends, without deleting
   anything.
 
+## Decisions (approved 19 Oct)
+
+- Flags are allowed everywhere, including the Social tab.
+- The admin bulk-delete never touches LSE Poker Society events. Instead, a
+  society's own managers get a "Delete past events" control on their society
+  dashboard (committee only, confirmation first, images removed too), which
+  covers the Poker Society's committee deleting their own old games.
+- All other defaults in the questions above are accepted.
+
 ## Order of work
 
 1 Recommended → 2 Filters → 3 Flags → 4 Admin → 5 Time checks → 6 Poker seats
