@@ -1,9 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Alert, Platform, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { loadMyProfile, saveProfile, setShowSocieties } from "@function/shared";
+import { deleteMyAccount, loadMyProfile, saveProfile, setShowSocieties } from "@function/shared";
 import { Icon } from "@/components/icon";
 import { MyFive } from "@/components/profile/my-five";
 import { PhotoPicker } from "@/components/profile/photo-picker";
@@ -62,6 +62,7 @@ export default function AccountScreen() {
           </Card>
           <ProfileForm myId={myId!} name={data.display_name} course={data.course} onSaved={refresh} />
           <PromptsEditor initial={data.prompts} uni={profile?.university ?? null} twoTruths={data.twoTruths} onChanged={refresh} />
+          <DeleteAccount />
         </>
       )}
     </Screen>
@@ -128,6 +129,42 @@ function ShowSocietiesToggle({ myId, initial }: { myId: string; initial: boolean
       </View>
       <View className={`mt-1 h-5 w-5 items-center justify-center rounded-md border ${on ? "border-brand bg-brand" : "border-line bg-surface"}`}>{on && <Icon name="checkmark" size={14} color="#fff" />}</View>
     </Pressable>
+  );
+}
+
+// Deleting your account for good, with a clear "are you sure?" first
+// (the App Store requires every app with sign-up to offer this).
+function DeleteAccount() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const warning = "Delete your account? This removes your profile, photos, friends, societies, events you host and your going history. It can't be undone.";
+  async function remove() {
+    setPending(true);
+    setError(null);
+    const r = await deleteMyAccount(supabase);
+    setPending(false);
+    if (r.error) return setError(r.error);
+    queryClient.clear();
+    router.replace("/");
+  }
+  function confirm() {
+    if (Platform.OS === "web") {
+      if (window.confirm(warning)) void remove();
+      return;
+    }
+    Alert.alert("Delete your account?", warning, [{ text: "Cancel", style: "cancel" }, { text: "Delete", style: "destructive", onPress: () => void remove() }]);
+  }
+  return (
+    <Card className="mt-6 gap-2 border-danger/40">
+      <T variant="semibold">Delete my account</T>
+      <Muted className="text-sm">Removes your profile and everything linked to it. Messages you sent stay, shown as from a &ldquo;Former member&rdquo;. This can&apos;t be undone.</Muted>
+      <Pressable onPress={confirm} disabled={pending} className={`mt-1 self-start rounded-xl border border-danger px-4 py-2 ${pending ? "opacity-50" : ""}`} testID="delete-account">
+        <T variant="semibold" className="text-danger">{pending ? "Deleting…" : "Delete my account"}</T>
+      </Pressable>
+      {error && <T variant="semibold" className="text-sm text-danger">{error}</T>}
+    </Card>
   );
 }
 
