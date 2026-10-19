@@ -1,7 +1,7 @@
 import { Link } from "expo-router";
 import { Linking, Platform, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ALL_UNIS_TEXT, type University } from "@function/shared";
+import type { University } from "@function/shared";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
 
 const perks = [
@@ -26,14 +26,21 @@ export function Landing({ uni }: { uni?: University }) {
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <ScrollView contentContainerClassName="mx-auto w-full max-w-5xl px-4">
-        <View className="py-16">
+        {/* The top bar: the name, and log in / sign up right where you land. */}
+        <View className="flex-row items-center justify-between pt-4">
+          <T variant="display-bold" className="text-2xl text-brand">Function</T>
+          <Link href="/login" asChild>
+            <Button className="px-4 py-2" testID="header-login">Log in / Sign up</Button>
+          </Link>
+        </View>
+        <View className="py-12">
           <View className="mb-4 flex-row items-center gap-2 self-start rounded-full bg-brand-soft px-3 py-1">
             <View className="size-2 rounded-full bg-live" />
             <T variant="semibold" className="text-sm text-brand" testID="landing-badge">
               {uni ? (
                 <>Function at <T variant="semibold" className="text-sm" style={{ color: uni.accent }}>{uni.short}</T></>
               ) : (
-                `Now at ${ALL_UNIS_TEXT}`
+                "For every London university"
               )}
             </T>
           </View>
@@ -41,7 +48,7 @@ export function Landing({ uni }: { uni?: University }) {
             {uni ? `${possessive(uni.short)} student social life, all in one place.` : "London's student social life, all in one place."}
           </Heading>
           <T variant="semibold" className="mt-5 max-w-2xl text-lg">
-            {uni ? `Societies, events and socials at ${uni.short}, plus open socials across London.` : `For students at ${ALL_UNIS_TEXT}.`}
+            {uni ? `Societies, events and socials at ${uni.short}, plus open socials across London.` : "For students at every London university."}
           </T>
           <Muted className="mt-2 max-w-2xl text-lg">
             Function puts every society and every event in one place. Students open the map and see what&apos;s happening
@@ -49,11 +56,16 @@ export function Landing({ uni }: { uni?: University }) {
           </Muted>
           <View className="mt-8 flex-row flex-wrap gap-3">
             <Link href="/login" asChild>
-              <Button className="px-5 py-3" testID="landing-login">{uni ? `Join with your ${uni.short} email` : "Get your society on Function"}</Button>
+              <Button className="px-5 py-3" testID="landing-login">{uni ? `Join with your ${uni.short} email` : "Log in or sign up"}</Button>
             </Link>
             <Link href="/(tabs)/map" asChild>
               <Button variant="ghost" className="px-5 py-3">See the live map</Button>
             </Link>
+            {!uni && (
+              <Link href="/login" asChild>
+                <Button variant="ghost" className="px-5 py-3">Get your society on Function</Button>
+              </Link>
+            )}
           </View>
         </View>
 

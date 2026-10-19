@@ -276,8 +276,8 @@ London's student social life, in one place.
 **Description:**
 
 Function puts every society, every event and every social at London's
-universities on one live map. Open it and see what's on tonight at LSE,
-UCL, King's and Imperial.
+universities on one live map. Open it and see what's on tonight, whichever
+London university you're at.
 
 - The live map: what's happening right now and later, with walking
   directions.

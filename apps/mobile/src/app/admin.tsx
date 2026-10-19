@@ -98,7 +98,7 @@ export default function AdminScreen() {
 
             <View className="mt-10">
               <T variant="display" className="text-xl">Who can join</T>
-              <Muted className="mt-1 text-sm">Anyone with an LSE, UCL, King&apos;s or Imperial email can log in. Add other emails here, one person at a time, or a whole domain (e.g. @qmul.ac.uk).</Muted>
+              <Muted className="mt-1 text-sm">Anyone with a London university email can log in. Add other emails here, one person at a time, or a whole domain (e.g. @qmul.ac.uk).</Muted>
               <Card className="mt-3"><AllowEmailForm onDone={refresh} /></Card>
               {d.allowed.length > 0 && (
                 <View className="mt-3 overflow-hidden rounded-2xl border border-line bg-surface">

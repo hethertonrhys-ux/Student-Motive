@@ -20,7 +20,7 @@ const VENUE_GROUPS: { kind: Venue["kind"]; label: string }[] = [
 const AUDIENCE_HELP: Record<Audience, (uni: string) => string> = {
   members: () => "Only your approved members can see and join it.",
   uni: (uni) => `Every ${uni} student can see it.`,
-  london: () => "Students from LSE, UCL, King's and Imperial can see and join it.",
+  london: () => "Students from any London university can see and join it.",
 };
 
 type Props = {

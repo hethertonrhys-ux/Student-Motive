@@ -1,6 +1,6 @@
 import { MailLink } from "@/components/landing";
 import { B, H2, Li, P, ProsePage } from "@/components/prose-page";
-import { CONTACT_EMAIL } from "@/lib/site";
+import { CONTACT_EMAIL, SUPPORT_EMAIL } from "@/lib/site";
 
 export const generateMetadata = () => ({ title: "Privacy policy · Function" });
 
@@ -43,7 +43,7 @@ export default function PrivacyPage() {
       <H2>Your rights</H2>
       <P>
         You can ask to see, correct, export or delete your data, or object to how we use it. Email{" "}
-        <MailLink email={CONTACT_EMAIL} />. You can also complain to the Information Commissioner&apos;s Office (ico.org.uk).
+        <MailLink email={SUPPORT_EMAIL} />. You can also complain to the Information Commissioner&apos;s Office (ico.org.uk).
       </P>
     </ProsePage>
   );

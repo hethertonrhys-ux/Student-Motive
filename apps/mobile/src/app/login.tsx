@@ -65,7 +65,7 @@ export default function LoginScreen() {
     if (error) {
       if (error.status === 429) return setError("Too many attempts. Wait a few minutes and try again.");
       // Other emails only work if the Function team has allowed them (Admin page).
-      if (!uniFromEmail(address)) return setError("Function is for students at LSE, UCL, King's and Imperial. Use your uni email, or the email you were invited with.");
+      if (!uniFromEmail(address)) return setError("Function is for London university students. Use your uni email, or the email you were invited with.");
       return setError("We couldn't send the email. Please try again.");
     }
     setEmail(address);
@@ -122,7 +122,7 @@ export default function LoginScreen() {
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="mx-auto w-full max-w-md px-4 py-16">
           <Heading>Log in to Function</Heading>
           <Muted className="mb-8 mt-2">
-            Use your uni email (LSE, UCL, King&apos;s or Imperial), or the email you were invited with. We&apos;ll email you a code.
+            Use your London university email, or the email you were invited with. We&apos;ll email you a code.
           </Muted>
           <Card className="gap-4">
             {step === "email" ? (
