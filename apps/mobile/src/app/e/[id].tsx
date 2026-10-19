@@ -21,8 +21,10 @@ import {
   type Participation,
   type PersonCard,
 } from "@function/shared";
+import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { CompleteProfileCard } from "@/components/complete-profile-card";
+import { PushPromptCard } from "@/components/push-prompt";
 import { BankLedger, MyBankLine } from "@/components/event/bank-ledger";
 import { MyResults } from "@/components/event/my-results";
 import { EntryPanel, GoingPanel, HostedJoinCard, NameForm, PeopleSection, PersonRow, WhosComing, type HostedStatus, type Tap } from "@/components/event/panels";
@@ -260,6 +262,7 @@ function SocietyPart({ event, p, userId, profile, finished, tap, busy, refresh, 
       )}
 
       {/* Just joined: a gentle nudge to finish their profile (once per run). */}
+      {!finished && me?.status === "going" && userId && <PushPromptCard userId={userId} />}
       {!finished && me?.status === "going" && <CompleteProfileCard prompts={p.prompts} />}
 
       {/* Tables where this player is the bank: their bank screen. */}
@@ -348,7 +351,10 @@ function HostedPart({ event, info, userId, displayName, finished, tap, busy, onN
 function Screen({ children }: { children: React.ReactNode }) {
   return (
     <SafeAreaView className="flex-1 bg-bg">
-      <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10" keyboardShouldPersistTaps="handled">{children}</ScrollView>
+      <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10" keyboardShouldPersistTaps="handled">
+        <BackButton fallback="/(tabs)/map" className="mb-4" />
+        {children}
+      </ScrollView>
     </SafeAreaView>
   );
 }

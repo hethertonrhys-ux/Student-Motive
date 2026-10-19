@@ -13,7 +13,10 @@
       "supportsTablet": false,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Function shows what's on near you on the live map.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       },
       "associatedDomains": [
         "applinks:studentfunction.com"
@@ -108,6 +111,14 @@
         "expo-image-picker",
         {
           "photosPermission": "Function uses your photos for your profile picture and your 5 photos."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/brand/monochrome-icon.png",
+          "color": "#DA291C",
+          "defaultChannel": "default"
         }
       ]
     ],

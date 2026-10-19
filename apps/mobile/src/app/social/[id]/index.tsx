@@ -4,8 +4,10 @@ import { useState } from "react";
 import { Linking, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { categoryInfo, formatCost, formatWhen, loadSocialEvent, nowMs, openHostChat, removeSocialGuest, reportSocialEvent, respondToRequest, spacesLeft, timeFormat } from "@function/shared";
+import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { CompleteProfileCard } from "@/components/complete-profile-card";
+import { PushPromptCard } from "@/components/push-prompt";
 import { LinkButton, PeopleSection, PersonRow, type Tap } from "@/components/event/panels";
 import { ShareButton } from "@/components/share-button";
 import { Attendees } from "@/components/social/attendees";
@@ -69,14 +71,10 @@ export default function SocialEventScreen() {
 
   return (
     <Screen>
-      <Link href="/(tabs)/social" asChild>
-        <Pressable className="self-start">
-          <T variant="semibold" className="text-sm text-muted">← Social</T>
-        </Pressable>
-      </Link>
+      <BackButton fallback={"/(tabs)/social"} />
       <View className="mt-4 flex-row flex-wrap items-center gap-2">
         <Pill>{cat.label}</Pill>
-        <Pill box={event.is_private ? "bg-ink" : "bg-brand-soft"} text={event.is_private ? "text-[#ffffff]" : "text-brand"}>{event.is_private ? "Private" : "Open"}</Pill>
+        <Pill box={event.is_private ? "bg-ink" : "bg-brand-soft"} text={event.is_private ? "text-bg" : "text-brand"}>{event.is_private ? "Private" : "Open"}</Pill>
         {event.friends_only && <Pill>Friends only</Pill>}
         {event.is_cancelled && <Pill box="bg-danger/10" text="text-danger">Cancelled</Pill>}
       </View>
@@ -128,6 +126,7 @@ export default function SocialEventScreen() {
       <View className="mt-5 gap-3">
         <JoinPanel eventId={event.id} isPrivate={event.is_private} cancelled={event.is_cancelled} loggedIn={!!myId} isHost={isHost} myId={myId} mine={mine} left={left} finished={finished} hostName={host?.name ?? "The host"} suggestPrompt={myPrompts === 0} tap={tap} busy={busy} />
         {error && <T variant="semibold" className="text-sm text-danger" testID="action-error">{error}</T>}
+        {myId && !isHost && (mine === "going" || mine === "pending") && <PushPromptCard userId={myId} />}
         {myId && !isHost && (mine === "going" || mine === "pending") && <CompleteProfileCard prompts={myPrompts ?? 0} />}
         {chatId && (isHost || mine === "going") && (
           <Link href={`/chats/${chatId}` as never} asChild>
