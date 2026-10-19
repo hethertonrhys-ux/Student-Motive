@@ -34,6 +34,7 @@ export default function MeScreen() {
     { href: "/account/notifications", icon: "notifications-circle-outline", title: "Notification settings", detail: "Choose what Function tells you about", testID: "notification-settings" },
     { href: "/friends", icon: "people-outline", title: "Friends", detail: "Requests, people you may know", testID: "friends" },
     { href: "/notifications", icon: "notifications-outline", title: "Notifications", detail: "What's happened lately", testID: "notifications" },
+    ...(profile?.is_admin ? [{ href: "/admin", icon: "shield-checkmark-outline" as const, title: "Admin panel", detail: "Function team: users, events, reports", testID: "admin-panel" }] : []),
   ];
 
   return (

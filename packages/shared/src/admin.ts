@@ -123,3 +123,85 @@ export async function allowEmail(supabase: SupabaseClient, input: { email: strin
   return error ? { error: "That didn't save. Try again." } : { added: email };
 }
 export const removeAllowedEmail = async (supabase: SupabaseClient, email: string): Promise<Result> => ok(await supabase.from("allowed_emails").delete().eq("email", email));
+
+// ---- Admin panel: user lookup, every event, clearing out old events ----
+// Each of these calls a database function that refuses anyone who isn't a
+// Function admin, so the checks don't rely on the screen being hidden.
+
+export type AdminUserRow = { id: string; email: string; name: string; full_name: string | null; university: string | null; graduation_year: number | null; country: string | null; created_at: string; is_admin: boolean };
+
+export async function adminSearchUsers(supabase: SupabaseClient, query: string): Promise<AdminUserRow[]> {
+  const { data, error } = await supabase.rpc("admin_search_users", { q: query.trim().slice(0, 80), max: 30 });
+  if (error) throw error;
+  return (data ?? []) as AdminUserRow[];
+}
+
+export type AdminUserDetail = {
+  id: string; email: string; name: string; full_name: string | null; nickname: string | null; university: string | null; graduation_year: number | null; country: string | null; course: string | null;
+  created_at: string; is_admin: boolean; email_confirmed_at: string | null; last_sign_in_at: string | null; two_factor: boolean; uni_email: boolean; details_complete: boolean;
+  societies: { id: string; name: string; slug: string; status: string }[];
+  runs: { id: string; name: string; slug: string }[];
+  hosted_count: number; joined_count: number;
+  hosted: { kind: "society" | "social"; id: string; title: string; starts_at: string; href: string }[];
+  joined: { kind: "society" | "social"; id: string; title: string; starts_at: string; status: string; href: string }[];
+  reports_against: { id: string; reason: string; details: string | null; status: string; created_at: string }[];
+};
+
+export async function adminUserDetail(supabase: SupabaseClient, id: string): Promise<AdminUserDetail | null> {
+  const { data, error } = await supabase.rpc("admin_user_detail", { uid: id });
+  if (error) throw error;
+  return (data as AdminUserDetail | null) ?? null;
+}
+
+export type AdminEventRow = { kind: "society" | "social"; id: string; title: string; starts_at: string; ends_at: string; society_id: string | null; society_name: string | null; host_name: string | null; going: number; is_cancelled: boolean; is_hidden: boolean; results_published: boolean; image_url: string | null; href: string };
+export type AdminEventFilters = { q: string; society: string; scope: "upcoming" | "past" | "all"; includeCancelled: boolean };
+export const DEFAULT_ADMIN_EVENT_FILTERS: AdminEventFilters = { q: "", society: "", scope: "upcoming", includeCancelled: true };
+
+export async function adminListEvents(supabase: SupabaseClient, f: AdminEventFilters): Promise<AdminEventRow[]> {
+  const { data, error } = await supabase.rpc("admin_list_events", { q: f.q.trim().slice(0, 80) || null, society: f.society || null, scope: f.scope, include_cancelled: f.includeCancelled, max: 200 });
+  if (error) throw error;
+  return (data ?? []) as AdminEventRow[];
+}
+
+export type PastEventsSummary = { cutoff: string; society_events: number; social_events: number; images: number; skipped_results: number; skipped_protected: number };
+export const DEFAULT_CLEANUP_DAYS = 90;
+
+export async function adminPastEventsSummary(supabase: SupabaseClient, days = DEFAULT_CLEANUP_DAYS): Promise<PastEventsSummary> {
+  const { data, error } = await supabase.rpc("admin_past_events_summary", { older_than_days: days });
+  if (error) throw error;
+  return data as PastEventsSummary;
+}
+
+export async function adminDeletePastEvents(supabase: SupabaseClient, days = DEFAULT_CLEANUP_DAYS): Promise<{ error?: string; deleted?: { society_events: number; social_events: number; images: number } }> {
+  const { data, error } = await supabase.rpc("admin_delete_past_events", { older_than_days: days });
+  if (error) return { error: "Couldn't delete them. Please try again." };
+  return { deleted: data as { society_events: number; social_events: number; images: number } };
+}
+
+// A society's own committee clearing out their past events (and images).
+export type SocietyPastSummary = { cutoff: string; events: number; images: number; skipped_results: number };
+
+export async function societyPastEventsSummary(supabase: SupabaseClient, societyId: string, days = DEFAULT_CLEANUP_DAYS, keepResults = true): Promise<SocietyPastSummary> {
+  const { data, error } = await supabase.rpc("society_past_events_summary", { sid: societyId, older_than_days: days, keep_results: keepResults });
+  if (error) throw error;
+  return data as SocietyPastSummary;
+}
+
+export async function deleteSocietyPastEvents(supabase: SupabaseClient, societyId: string, days = DEFAULT_CLEANUP_DAYS, keepResults = true): Promise<{ error?: string; deleted?: { events: number; images: number } }> {
+  const { data, error } = await supabase.rpc("delete_society_past_events", { sid: societyId, older_than_days: days, keep_results: keepResults });
+  if (error) return { error: "Couldn't delete them. Please try again." };
+  return { deleted: data as { events: number; images: number } };
+}
+
+// Reports about Social plans (stored since the Social section launched; shown here from now on).
+export type SocialReportRow = { id: string; reason: string; created_at: string; event_id: string; social_events: { title: string; host_id: string; is_hidden: boolean } | null };
+
+export async function loadSocialReports(supabase: SupabaseClient): Promise<SocialReportRow[]> {
+  const { data } = await supabase.from("social_reports").select("id, reason, created_at, event_id, social_events(title, host_id, is_hidden)").eq("status", "open").order("created_at");
+  return (data ?? []) as unknown as SocialReportRow[];
+}
+export async function hideReportedSocialEvent(supabase: SupabaseClient, reportId: string, eventId: string): Promise<Result> {
+  await supabase.from("social_events").update({ is_hidden: true }).eq("id", eventId);
+  return ok(await supabase.from("social_reports").update({ status: "resolved" }).eq("id", reportId));
+}
+export const dismissSocialReport = async (supabase: SupabaseClient, reportId: string): Promise<Result> => ok(await supabase.from("social_reports").update({ status: "dismissed" }).eq("id", reportId));
