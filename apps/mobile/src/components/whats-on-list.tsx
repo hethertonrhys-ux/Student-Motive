@@ -1,9 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "expo-router";
 import { RefreshControl, ScrollView, View } from "react-native";
-import { loadFeed } from "@function/shared";
+import { isPersonalFiltering, loadFeed, matchesPersonalFilters } from "@function/shared";
+import { useMemo } from "react";
 import { EventCard } from "@/components/event-card";
+import { PersonalFilterBoxes } from "@/components/personal-filters";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
+import { useFilterContext } from "@/lib/filter-context";
+import { usePersonalFilters } from "@/lib/personal-filters";
 import { useProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
@@ -18,6 +22,14 @@ export function WhatsOnList() {
     queryKey: ["feed", myUni],
     queryFn: () => loadFeed(supabase, myUni),
   });
+  const [personal, setPersonal] = usePersonalFilters();
+  const { context: who, ready: whoReady } = useFilterContext();
+  const personalOn = !!session && whoReady && isPersonalFiltering(personal);
+  const groups = useMemo(() => {
+    const all = feed.data ?? [];
+    if (!personalOn) return all;
+    return all.map((g) => ({ ...g, items: g.items.filter((e) => matchesPersonalFilters(e, who, personal)) })).filter((g) => g.items.length > 0);
+  }, [feed.data, personalOn, who, personal]);
 
   return (
     <ScrollView
@@ -46,18 +58,24 @@ export function WhatsOnList() {
         </Card>
       )}
 
+      {session && (
+        <View className="mt-4 rounded-2xl border border-line bg-surface px-2 py-1">
+          <PersonalFilterBoxes filters={personal} onChange={setPersonal} compact testID="list-personal" />
+        </View>
+      )}
+
       {feed.isPending && <Muted className="mt-6">Loading…</Muted>}
       {feed.isError && (
         <T variant="semibold" className="mt-6 text-danger">
           Couldn&apos;t load events. Pull down to try again.
         </T>
       )}
-      {feed.data && feed.data.length === 0 && (
+      {feed.data && groups.length === 0 && (
         <Card className="mt-6">
-          <Muted>Nothing on in the next two weeks yet. Check back soon.</Muted>
+          <Muted>{personalOn ? "Nothing matches your filters. Untick a box to see more." : "Nothing on in the next two weeks yet. Check back soon."}</Muted>
         </Card>
       )}
-      {feed.data?.map((group) => (
+      {groups.map((group) => (
         <View key={group.key} className="mt-8" testID={`group-${group.key}`}>
           <T variant="display" className="text-xl">
             {group.title}

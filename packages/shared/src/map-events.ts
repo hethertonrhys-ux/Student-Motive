@@ -22,6 +22,9 @@ export type MapEvent = {
   society: string;
   // Where the pin's card links to: a society event or a Social event.
   href: string;
+  // For the friends / my-societies filters.
+  hostId: string | null;
+  societyId: string | null;
 };
 
 type Row = {
@@ -36,6 +39,7 @@ type Row = {
   lng: number | null;
   location_note: string | null;
   venues: { name: string; lat: number; lng: number } | null;
+  society_id: string | null;
   societies: { name: string } | null;
   host_user_id: string | null;
   visibility: "public" | "friends";
@@ -77,7 +81,7 @@ export async function loadMapEvents(supabase: SupabaseClient): Promise<{ events:
     .limit(500);
   const eventsQuery = supabase
     .from("events")
-    .select("id, title, category, free_food, starts_at, ends_at, going_count, lat, lng, location_note, venues(name, lat, lng), societies(name), host_user_id, visibility, event_tables(started_at)")
+    .select("id, title, category, free_food, starts_at, ends_at, going_count, lat, lng, location_note, venues(name, lat, lng), society_id, societies(name), host_user_id, visibility, event_tables(started_at)")
     .eq("is_cancelled", false)
     .gt("ends_at", windows.now)
     .lt("starts_at", windows.tomorrowEnds)
@@ -111,6 +115,8 @@ export async function loadMapEvents(supabase: SupabaseClient): Promise<{ events:
         row.societies?.name ??
         (row.host_user_id ? `Hosted by ${hosts.get(row.host_user_id)?.name ?? "a student"}${row.visibility === "friends" ? " · Friends only" : ""}` : ""),
       href: `/e/${row.id}`,
+      hostId: row.host_user_id,
+      societyId: row.society_id,
     });
   }
   for (const row of socialRows) {
@@ -127,6 +133,8 @@ export async function loadMapEvents(supabase: SupabaseClient): Promise<{ events:
       place: row.area,
       society: `Hosted by ${hosts.get(row.host_id)?.name ?? "a student"}${row.friends_only ? " · Friends only" : ""}`,
       href: `/social/${row.id}`,
+      hostId: row.host_id,
+      societyId: null,
     });
   }
   events.sort((a, b) => a.startsAt.localeCompare(b.startsAt));

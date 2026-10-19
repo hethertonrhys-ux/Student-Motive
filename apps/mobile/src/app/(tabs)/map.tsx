@@ -12,9 +12,12 @@ import {
   howFar,
   inWindow,
   isDark,
+  isPersonalFiltering,
   loadMapEvents,
   mapsLink,
+  matchesPersonalFilters,
   normalise,
+  personalFilterCount,
   timeFormat,
   uniById,
   walkText,
@@ -29,13 +32,16 @@ import { LiveMap } from "@/components/map/Map";
 import type { MapHandle } from "@/components/map/types";
 import { Muted, T } from "@/components/ui";
 import { WhatsOnList } from "@/components/whats-on-list";
+import { useFilterContext } from "@/lib/filter-context";
 import { whereAmI } from "@/lib/location";
 import { isFiltering, useSavedCategories } from "@/lib/map-prefs";
+import { usePersonalFilters } from "@/lib/personal-filters";
 import { useRefetchOnFocus } from "@/lib/use-refetch-on-focus";
 import { useIsFocused } from "expo-router";
 import { useProfile } from "@/lib/profile";
 import { useMounted } from "@/lib/use-mounted";
 import { supabase } from "@/lib/supabase";
+import { useSession } from "@/providers/session";
 
 type WalkInfo = { walk: Walk; title: string; note: string | null; maps: string };
 
@@ -72,6 +78,11 @@ export default function MapScreen() {
 
   const [when, setWhen] = useState<When>("tonight");
   const [categories, setCategories] = useSavedCategories();
+  // The personal boxes (friends hosting / my societies) only mean something logged in.
+  const { session } = useSession();
+  const [personal, setPersonal] = usePersonalFilters();
+  const { context: who, ready: whoReady } = useFilterContext();
+  const personalOn = !!session && whoReady && isPersonalFiltering(personal);
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -84,14 +95,15 @@ export default function MapScreen() {
   const [directionsState, setDirectionsState] = useState<string | null>(null);
   const [directionsError, setDirectionsError] = useState<string | null>(null);
 
-  // Time, categories and search all combine.
+  // Time, categories, the personal boxes and search all combine.
   const categoryKey = categories.join(",");
-  const filtering = isFiltering(categories);
+  const filtering = isFiltering(categories) || personalOn;
+  const filterCount = (isFiltering(categories) ? categories.length : 0) + (personalOn ? personalFilterCount(personal) : 0);
   const filtered = useMemo(() => {
     if (!windows) return [];
     const chosen = categoryKey ? categoryKey.split(",") : [];
-    return events.filter((e) => inWindow(e, when, windows, now) && (chosen.length === 0 || chosen.includes(e.category)));
-  }, [events, when, windows, now, categoryKey]);
+    return events.filter((e) => inWindow(e, when, windows, now) && (chosen.length === 0 || chosen.includes(e.category)) && (!personalOn || matchesPersonalFilters(e, who, personal)));
+  }, [events, when, windows, now, categoryKey, personalOn, who, personal]);
   const words = useMemo(() => normalise(query).split(" ").filter(Boolean), [query]);
   const visible = useMemo(
     () => (words.length === 0 ? filtered : filtered.filter((e) => words.every((w) => normalise(`${e.title} ${e.society} ${e.place}`).includes(w)))),
@@ -206,13 +218,13 @@ export default function MapScreen() {
               })}
             </View>
             <View>
-              <RoundButton icon="options-outline" label={filtering ? `Filter by category, ${categories.length} selected` : "Filter by category"} active={filterOpen || filtering} onPress={() => setFilterOpen((o) => !o)} testID="filter" />
+              <RoundButton icon="options-outline" label={filtering ? `Filter events, ${filterCount} selected` : "Filter events"} active={filterOpen || filtering} onPress={() => setFilterOpen((o) => !o)} testID="filter" />
               {filtering && (
-                <View className="absolute -right-1 -top-1 min-w-5 items-center rounded-full bg-brand px-1">
-                  <T variant="bold" className="text-[11px] leading-5 text-brand-ink">{categories.length}</T>
+                <View className="absolute -right-1 -top-1 min-w-5 items-center rounded-full bg-brand px-1" testID="filter-count">
+                  <T variant="bold" className="text-[11px] leading-5 text-brand-ink">{filterCount}</T>
                 </View>
               )}
-              <FilterPanel open={filterOpen} selected={categories} onChange={setCategories} onClose={() => setFilterOpen(false)} />
+              <FilterPanel open={filterOpen} selected={categories} onChange={setCategories} onClose={() => setFilterOpen(false)} personal={session ? personal : undefined} onPersonalChange={session ? setPersonal : undefined} />
             </View>
             <RoundButton
               icon="search"
@@ -286,7 +298,7 @@ export default function MapScreen() {
               {data.isError && <T variant="semibold" className="text-xs text-danger">Couldn&apos;t load events. Check your connection.</T>}
               {data.data && visible.length === 0 && (
                 <Muted className="text-xs">
-                  {words.length ? "Nothing matches your search." : filtering ? "Nothing in your chosen categories. Change the filter." : when === "now" ? "Nothing on right now. Try Tonight." : "Nothing posted yet. Check back soon."}
+                  {words.length ? "Nothing matches your search." : personalOn ? "Nothing matches your filters. Untick a box to see more." : filtering ? "Nothing in your chosen categories. Change the filter." : when === "now" ? "Nothing on right now. Try Tonight." : "Nothing posted yet. Check back soon."}
                 </Muted>
               )}
               {nearest ? (

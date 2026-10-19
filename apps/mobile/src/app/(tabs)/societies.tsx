@@ -5,10 +5,12 @@ import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { formatEventTime, loadSocietiesTab, uniShort } from "@function/shared";
 import { Avatar } from "@/components/avatar";
+import { PersonalFilterBoxes } from "@/components/personal-filters";
 import { ListModeSwitch, SocietyEventsForYou, type ListMode } from "@/components/recommended-events";
 import { SocietySearch } from "@/components/society-search";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
 import { useFilterContext } from "@/lib/filter-context";
+import { usePersonalFilters } from "@/lib/personal-filters";
 import { useProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { usePullToRefresh, useRefetchOnFocus } from "@/lib/use-refetch-on-focus";
@@ -28,6 +30,7 @@ export default function SocietiesScreen() {
   const myUni = profile?.university;
   const [mode, setMode] = useState<ListMode>("all");
   const { context: who, ready: whoReady } = useFilterContext();
+  const [personal, setPersonal] = usePersonalFilters();
 
   return (
     <SafeAreaView className="flex-1 bg-bg">
@@ -42,7 +45,10 @@ export default function SocietiesScreen() {
             <View className="mt-3">
               <ListModeSwitch mode={mode} onChange={setMode} allLabel="All events" testID="societies-mode" />
             </View>
-            <SocietyEventsForYou me={{ id: me.id, university: me.university }} who={who} ready={whoReady} mode={mode} />
+            <View className="mt-3 rounded-2xl border border-line bg-surface px-2 py-1">
+              <PersonalFilterBoxes filters={personal} onChange={setPersonal} compact testID="recommended-personal" />
+            </View>
+            <SocietyEventsForYou me={{ id: me.id, university: me.university }} who={who} ready={whoReady} personal={personal} mode={mode} />
           </View>
         )}
 
