@@ -12,34 +12,45 @@ create or replace function public.my_friend_event_signals(society_ids uuid[] def
 returns table (kind text, event_id uuid, hosting boolean, going integer)
 language sql stable security definer set search_path = ''
 as $$
-  with friends as (
+  with friends as materialized (
     select case when f.requester_id = (select auth.uid()) then f.addressee_id else f.requester_id end as fid
     from public.friendships f
     where f.status = 'accepted' and (select auth.uid()) in (f.requester_id, f.addressee_id)
+  ),
+  -- The counts first (cheap), then the visibility rules only for events with a signal.
+  soc as materialized (
+    select e.id, e.society_id, e.audience, e.host_user_id, e.visibility,
+           (e.host_user_id is not null and e.host_user_id in (select fid from friends)) as hosting,
+           (select count(*)::integer from public.event_entries en
+             where en.event_id = e.id and en.status = 'going' and en.user_id in (select fid from friends)) as going
+    from public.events e
+    where (select auth.uid()) is not null
+      and e.id = any(coalesce(society_ids, '{}'))
+      and not e.is_hidden and not e.is_cancelled
+  ),
+  sol as materialized (
+    select se.id, se.host_id, se.friends_only,
+           (se.host_id in (select fid from friends)) as hosting,
+           (select count(*)::integer from public.social_event_members m
+             where m.event_id = se.id and m.status = 'going' and m.user_id in (select fid from friends)) as going
+    from public.social_events se
+    where (select auth.uid()) is not null
+      and se.id = any(coalesce(social_ids, '{}'))
+      and not se.is_hidden and not se.is_cancelled
   )
-  select 'society'::text, e.id,
-         e.host_user_id is not null and e.host_user_id in (select fid from friends),
-         (select count(*)::integer from public.event_entries en
-           where en.event_id = e.id and en.status = 'going' and en.user_id in (select fid from friends))
-  from public.events e
-  where (select auth.uid()) is not null
-    and e.id = any(coalesce(society_ids, '{}'))
-    and not e.is_hidden and not e.is_cancelled
-    and (e.society_id is null or public.can_see_society_event(e.society_id, e.audience) or public.has_entry(e.id))
-    and (e.host_user_id is null
-         or (not public.is_blocked_between(e.host_user_id, (select auth.uid()))
-             and (e.visibility = 'public' or public.are_friends(e.host_user_id, (select auth.uid())) or public.has_entry(e.id))))
+  select 'society'::text, s.id, s.hosting, s.going
+  from soc s
+  where (s.hosting or s.going > 0)
+    and (s.society_id is null or public.can_see_society_event(s.society_id, s.audience) or public.has_entry(s.id))
+    and (s.host_user_id is null
+         or (not public.is_blocked_between(s.host_user_id, (select auth.uid()))
+             and (s.visibility = 'public' or public.are_friends(s.host_user_id, (select auth.uid())) or public.has_entry(s.id))))
   union all
-  select 'social'::text, se.id,
-         se.host_id in (select fid from friends),
-         (select count(*)::integer from public.social_event_members m
-           where m.event_id = se.id and m.status = 'going' and m.user_id in (select fid from friends))
-  from public.social_events se
-  where (select auth.uid()) is not null
-    and se.id = any(coalesce(social_ids, '{}'))
-    and not se.is_hidden and not se.is_cancelled
-    and not public.is_blocked_between(se.host_id, (select auth.uid()))
-    and (not se.friends_only or public.are_friends(se.host_id, (select auth.uid())) or public.social_is_member(se.id));
+  select 'social'::text, s.id, s.hosting, s.going
+  from sol s
+  where (s.hosting or s.going > 0)
+    and not public.is_blocked_between(s.host_id, (select auth.uid()))
+    and (not s.friends_only or public.are_friends(s.host_id, (select auth.uid())) or public.social_is_member(s.id));
 $$;
 
 revoke execute on function public.my_friend_event_signals(uuid[], uuid[]) from public, anon;
