@@ -4,7 +4,7 @@ import { Link, useIsFocused, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Linking, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { audienceLabel, bankEditorRows, categoryLabel, type EventWithDetails, formatCost, formatEventTime, getCards, hasEnded, isLive, loadEvent, loadParticipation, nowMs, type Participation, type PersonCard, uniShort } from "@function/shared";
+import { audienceLabel, bankEditorRows, categoryLabel, type EventWithDetails, formatCost, formatEventTime, getCards, hasEnded, isLive, loadEvent, loadEventChat, loadEventHosts, loadParticipation, nowMs, type Participation, type PersonCard, uniShort } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { CompleteProfileCard } from "@/components/complete-profile-card";
@@ -53,6 +53,8 @@ export default function EventScreen() {
     },
   });
   const focused = useIsFocused();
+  // The event's group chat and who its hosts are (only people in the chat get the id back).
+  const chat = useQuery({ queryKey: ["event-chat", id, userId], enabled: !!ev && !!userId, queryFn: async () => ({ chatId: await loadEventChat(supabase, ev!.id), hostIds: await loadEventHosts(supabase, ev!.id) }) });
   const part = useQuery({
     queryKey: ["participation", id, userId],
     enabled: !!ev && !hosted && !!userId,
@@ -69,6 +71,8 @@ export default function EventScreen() {
       queryClient.invalidateQueries({ queryKey: ["event", id] }),
       queryClient.invalidateQueries({ queryKey: ["participation", id] }),
       queryClient.invalidateQueries({ queryKey: ["event-host", id] }),
+      queryClient.invalidateQueries({ queryKey: ["event-chat", id] }),
+      queryClient.invalidateQueries({ queryKey: ["threads"] }),
       queryClient.invalidateQueries({ queryKey: ["feed"] }),
       queryClient.invalidateQueries({ queryKey: ["map-events"] }),
       queryClient.invalidateQueries({ queryKey: ["recommended"] }),
@@ -167,11 +171,11 @@ export default function EventScreen() {
               </Card>
             )
           ) : hosted ? (
-            <HostedPart event={ev} info={hostInfo.data ?? null} userId={userId!} displayName={profile?.display_name ?? null} finished={finished} tap={tap} busy={busy} onNamed={refresh} />
+            <HostedPart event={ev} info={hostInfo.data ?? null} userId={userId!} displayName={profile?.display_name ?? null} finished={finished} tap={tap} busy={busy} onNamed={refresh} chatId={chat.data?.chatId ?? null} />
           ) : !profile || part.isPending ? (
             <Muted>Loading…</Muted>
           ) : part.data ? (
-            <SocietyPart event={ev} p={part.data} userId={userId!} profile={{ display_name: profile.display_name, university: profile.university }} finished={finished} tap={tap} busy={busy} refresh={refresh} seatConfirmed={seatConfirmed} onConfirmed={() => setSeatConfirmed(true)} />
+            <SocietyPart event={ev} p={part.data} userId={userId!} profile={{ display_name: profile.display_name, university: profile.university }} finished={finished} tap={tap} busy={busy} refresh={refresh} seatConfirmed={seatConfirmed} onConfirmed={() => setSeatConfirmed(true)} chatId={chat.data?.chatId ?? null} hostIds={chat.data?.hostIds} />
           ) : (
             <T variant="semibold" className="text-sm text-danger">Couldn&apos;t load who&apos;s going. Pull down to try again.</T>
           )}
@@ -200,7 +204,7 @@ export default function EventScreen() {
 }
 
 // The "take part" part of a society event.
-function SocietyPart({ event, p, userId, profile, finished, tap, busy, refresh, seatConfirmed, onConfirmed }: { event: EventWithDetails; p: Participation; userId: string; profile: { display_name: string | null; university: string }; finished: boolean; tap: Tap; busy: boolean; refresh: () => Promise<unknown>; seatConfirmed: boolean; onConfirmed: () => void }) {
+function SocietyPart({ event, p, userId, profile, finished, tap, busy, refresh, seatConfirmed, onConfirmed, chatId, hostIds }: { event: EventWithDetails; p: Participation; userId: string; profile: { display_name: string | null; university: string }; finished: boolean; tap: Tap; busy: boolean; refresh: () => Promise<unknown>; seatConfirmed: boolean; onConfirmed: () => void; chatId: string | null; hostIds?: Set<string> }) {
   const society = event.societies;
   const me = p.people.find((x) => x.userId === userId) ?? null;
   // Members-only events need membership; "[Uni] students" events need that uni (checked again by the database).
@@ -249,6 +253,13 @@ function SocietyPart({ event, p, userId, profile, finished, tap, busy, refresh, 
         <GoingPanel event={event} me={me} tap={tap} busy={busy} />
       )}
 
+      {/* The event's group chat: people going and the committee. */}
+      {chatId && (
+        <Link href={`/chats/${chatId}` as never} asChild>
+          <Button variant="ghost" className="py-3" testID="group-chat">Open group chat</Button>
+        </Link>
+      )}
+
       {/* Just joined: a gentle nudge to finish their profile (once per run). */}
       {!finished && me?.status === "going" && userId && <PushPromptCard userId={userId} />}
       {!finished && me?.status === "going" && <CompleteProfileCard prompts={p.prompts} />}
@@ -277,7 +288,7 @@ function SocietyPart({ event, p, userId, profile, finished, tap, busy, refresh, 
 
       {/* Members see who else is coming. */}
       {p.isMember && event.format !== "tables" && p.people.some((x) => x.status === "going") && (
-        <WhosComing people={p.people.filter((x) => x.status === "going")} meId={userId} numbered={event.format === "entries"} finished={finished} />
+        <WhosComing people={p.people.filter((x) => x.status === "going")} meId={userId} numbered={event.format === "entries"} finished={finished} hostIds={hostIds} />
       )}
     </>
   );
@@ -287,7 +298,7 @@ type HostInfo = { host: PersonCard | null; exact: Exact; entries: Entry[]; guest
 
 // The join / guest-list part of an event a student is hosting (the guest
 // side; the host's own tools arrive with the Social tab in phase 6).
-function HostedPart({ event, info, userId, displayName, finished, tap, busy, onNamed }: { event: EventWithDetails; info: HostInfo | null; userId: string; displayName: string | null; finished: boolean; tap: Tap; busy: boolean; onNamed: () => Promise<unknown> }) {
+function HostedPart({ event, info, userId, displayName, finished, tap, busy, onNamed, chatId }: { event: EventWithDetails; info: HostInfo | null; userId: string; displayName: string | null; finished: boolean; tap: Tap; busy: boolean; onNamed: () => Promise<unknown>; chatId: string | null }) {
   if (!info) return <Muted>Loading…</Muted>;
   const isHost = userId === event.host_user_id;
   const mine = info.entries.find((e) => e.user_id === userId) ?? null;
@@ -305,13 +316,18 @@ function HostedPart({ event, info, userId, displayName, finished, tap, busy, onN
           <Muted className="text-sm">
             {event.going_count} going{event.capacity ? ` of ${event.capacity}` : ""}{requests.length ? ` · ${requests.length} waiting for your answer` : ""}{event.visibility === "friends" ? " · Friends only" : " · On the public map"}
           </Muted>
-          <Muted className="text-sm">Editing, the event chat and answering requests are on the website for now.</Muted>
+          <Muted className="text-sm">Editing and answering requests are on the website for now.</Muted>
+          {chatId && (
+            <Link href={`/chats/${chatId}` as never} asChild>
+              <Button variant="ghost" className="self-start py-2" testID="group-chat">Open group chat</Button>
+            </Link>
+          )}
           <Button variant="ghost" className="self-start py-2" onPress={() => Linking.openURL(`${SITE_URL}/e/${event.id}`)}>Manage on the website</Button>
         </Card>
       ) : finished ? null : !displayName && !mine ? (
         <NameForm userId={userId} onSaved={onNamed} />
       ) : (
-        <HostedJoinCard event={event} mine={(mine?.status ?? null) as HostedStatus} hostName={hostName} full={full} tap={tap} busy={busy} />
+        <HostedJoinCard event={event} mine={(mine?.status ?? null) as HostedStatus} hostName={hostName} full={full} tap={tap} busy={busy} chat={chatId ? <Link href={`/chats/${chatId}` as never} asChild><Pressable testID="group-chat"><T variant="semibold" className="text-sm text-brand">Group chat</T></Pressable></Link> : undefined} />
       )}
 
       {canSeeGuests && (

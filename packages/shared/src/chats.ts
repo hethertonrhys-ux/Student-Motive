@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { loadEventHosts } from "./event-actions";
 import { getFriendRequests, getSocietyPosts, getTableMoves, getTwoTruthsDays, type FriendRequest, type SocietyPost, type TableMove, type TwoTruthsDay, getSeatChanges, type SeatChange } from "./notifications";
 import { getCards, getFriendships, getHiddenPeople, relationFor, type PersonCard, type Relation } from "./social";
 
@@ -71,6 +72,8 @@ export type ThreadInfo = {
   socialEvent: { id: string; title: string; going_count: number } | null;
   other: PersonCard | null;
   hidden: Set<string>;
+  // Who gets the Host badge: the student hosting, or the society's committee.
+  hostIds: Set<string>;
 };
 
 // Who the chat is with: an event (society or Social) or one other person.
@@ -79,13 +82,16 @@ export async function loadThreadInfo(supabase: SupabaseClient, threadId: string,
   const { data: thread } = await supabase.from("threads").select("id, event_id, social_event_id, user_a, user_b").eq("id", threadId).maybeSingle<{ id: string; event_id: string | null; social_event_id: string | null; user_a: string | null; user_b: string | null }>();
   if (!thread) return null;
   const otherId = thread.event_id || thread.social_event_id ? null : thread.user_a === myId ? thread.user_b : thread.user_a;
-  const [cards, hidden, { data: event }, { data: socialEvent }] = await Promise.all([
+  const [cards, hidden, { data: event }, { data: socialEvent }, hosts] = await Promise.all([
     getCards(supabase, otherId ? [otherId] : []),
     getHiddenPeople(supabase),
     thread.event_id ? supabase.from("events").select("id, title, going_count").eq("id", thread.event_id).maybeSingle() : Promise.resolve({ data: null }),
-    thread.social_event_id ? supabase.from("social_events").select("id, title, going_count").eq("id", thread.social_event_id).maybeSingle() : Promise.resolve({ data: null }),
+    thread.social_event_id ? supabase.from("social_events").select("id, title, host_id, going_count").eq("id", thread.social_event_id).maybeSingle() : Promise.resolve({ data: null }),
+    thread.event_id ? loadEventHosts(supabase, thread.event_id) : Promise.resolve(new Set<string>()),
   ]);
-  return { event: (event as ThreadInfo["event"]) ?? null, socialEvent: (socialEvent as ThreadInfo["socialEvent"]) ?? null, other: otherId ? (cards.get(otherId) ?? null) : null, hidden };
+  const social = socialEvent as (ThreadInfo["socialEvent"] & { host_id: string }) | null;
+  const hostIds = thread.event_id ? hosts : new Set(social ? [social.host_id] : []);
+  return { event: (event as ThreadInfo["event"]) ?? null, socialEvent: social ? { id: social.id, title: social.title, going_count: social.going_count } : null, other: otherId ? (cards.get(otherId) ?? null) : null, hidden, hostIds };
 }
 
 export async function sendMessage(supabase: SupabaseClient, threadId: string, body: string): Promise<Result> {

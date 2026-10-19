@@ -6,7 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { deleteMessage, fetchMessages, loadThreadInfo, reportMessage, sendMessage, type ChatMessage } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
-import { LinkButton } from "@/components/event/panels";
+import { HostPill, LinkButton } from "@/components/event/panels";
 import { Button, Heading, Input, Muted, T } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
@@ -107,7 +107,7 @@ export default function ChatScreen() {
               <Link href={`/e/${header.event.id}` as never} asChild>
                 <Pressable className="min-w-0 flex-1">
                   <T variant="display-bold" className="text-lg" numberOfLines={1}>{header.event.title}</T>
-                  <Muted className="text-xs">Event chat · {header.event.going_count + 1} people · tap for details</Muted>
+                  <Muted className="text-xs">Event chat · {header.event.going_count + header.hostIds.size} people · tap for details</Muted>
                 </Pressable>
               </Link>
             ) : header?.socialEvent ? (
@@ -142,7 +142,12 @@ export default function ChatScreen() {
                   <View className={`flex-row items-end gap-2 ${mine ? "justify-end" : ""} ${firstInRun ? "mt-2" : "mt-0.5"}`}>
                     {!mine && <View className="w-7">{firstInRun && <Avatar name={m.sender_name} url={m.sender_avatar} size={28} />}</View>}
                     <View className={`max-w-[78%] ${mine ? "items-end" : "items-start"}`}>
-                      {!mine && firstInRun && <Muted className="mb-0.5 ml-1 text-xs font-sans-semibold">{m.sender_name}</Muted>}
+                      {!mine && firstInRun && (
+                        <View className="mb-0.5 ml-1 flex-row items-center gap-1.5">
+                          <Muted className="text-xs font-sans-semibold">{m.sender_name}</Muted>
+                          {!!m.sender_id && header?.hostIds.has(m.sender_id) && <HostPill testID={`host-pill-${m.id}`} />}
+                        </View>
+                      )}
                       <Pressable onPress={() => setMenuFor(menuFor === m.id ? null : m.id)} className={`rounded-2xl px-3.5 py-2 ${m.deleted ? "border border-dashed border-line" : mine ? "bg-brand" : "border border-line bg-surface"}`} testID={`message-${m.id}`}>
                         <T className={m.deleted ? "text-sm italic text-muted" : mine ? "text-brand-ink" : ""}>
                           {m.deleted ? "Message deleted" : m.body}
