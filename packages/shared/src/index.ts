@@ -19,3 +19,5 @@ export * from "./social";
 export * from "./venues";
 export * from "./welcome";
 export * from "./events";
+export * from "./map";
+export * from "./map-events";

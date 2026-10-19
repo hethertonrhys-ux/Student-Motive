@@ -55,6 +55,13 @@
             "node_modules/@expo-google-fonts/bricolage-grotesque/800ExtraBold/BricolageGrotesque_800ExtraBold.ttf"
           ]
         }
+      ],
+      "@maplibre/maplibre-react-native",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Function uses your location to show what's on near you and walking directions. It stays on your phone."
+        }
       ]
     ],
     "experiments": {

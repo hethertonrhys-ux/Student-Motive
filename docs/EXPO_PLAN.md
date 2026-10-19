@@ -386,6 +386,19 @@ what to look at. Nothing in `apps/web` changes until phase 11.
 Phases 1–3 are what you asked to see first. Phases 4–8 can be reordered;
 9 is the one to leave for last.
 
+### Progress
+
+- **Phases 0–2: done** on the `expo-app` branch (login, welcome, the What's
+  on list, the event page), tested on the web build with Playwright.
+- **Phase 3: done on the web, written for the phone.** `Map.web.tsx` is a
+  port of the website's map (same style in the red palette, groups, glow,
+  campus buildings, day/night, directions). `Map.native.tsx` uses MapLibre
+  Native (v11) with the same style and logic; the pins are small native
+  views. It typechecks but hasn't run on a phone yet: the first EAS build
+  is the moment to check tilt, the 3D buildings and the pin positions.
+  Everything around the map (time pills, filter, search, the event card,
+  the List view) is shared React Native.
+
 ### Things to decide before phase 0
 
 1. **Red or indigo everywhere?** (`#DA291C` vs the current `#4338ca`.)
