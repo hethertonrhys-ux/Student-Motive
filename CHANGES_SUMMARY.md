@@ -296,6 +296,17 @@ account-details screen but fail to save.)
 6. Vercel (function-app project) → Environment Variables: add
    `EXPO_PUBLIC_VAPID_PUBLIC_KEY` = the public key, and
    `EXPO_PUBLIC_SUPPORT_EMAIL` = `help@studentfunction.com`; redeploy.
+7. Check it works. Wait two minutes, then run this in the SQL Editor:
+   ```sql
+   select status_code, content, created
+   from net._http_response
+   order by created desc
+   limit 3;
+   ```
+   `200` with `{"sent":0}` means the timer and the function are talking.
+   `403` means the secret in the cron job and the `PUSH_SECRET` secret don't
+   match. `500` means the function hit a problem, and `content` says what
+   (for example a VAPID key that was pasted with extra text).
 
 ### D. Accounts (for the phone apps, unchanged from the launch guide)
 Expo, Apple Developer Program, Google Play. `docs/EXPO_LAUNCH.md` has the steps.
