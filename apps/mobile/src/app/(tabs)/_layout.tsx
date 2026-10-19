@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import { useColorScheme } from "react-native";
+import { useNewNotifications, useUnreadMessages } from "@/lib/badges";
 
 // The five tabs, the same as the website's bottom bar: Map, Societies,
 // Social, Chats, Me.
@@ -14,6 +15,10 @@ const TABS = [
 
 export default function TabsLayout() {
   const dark = useColorScheme() === "dark";
+  // Unread messages on Chats; new notifications on Me.
+  const unread = useUnreadMessages();
+  const fresh = useNewNotifications();
+  const badge = (name: string) => (name === "chats" && unread > 0 ? unread : name === "me" && fresh > 0 ? fresh : undefined);
   return (
     <Tabs
       screenOptions={{
@@ -30,6 +35,8 @@ export default function TabsLayout() {
           name={tab.name}
           options={{
             title: tab.title,
+            tabBarBadge: badge(tab.name),
+            tabBarBadgeStyle: { backgroundColor: "#f43f5e", color: "#fff", fontFamily: "Figtree_700Bold", fontSize: 11 },
             tabBarIcon: ({ color, focused, size }) => <Ionicons name={focused ? tab.icon : (`${tab.icon}-outline` as const)} color={typeof color === "string" ? color : "#5e5d78"} size={size} />,
           }}
         />

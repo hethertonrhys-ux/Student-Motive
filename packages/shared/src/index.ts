@@ -25,3 +25,4 @@ export * from "./societies";
 export * from "./event-actions";
 export * from "./social-actions";
 export * from "./profile";
+export * from "./chats";

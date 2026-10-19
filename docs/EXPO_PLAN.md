@@ -428,6 +428,12 @@ Phases 1–3 are what you asked to see first. Phases 4–8 can be reordered;
   restore and delete, show-societies, name and course, prompts and Two
   truths). On the phone the photo library's own cropper is used; the web
   has the site's drag-and-zoom cropper.
+- **Phase 8: done.** Chats (private and event group chats, new messages
+  picked up every few seconds while open, delete, report, unread badge on
+  the Chats tab), Friends (search, requests, your friends, people you've
+  been to events with, requests you've sent) and Notifications (Two truths
+  plays, table moves, friend requests, society events; a badge on the Me
+  tab until it's opened).
 
 ### Things to decide before phase 0
 
