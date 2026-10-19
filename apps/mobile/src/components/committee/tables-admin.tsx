@@ -64,7 +64,7 @@ export function TablesAdmin({ eventId, tables, people, eventStarted, finished, t
               <View className="mt-3 gap-2">
                 {table && list.length > 1 && !finished && (
                   <View className="flex-row items-center justify-between gap-2">
-                    <Muted className="text-xs">Seats are numbered. Reshuffle for fairness; everyone gets told their new seat.</Muted>
+                    <Muted className="flex-1 text-xs">Seats are numbered. Reshuffle for fairness; everyone gets told their new seat.</Muted>
                     <LinkButton onPress={() => void tap(() => randomiseSeats(supabase, eventId, table.id))} confirmText={`Randomise the seating at ${table.name}? Everyone there gets a new seat number and a notification.`} disabled={busy} testID={`randomise-${table.id}`}>Randomise seating</LinkButton>
                   </View>
                 )}

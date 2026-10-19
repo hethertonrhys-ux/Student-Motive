@@ -16,6 +16,8 @@ export default function SocietyDashboardScreen() {
   const { societyId, posted } = useLocalSearchParams<{ societyId: string; posted?: string }>();
   const { session } = useSession();
   const page = useQuery({ queryKey: ["managed", societyId], queryFn: () => loadManagedSociety(supabase, societyId), enabled: !!session && !!societyId });
+  // Set once the committee has deleted past events, so the cleanup card stays put.
+  const [cleaned, setCleaned] = useState(false);
   const now = nowMs();
 
   if (!session) return <Screen><Muted>Log in to manage your society.</Muted></Screen>;
@@ -40,13 +42,15 @@ export default function SocietyDashboardScreen() {
 
       <T variant="display" className="mt-8 text-xl">Upcoming</T>
       {upcoming.length === 0 ? <Muted className="mt-3">No upcoming events. Post one and it appears on the map straight away.</Muted> : <View className="mt-3 gap-3">{upcoming.map((e) => <EventRow key={e.id} event={e} live={isLive(e.starts_at, e.ends_at, now)} />)}</View>}
-      {past.length > 0 && (
+      {(past.length > 0 || cleaned) && (
         <View className="mt-10">
-          <View className="opacity-70">
-            <T variant="display" className="text-xl">Past</T>
-            <View className="mt-3 gap-3">{past.slice(0, 20).map((e) => <EventRow key={e.id} event={e} live={false} />)}</View>
-          </View>
-          <PastCleanup societyId={societyId} />
+          {past.length > 0 && (
+            <View className="opacity-70">
+              <T variant="display" className="text-xl">Past</T>
+              <View className="mt-3 gap-3">{past.slice(0, 20).map((e) => <EventRow key={e.id} event={e} live={false} />)}</View>
+            </View>
+          )}
+          <PastCleanup societyId={societyId} onDeleted={() => setCleaned(true)} />
         </View>
       )}
 
@@ -92,7 +96,7 @@ function EventRow({ event, live }: { event: MotiveEvent; live: boolean }) {
 // The committee clearing out old events (and their images). Counts first,
 // asks, then deletes. Events with published results are kept unless the
 // box is ticked.
-function PastCleanup({ societyId }: { societyId: string }) {
+function PastCleanup({ societyId, onDeleted }: { societyId: string; onDeleted: () => void }) {
   const queryClient = useQueryClient();
   const [step, setStep] = useState<"idle" | "counting" | "confirm" | "deleting" | "done">("idle");
   const [keepResults, setKeepResults] = useState(true);
@@ -111,6 +115,7 @@ function PastCleanup({ societyId }: { societyId: string }) {
     }
   }
   async function run() {
+    setError(null);
     setStep("deleting");
     const r = await deleteSocietyPastEvents(supabase, societyId, DEFAULT_CLEANUP_DAYS, keepResults);
     if (r.error) {
@@ -120,45 +125,55 @@ function PastCleanup({ societyId }: { societyId: string }) {
     }
     setResult(r.deleted ?? null);
     setStep("done");
+    // Keeps this card on screen even if every past event has just gone.
+    onDeleted();
     void queryClient.invalidateQueries({ queryKey: ["managed", societyId] });
+  }
+  function close() {
+    setError(null);
+    setStep("idle");
   }
   return (
     <Card className="mt-4 gap-3" testID="past-cleanup">
       <View>
-        <T variant="semibold">Delete past events</T>
-        <Muted className="text-sm">Removes this society&apos;s events that ended more than {DEFAULT_CLEANUP_DAYS} days ago, and their images. Only the committee can do this.</Muted>
+        <T variant="display-bold" className="text-lg">Delete past events</T>
+        <Muted className="text-sm">Removes this society&apos;s events that ended more than {DEFAULT_CLEANUP_DAYS} days ago, and their images.</Muted>
       </View>
       {step === "idle" && <Button variant="ghost" className="self-start py-2" onPress={() => void count()} testID="past-cleanup-count">See what would be deleted</Button>}
       {step === "counting" && <Muted>Counting…</Muted>}
       {(step === "confirm" || step === "deleting") && summary && (
         <View className="gap-3" testID="past-cleanup-summary">
           <T variant="semibold">{summary.events === 0 ? "Nothing to delete." : `${summary.events} ${summary.events === 1 ? "event" : "events"} (${summary.images} ${summary.images === 1 ? "image" : "images"}).`}</T>
-          <Pressable
-            onPress={() => {
-              const next = !keepResults;
-              setKeepResults(next);
-              void count(next);
-            }}
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: !keepResults }}
-            aria-checked={!keepResults}
-            className="flex-row items-center gap-3"
-            testID="past-cleanup-include-results"
-          >
-            <View className={`h-5 w-5 items-center justify-center rounded-md border ${!keepResults ? "border-brand bg-brand" : "border-line bg-surface"}`}>{!keepResults && <T variant="bold" className="text-xs text-brand-ink">✓</T>}</View>
-            <T variant="semibold" className="flex-1 text-sm">Also delete games with published results{summary.skipped_results > 0 ? ` (${summary.skipped_results})` : ""}</T>
-          </Pressable>
+          {(summary.skipped_results > 0 || !keepResults) && (
+            <Pressable
+              onPress={() => {
+                if (step !== "confirm") return;
+                const next = !keepResults;
+                setKeepResults(next);
+                void count(next);
+              }}
+              disabled={step !== "confirm"}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: !keepResults }}
+              aria-checked={!keepResults}
+              className="flex-row items-center gap-3"
+              testID="past-cleanup-include-results"
+            >
+              <View className={`h-5 w-5 items-center justify-center rounded-md border ${!keepResults ? "border-brand bg-brand" : "border-line bg-surface"}`}>{!keepResults && <T variant="bold" className="text-xs text-brand-ink">✓</T>}</View>
+              <T variant="semibold" className="flex-1 text-sm">Also delete events with published results{summary.skipped_results > 0 ? ` (${summary.skipped_results})` : ""}</T>
+            </Pressable>
+          )}
           <View className="flex-row flex-wrap gap-2">
             {summary.events > 0 && <Button className="py-2" onPress={() => void run()} disabled={step === "deleting"} testID="past-cleanup-confirm">{step === "deleting" ? "Deleting…" : `Delete ${summary.events} for good`}</Button>}
-            <Button variant="ghost" className="py-2" onPress={() => setStep("idle")} disabled={step === "deleting"} testID="past-cleanup-cancel">{summary.events > 0 ? "Keep them" : "Close"}</Button>
+            <Button variant="ghost" className="py-2" onPress={close} disabled={step === "deleting"} testID="past-cleanup-cancel">{summary.events > 0 ? "Keep them" : "Close"}</Button>
           </View>
-          <Muted className="text-xs">This can&apos;t be undone. Results and who-pays-who records go with the event.</Muted>
+          <Muted className="text-xs">This can&apos;t be undone.{!keepResults ? " Results and who-pays-who records go with the event." : ""}</Muted>
         </View>
       )}
       {step === "done" && result && (
         <View className="gap-2">
           <T variant="semibold" className="text-ok" testID="past-cleanup-done">Deleted {result.events} {result.events === 1 ? "event" : "events"} and {result.images} {result.images === 1 ? "image" : "images"}.</T>
-          <Button variant="ghost" className="self-start py-2" onPress={() => setStep("idle")}>Done</Button>
+          <Button variant="ghost" className="self-start py-2" onPress={close}>Done</Button>
         </View>
       )}
       {error && <T variant="semibold" className="text-sm text-danger">{error}</T>}

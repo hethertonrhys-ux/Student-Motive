@@ -172,10 +172,31 @@ export async function adminPastEventsSummary(supabase: SupabaseClient, days = DE
   return data as PastEventsSummary;
 }
 
+// Image files have to go through the Storage API (deleting their database
+// rows alone would leave the files behind), so: list them, remove them, then
+// delete the events. Whatever the API couldn't remove, the delete function
+// still clears from the database.
+async function removeImageFiles(supabase: SupabaseClient, paths: string[]): Promise<number> {
+  let removed = 0;
+  for (let i = 0; i < paths.length; i += 100) {
+    try {
+      const { data } = await supabase.storage.from("images").remove(paths.slice(i, i + 100));
+      removed += data?.length ?? 0;
+    } catch {
+      // Left for the database function to tidy up.
+    }
+  }
+  return removed;
+}
+
 export async function adminDeletePastEvents(supabase: SupabaseClient, days = DEFAULT_CLEANUP_DAYS): Promise<{ error?: string; deleted?: { society_events: number; social_events: number; images: number } }> {
+  const { data: paths, error: listError } = await supabase.rpc("admin_past_event_images", { older_than_days: days });
+  if (listError) return { error: "Couldn't delete them. Please try again." };
+  const removed = await removeImageFiles(supabase, (paths ?? []) as string[]);
   const { data, error } = await supabase.rpc("admin_delete_past_events", { older_than_days: days });
   if (error) return { error: "Couldn't delete them. Please try again." };
-  return { deleted: data as { society_events: number; social_events: number; images: number } };
+  const d = data as { society_events: number; social_events: number; images: number };
+  return { deleted: { ...d, images: d.images + removed } };
 }
 
 // A society's own committee clearing out their past events (and images).
@@ -188,9 +209,13 @@ export async function societyPastEventsSummary(supabase: SupabaseClient, society
 }
 
 export async function deleteSocietyPastEvents(supabase: SupabaseClient, societyId: string, days = DEFAULT_CLEANUP_DAYS, keepResults = true): Promise<{ error?: string; deleted?: { events: number; images: number } }> {
+  const { data: paths, error: listError } = await supabase.rpc("society_past_event_images", { sid: societyId, older_than_days: days, keep_results: keepResults });
+  if (listError) return { error: "Couldn't delete them. Please try again." };
+  const removed = await removeImageFiles(supabase, (paths ?? []) as string[]);
   const { data, error } = await supabase.rpc("delete_society_past_events", { sid: societyId, older_than_days: days, keep_results: keepResults });
   if (error) return { error: "Couldn't delete them. Please try again." };
-  return { deleted: data as { events: number; images: number } };
+  const d = data as { events: number; images: number };
+  return { deleted: { ...d, images: d.images + removed } };
 }
 
 // Reports about Social plans (stored since the Social section launched; shown here from now on).

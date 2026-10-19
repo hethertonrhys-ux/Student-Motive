@@ -24,8 +24,11 @@ revoke execute on function public.lowest_free_seat(uuid, uuid) from public, anon
 
 -- Whenever someone lands on a table (joining, moving, the committee moving
 -- them, the waiting list filling a seat) they get the lowest empty seat
--- unless a seat was chosen; leaving a table clears it. The reshuffle
--- below switches this off for a moment with the "function.seating" setting.
+-- unless a seat was chosen; leaving a table clears it. The functions below
+-- switch this off for one person at a time (the "function.seating" setting
+-- holds their id) so that other rows touched in the same statement, such as
+-- a waiting-list player being moved into the seat they vacate, are still
+-- seated normally.
 create or replace function public.event_entries_seat()
 returns trigger
 language plpgsql security definer set search_path = ''
@@ -33,7 +36,7 @@ as $$
 declare
   cap integer;
 begin
-  if current_setting('function.seating', true) = 'manual' then return new; end if;
+  if current_setting('function.seating', true) = new.user_id::text then return new; end if;
   if new.table_id is null or new.status <> 'going' then
     new.seat_no := null;
     return new;
@@ -75,6 +78,31 @@ $$;
 drop trigger if exists event_tables_reseat on public.event_tables;
 create trigger event_tables_reseat after update of seats on public.event_tables
   for each row execute function public.event_tables_reseat();
+
+-- Someone the committee moved onto a table that was already full has no
+-- number. When a seat there frees up (someone leaves, moves or is removed),
+-- they take it.
+create or replace function public.event_entries_seat_gap()
+returns trigger
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  r record;
+begin
+  if pg_trigger_depth() > 20 then return null; end if;
+  if old.table_id is not null and old.status = 'going'
+     and (tg_op = 'DELETE' or new.table_id is distinct from old.table_id or new.status <> 'going') then
+    for r in select e.event_id, e.user_id from public.event_entries e
+             where e.table_id = old.table_id and e.status = 'going' and e.seat_no is null order by e.created_at loop
+      update public.event_entries set seat_no = null where event_id = r.event_id and user_id = r.user_id;
+    end loop;
+  end if;
+  return null;
+end;
+$$;
+drop trigger if exists event_entries_seat_gap on public.event_entries;
+create trigger event_entries_seat_gap after update or delete on public.event_entries
+  for each row execute function public.event_entries_seat_gap();
 
 -- Players already at a table get numbers now, earliest joiner first.
 do $$
@@ -122,7 +150,7 @@ begin
     order by random() limit 1;
     if picked is null then raise exception 'That table is full'; end if;
   end if;
-  perform set_config('function.seating', 'manual', true);
+  perform set_config('function.seating', uid::text, true);
   update public.event_entries set table_id = tid, seat_no = picked where event_id = eid and user_id = uid;
   perform set_config('function.seating', '', true);
 end;
@@ -207,10 +235,13 @@ begin
   select coalesce(array_agg(s.user_id order by s.rnd), '{}'), coalesce(array_agg(s.seat_no order by s.rnd), '{}')
     into players, olds
     from (select e.user_id, e.seat_no, random() as rnd from public.event_entries e where e.event_id = eid and e.table_id = tid and e.status = 'going') s;
-  perform set_config('function.seating', 'manual', true);
   -- Two passes so no two players ever share a number mid-way.
-  update public.event_entries e set seat_no = null where e.event_id = eid and e.table_id = tid and e.status = 'going';
   for i in 1 .. coalesce(array_length(players, 1), 0) loop
+    perform set_config('function.seating', players[i]::text, true);
+    update public.event_entries e set seat_no = null where e.event_id = eid and e.user_id = players[i];
+  end loop;
+  for i in 1 .. coalesce(array_length(players, 1), 0) loop
+    perform set_config('function.seating', players[i]::text, true);
     update public.event_entries e set seat_no = i where e.event_id = eid and e.user_id = players[i];
     if i is distinct from olds[i] then
       moved := moved + 1;
@@ -230,17 +261,23 @@ grant execute on function public.randomise_table_seats(uuid, uuid) to authentica
 -- ---------------------------------------------------------------------
 
 -- Games played (tables-format events they went to that have finished) and
--- best tournament finish, if any. Counts only; nothing about money.
+-- best tournament finish, if any. Counts only; nothing about money. Only
+-- counts games in societies the person asking is in (or games they were
+-- at too), and nothing between people who have blocked each other.
 create or replace function public.poker_stats(person uuid)
 returns jsonb
 language sql stable security definer set search_path = ''
 as $$
-  select jsonb_build_object(
-    'games_played', (select count(*) from public.event_entries en join public.events e on e.id = en.event_id
-                      where en.user_id = person and en.status = 'going' and e.format = 'tables' and e.ends_at < now() and not e.is_cancelled),
-    'best_finish', (select min(en.finish_position) from public.event_entries en join public.events e on e.id = en.event_id
-                      where en.user_id = person and en.finish_position is not null and not e.is_cancelled)
-  );
+  select case
+    when (select auth.uid()) is null or public.is_blocked_between(person, (select auth.uid())) then jsonb_build_object('games_played', 0, 'best_finish', null)
+    else jsonb_build_object(
+      'games_played', (select count(*) from public.event_entries en join public.events e on e.id = en.event_id
+                        where en.user_id = person and en.status = 'going' and e.format = 'tables' and e.ends_at < now() and not e.is_cancelled
+                          and (public.is_society_member(e.society_id) or public.is_society_admin(e.society_id) or public.has_entry(e.id))),
+      'best_finish', (select min(en.finish_position) from public.event_entries en join public.events e on e.id = en.event_id
+                        where en.user_id = person and en.finish_position is not null and not e.is_cancelled
+                          and (public.is_society_member(e.society_id) or public.is_society_admin(e.society_id) or public.has_entry(e.id)))
+    ) end;
 $$;
 revoke execute on function public.poker_stats(uuid) from public, anon;
 grant execute on function public.poker_stats(uuid) to authenticated;

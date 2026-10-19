@@ -57,10 +57,10 @@ export default function AdminEventsScreen() {
                 <Link key={`${e.kind}-${e.id}`} href={e.href as never} asChild>
                   <Pressable className={`px-4 py-3 ${i > 0 ? "border-t border-line" : ""}`} testID={`admin-event-${e.id}`}>
                     <View className="flex-row flex-wrap items-center gap-1.5">
-                      <T variant="bold" className="text-xs uppercase tracking-wide text-brand">{e.kind === "social" ? "Social plan" : "Society event"}</T>
+                      <T variant="bold" className="text-xs uppercase tracking-wide text-brand">{e.kind === "social" ? "Social plan" : e.society_id ? "Society event" : "Student-hosted event"}</T>
                       {e.is_cancelled && <Tag>Cancelled</Tag>}
                       {e.is_hidden && <Tag>Hidden</Tag>}
-                      {e.results_published && <Tag>Results published</Tag>}
+                      {e.results_published && <Tag tone="neutral">Results published</Tag>}
                     </View>
                     <T variant="semibold" numberOfLines={1}>{e.title}</T>
                     <Muted className="text-xs" numberOfLines={1}>
@@ -80,10 +80,11 @@ export default function AdminEventsScreen() {
   );
 }
 
-function Tag({ children }: { children: string }) {
+// Red for states that need attention; neutral for plain facts.
+function Tag({ children, tone = "danger" }: { children: string; tone?: "danger" | "neutral" }) {
   return (
-    <View className="rounded-full bg-danger/10 px-2 py-0.5">
-      <T variant="bold" className="text-[11px] text-danger">{children}</T>
+    <View className={`rounded-full px-2 py-0.5 ${tone === "danger" ? "bg-danger/10" : "bg-brand-soft"}`}>
+      <T variant="bold" className={`text-[11px] ${tone === "danger" ? "text-danger" : "text-brand"}`}>{children}</T>
     </View>
   );
 }
@@ -106,6 +107,7 @@ function Cleanup({ onDone }: { onDone: () => void }) {
     }
   }
   async function run() {
+    setError(null);
     setStep("deleting");
     const r = await adminDeletePastEvents(supabase, DEFAULT_CLEANUP_DAYS);
     if (r.error) {
@@ -116,6 +118,10 @@ function Cleanup({ onDone }: { onDone: () => void }) {
     setResult(r.deleted ?? null);
     setStep("done");
     onDone();
+  }
+  function close() {
+    setError(null);
+    setStep("idle");
   }
   const total = summary ? summary.society_events + summary.social_events : 0;
   return (
@@ -136,7 +142,7 @@ function Cleanup({ onDone }: { onDone: () => void }) {
           )}
           <View className="flex-row flex-wrap gap-2">
             {total > 0 && <Button onPress={() => void run()} disabled={step === "deleting"} testID="cleanup-confirm">{step === "deleting" ? "Deleting…" : `Delete ${total} for good`}</Button>}
-            <Button variant="ghost" onPress={() => setStep("idle")} disabled={step === "deleting"} testID="cleanup-cancel">{total > 0 ? "Keep them" : "Close"}</Button>
+            <Button variant="ghost" onPress={close} disabled={step === "deleting"} testID="cleanup-cancel">{total > 0 ? "Keep them" : "Close"}</Button>
           </View>
           <Muted className="text-xs">This can&apos;t be undone.</Muted>
         </View>
@@ -144,7 +150,7 @@ function Cleanup({ onDone }: { onDone: () => void }) {
       {step === "done" && result && (
         <View className="gap-2">
           <T variant="semibold" className="text-ok" testID="cleanup-done">Deleted {result.society_events} society {result.society_events === 1 ? "event" : "events"}, {result.social_events} Social {result.social_events === 1 ? "plan" : "plans"} and {result.images} {result.images === 1 ? "image" : "images"}.</T>
-          <Button variant="ghost" className="self-start" onPress={() => setStep("idle")}>Done</Button>
+          <Button variant="ghost" className="self-start" onPress={close}>Done</Button>
         </View>
       )}
       {error && <T variant="semibold" className="text-sm text-danger">{error}</T>}

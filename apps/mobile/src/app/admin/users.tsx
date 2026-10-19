@@ -49,7 +49,7 @@ export default function AdminUsersScreen() {
                   <Avatar name={u.name} size={36} />
                   <View className="min-w-0 flex-1">
                     <View className="flex-row items-center gap-1.5">
-                      <T variant="semibold" numberOfLines={1}>{u.name}</T>
+                      <T variant="semibold" className="shrink" numberOfLines={1}>{u.name}</T>
                       <Flag code={u.country} size={14} />
                     </View>
                     <Muted className="text-xs" numberOfLines={1}>{u.email} · {uniShort(u.university)} · joined {when(u.created_at)}</Muted>
@@ -83,7 +83,7 @@ function UserDetail({ d }: { d: NonNullable<Awaited<ReturnType<typeof adminUserD
         <Avatar name={d.name} size={48} />
         <View className="min-w-0 flex-1">
           <View className="flex-row items-center gap-2">
-            <T variant="display-bold" className="text-lg">{d.name}</T>
+            <T variant="display-bold" className="shrink text-lg" numberOfLines={1}>{d.name}</T>
             <Flag code={d.country} size={16} />
           </View>
           <Link href={`/u/${d.id}` as never} asChild><Pressable><T variant="semibold" className="text-sm text-brand">Open public profile →</T></Pressable></Link>
@@ -107,7 +107,7 @@ function UserDetail({ d }: { d: NonNullable<Awaited<ReturnType<typeof adminUserD
         <View className="mt-1.5 flex-row flex-wrap gap-2">
           <Pill ok={!!d.email_confirmed_at}>{d.email_confirmed_at ? `Email confirmed ${when(d.email_confirmed_at)}` : "Email not confirmed"}</Pill>
           <Pill ok={d.two_factor}>{d.two_factor ? "2FA on" : "2FA off"}</Pill>
-          <Pill ok={d.uni_email}>{d.uni_email ? "University email" : "Invited email"}</Pill>
+          <Pill neutral>{d.uni_email ? "University email" : "Invited email"}</Pill>
           <Pill ok={d.details_complete}>{d.details_complete ? "Details complete" : "Details missing"}</Pill>
           {d.is_admin && <Pill ok>Function admin</Pill>}
         </View>
@@ -161,10 +161,13 @@ function Rows({ rows }: { rows: [string, string][] }) {
   );
 }
 
-function Pill({ ok, children }: { ok: boolean; children: string }) {
+// Green for a check that passed, red for one that didn't, neutral for a plain fact.
+function Pill({ ok = false, neutral = false, children }: { ok?: boolean; neutral?: boolean; children: string }) {
+  const box = neutral ? "bg-brand-soft" : ok ? "bg-ok/10" : "bg-danger/10";
+  const text = neutral ? "text-brand" : ok ? "text-ok" : "text-danger";
   return (
-    <View className={`rounded-full px-2.5 py-0.5 ${ok ? "bg-ok/10" : "bg-danger/10"}`}>
-      <T variant="bold" className={`text-xs ${ok ? "text-ok" : "text-danger"}`}>{children}</T>
+    <View className={`rounded-full px-2.5 py-0.5 ${box}`}>
+      <T variant="bold" className={`text-xs ${text}`}>{children}</T>
     </View>
   );
 }

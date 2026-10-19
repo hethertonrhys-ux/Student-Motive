@@ -107,7 +107,7 @@ export default function ChatScreen() {
               <Link href={`/e/${header.event.id}` as never} asChild>
                 <Pressable className="min-w-0 flex-1">
                   <T variant="display-bold" className="text-lg" numberOfLines={1}>{header.event.title}</T>
-                  <Muted className="text-xs">Event chat · {header.event.going_count + header.hostIds.size} people · tap for details</Muted>
+                  <Muted className="text-xs">Event chat · {header.event.going_count} going · tap for details</Muted>
                 </Pressable>
               </Link>
             ) : header?.socialEvent ? (

@@ -37,9 +37,13 @@ against them; nothing else) and Events (every society event and Social plan
 with search and filters, plus "Delete past events": events that ended more
 than 90 days ago and their images, after showing the numbers and asking;
 events with published poker results and the LSE Poker Society's events are
-never touched). A society's own committee has "Delete past events" at the
-bottom of their society dashboard for their own events. The "Function
-admin" button on the society dashboard is gone (it moved to Me).
+never touched, and the tool refuses to run at all if it can't find the
+Poker Society). A society's own committee has "Delete past events" at the
+bottom of their society dashboard for their own events; only people actually
+on that committee can use it (a Function admin can't use it to get at the
+Poker Society's events). Image files are removed through Supabase Storage,
+so they really go, not just their database rows. The "Function admin"
+button on the society dashboard is gone (it moved to Me).
 
 **5. Event time checks.** Both event forms warn the moment the finish is
 before (or the same as) the start, and Save stays off until it's fixed.
@@ -51,20 +55,25 @@ were no existing events to fix.
 **6. Poker seating.** Tables show numbered seats (Seat 1 at the top,
 clockwise). Tap an empty seat → "Sit here"; "Sit anywhere" takes a random
 empty seat; anyone the committee moves, or the waiting list seats, gets the
-lowest empty seat. The committee's manage page lists seat numbers and has
+lowest empty seat (someone moved onto a full table gets a number as soon as
+a seat there frees up). Committee members at a table have an amber ring and
+a "Host" badge on their card. The committee's manage page lists seat numbers and has
 "Randomise seating" per table (confirmed first); everyone whose seat changed
 gets a notification (in the app and as a push, with a new "Poker seating"
 switch in notification settings). Tapping a player opens a small card:
-name, flag, uni, their societies, games played and best tournament finish.
+name, flag, uni, their societies, games played and best tournament finish
+(only counting games in societies you're in, or games you were at too).
 The event page refreshes seating every 30 seconds while open.
 
 **7. Society event chats.** Every event gets a group chat the moment it's
 created (existing upcoming events got one too). People going, the student
 host, and the society's committee can use it; joining adds you, leaving
-removes you. "Open group chat" is on the event page. Committee members show
+removes you. "Open group chat" is on the event page (the chat header shows
+how many are going). Committee members show
 the amber "Host" badge in the going list and next to their name in the
 chat, as on Social events. Chats of events that finished more than a week
-ago drop off the chat list (nothing is deleted).
+ago drop off the chat list (nothing is deleted). Function admins' chat lists
+stay their own: being an admin doesn't put you in every society's chats.
 
 ## Database migrations to run (Supabase → SQL Editor, in this order)
 
@@ -115,7 +124,9 @@ version keeps working with them.
 
 ## Automated tests
 
-All 24 browser tests pass against the final build (the 14 existing ones plus
-recommend, filters, flags, times, admin, seats, society-chat and the
-reruns), with the type check. Lint cannot run in this environment (it needs
-to download its config).
+All 22 browser tests pass against the final build (the 15 existing ones plus
+recommend, filters, flags, times, admin, seats and society-chat), with the
+type check. Two adversarial code reviews ran over the changes and their
+confirmed findings were fixed (most notably: a waiting-list player moved into
+a seat someone had just left now always gets a proper seat number). Lint
+cannot run in this environment (it needs to download its config).

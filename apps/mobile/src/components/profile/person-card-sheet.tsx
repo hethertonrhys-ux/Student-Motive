@@ -3,6 +3,7 @@ import { Link } from "expo-router";
 import { Modal, Pressable, View } from "react-native";
 import { getCards, getProfileSocieties, loadPokerStats } from "@function/shared";
 import { Avatar } from "@/components/avatar";
+import { HostPill } from "@/components/event/panels";
 import { Flag } from "@/components/flag";
 import { Button, Muted, T } from "@/components/ui";
 import { UniTag } from "@/components/uni-tag";
@@ -11,7 +12,7 @@ import { supabase } from "@/lib/supabase";
 // The small card that opens when you tap a player at a poker table: name,
 // flag, uni, their societies (if they show them) and the poker stats we
 // keep (games played, best tournament finish). No money.
-export function PersonCardSheet({ userId, onClose }: { userId: string | null; onClose: () => void }) {
+export function PersonCardSheet({ userId, host = false, onClose }: { userId: string | null; host?: boolean; onClose: () => void }) {
   const info = useQuery({
     queryKey: ["person-card", userId],
     enabled: !!userId,
@@ -25,7 +26,12 @@ export function PersonCardSheet({ userId, onClose }: { userId: string | null; on
     <Modal visible={!!userId} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable className="flex-1 justify-end bg-black/40" onPress={onClose}>
         <Pressable className="rounded-t-3xl bg-surface p-5 pb-10" onPress={(e) => e.stopPropagation()} testID="person-card-sheet">
-          {!d ? (
+          {info.isError ? (
+            <View className="gap-3">
+              <T variant="semibold" className="text-sm text-danger">Couldn&apos;t load this person. Try again.</T>
+              <Button variant="ghost" className="self-start py-2" onPress={onClose}>Close</Button>
+            </View>
+          ) : !d ? (
             <Muted>Loading…</Muted>
           ) : !d.card ? (
             <Muted>This person isn&apos;t on Function any more.</Muted>
@@ -35,8 +41,9 @@ export function PersonCardSheet({ userId, onClose }: { userId: string | null; on
                 <Avatar name={d.card.name} url={d.card.avatar_url} size={56} />
                 <View className="min-w-0 flex-1">
                   <View className="flex-row items-center gap-2">
-                    <T variant="display-bold" className="text-xl" numberOfLines={1}>{d.card.name}</T>
+                    <T variant="display-bold" className="shrink text-xl" numberOfLines={1}>{d.card.name}</T>
                     <Flag code={d.card.country} size={18} />
+                    {host && <HostPill testID="person-card-host" />}
                   </View>
                   <View className="mt-1 flex-row flex-wrap items-center gap-2">
                     <UniTag id={d.card.university} />

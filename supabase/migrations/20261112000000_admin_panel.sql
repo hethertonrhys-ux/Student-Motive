@@ -163,6 +163,7 @@ declare
   protected uuid := public.protected_society_id();
 begin
   if not public.is_motive_admin() then raise exception 'Function admins only'; end if;
+  if protected is null then raise exception 'The LSE Poker Society could not be found, so nothing was counted'; end if;
   return jsonb_build_object(
     'cutoff', cutoff,
     'society_events', (select count(*) from public.events e where e.ends_at < cutoff and not e.results_published and e.society_id is distinct from protected),
@@ -188,6 +189,7 @@ declare
   social_count integer;
 begin
   if not public.is_motive_admin() then raise exception 'Function admins only'; end if;
+  if protected is null then raise exception 'The LSE Poker Society could not be found, so nothing was deleted'; end if;
   select coalesce(array_agg(e.id), '{}'), coalesce(array_agg(public.image_storage_path(e.image_url)) filter (where public.image_storage_path(e.image_url) is not null), '{}')
     into ids, paths
     from public.events e
@@ -202,9 +204,46 @@ begin
 end;
 $$;
 
+-- The image files those events use. The app removes them through the
+-- Storage API first (a row deleted here would leave the file itself behind),
+-- then calls the delete function above, which clears any rows left over.
+create or replace function public.admin_past_event_images(older_than_days integer default 90)
+returns text[]
+language plpgsql stable security definer set search_path = ''
+as $$
+declare
+  cutoff timestamptz := now() - make_interval(days => greatest(coalesce(older_than_days, 90), 30));
+  protected uuid := public.protected_society_id();
+begin
+  if not public.is_motive_admin() then raise exception 'Function admins only'; end if;
+  if protected is null then raise exception 'The LSE Poker Society could not be found'; end if;
+  return (select coalesce(array_agg(public.image_storage_path(e.image_url)) filter (where public.image_storage_path(e.image_url) is not null), '{}')
+          from public.events e
+          where e.ends_at < cutoff and not e.results_published and e.society_id is distinct from protected);
+end;
+$$;
+
+-- Function admins may delete event images through the Storage API (the
+-- committee already can, for their own society's folder).
+drop policy if exists images_delete_by_function_admins on storage.objects;
+create policy images_delete_by_function_admins on storage.objects for delete to authenticated
+  using (bucket_id = 'images' and public.is_motive_admin());
+
 -- ---------------------------------------------------------------------
 -- 5. A society's own committee clearing out their past events
 -- ---------------------------------------------------------------------
+
+-- On the committee itself (a row in society_admins), as opposed to
+-- is_society_admin(), which is also true for every Function admin. Used
+-- where a Function admin should not be treated as a committee member.
+create or replace function public.is_society_committee(sid uuid)
+returns boolean
+language sql stable security definer set search_path = ''
+as $$
+  select exists (select 1 from public.society_admins a where a.society_id = sid and a.user_id = (select auth.uid()));
+$$;
+revoke execute on function public.is_society_committee(uuid) from public, anon;
+grant execute on function public.is_society_committee(uuid) to authenticated;
 
 create or replace function public.society_past_events_summary(sid uuid, older_than_days integer default 90, keep_results boolean default true)
 returns jsonb
@@ -213,7 +252,7 @@ as $$
 declare
   cutoff timestamptz := now() - make_interval(days => greatest(coalesce(older_than_days, 90), 7));
 begin
-  if not public.is_society_admin(sid) then raise exception 'Only the committee can do this'; end if;
+  if not public.is_society_committee(sid) then raise exception 'Only the committee can do this'; end if;
   return jsonb_build_object(
     'cutoff', cutoff,
     'events', (select count(*) from public.events e where e.society_id = sid and e.ends_at < cutoff and (not keep_results or not e.results_published)),
@@ -234,7 +273,7 @@ declare
   images integer;
   events_count integer;
 begin
-  if not public.is_society_admin(sid) then raise exception 'Only the committee can do this'; end if;
+  if not public.is_society_committee(sid) then raise exception 'Only the committee can do this'; end if;
   select coalesce(array_agg(e.id), '{}'), coalesce(array_agg(public.image_storage_path(e.image_url)) filter (where public.image_storage_path(e.image_url) is not null), '{}')
     into ids, paths
     from public.events e
@@ -247,6 +286,24 @@ begin
 end;
 $$;
 
+create or replace function public.society_past_event_images(sid uuid, older_than_days integer default 90, keep_results boolean default true)
+returns text[]
+language plpgsql stable security definer set search_path = ''
+as $$
+declare
+  cutoff timestamptz := now() - make_interval(days => greatest(coalesce(older_than_days, 90), 7));
+begin
+  if not public.is_society_committee(sid) then raise exception 'Only the committee can do this'; end if;
+  return (select coalesce(array_agg(public.image_storage_path(e.image_url)) filter (where public.image_storage_path(e.image_url) is not null), '{}')
+          from public.events e
+          where e.society_id = sid and e.ends_at < cutoff and (not keep_results or not e.results_published));
+end;
+$$;
+
+revoke execute on function public.admin_past_event_images(integer) from public, anon;
+grant execute on function public.admin_past_event_images(integer) to authenticated;
+revoke execute on function public.society_past_event_images(uuid, integer, boolean) from public, anon;
+grant execute on function public.society_past_event_images(uuid, integer, boolean) to authenticated;
 revoke execute on function public.admin_search_users(text, integer) from public, anon;
 revoke execute on function public.admin_user_detail(uuid) from public, anon;
 revoke execute on function public.admin_list_events(text, uuid, text, boolean, integer) from public, anon;

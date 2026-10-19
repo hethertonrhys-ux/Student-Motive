@@ -54,7 +54,14 @@ export default function EventScreen() {
   });
   const focused = useIsFocused();
   // The event's group chat and who its hosts are (only people in the chat get the id back).
-  const chat = useQuery({ queryKey: ["event-chat", id, userId], enabled: !!ev && !!userId, queryFn: async () => ({ chatId: await loadEventChat(supabase, ev!.id), hostIds: await loadEventHosts(supabase, ev!.id) }) });
+  const chat = useQuery({
+    queryKey: ["event-chat", id, userId],
+    enabled: !!ev && !!userId,
+    queryFn: async () => {
+      const [chatId, hostIds] = await Promise.all([loadEventChat(supabase, ev!.id), loadEventHosts(supabase, ev!.id)]);
+      return { chatId, hostIds };
+    },
+  });
   const part = useQuery({
     queryKey: ["participation", id, userId],
     enabled: !!ev && !hosted && !!userId,
@@ -245,7 +252,7 @@ function SocietyPart({ event, p, userId, profile, finished, tap, busy, refresh, 
           {seatConfirmed && me?.tableId && me.confirmedTableId === me.tableId && (
             <T variant="semibold" className="rounded-2xl bg-ok/10 px-4 py-3 text-sm text-ok" testID="seat-confirmed">✓ Seat confirmed. See you at {myTable?.name}.</T>
           )}
-          <TablesPicker event={event} tables={p.tables} people={p.people} me={me} queue={p.queue} tap={tap} busy={busy} onConfirmed={onConfirmed} />
+          <TablesPicker event={event} tables={p.tables} people={p.people} me={me} queue={p.queue} tap={tap} busy={busy} onConfirmed={onConfirmed} hostIds={hostIds} />
         </>
       ) : event.format === "entries" ? (
         <EntryPanel event={event} people={p.people} me={me} tap={tap} busy={busy} />

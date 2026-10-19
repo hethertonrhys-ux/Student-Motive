@@ -10,7 +10,7 @@ import { LinkButton, type Tap } from "./panels";
 
 // Poker-style tables with numbered seats: tap an empty seat to sit there,
 // "Sit anywhere" for a random one, tap a player for their card.
-export function TablesPicker({ event, tables, people, me, queue, tap, busy, onConfirmed }: { event: MotiveEvent; tables: EventTable[]; people: Person[]; me: Person | null; queue: Queue; tap: Tap; busy: boolean; onConfirmed: () => void }) {
+export function TablesPicker({ event, tables, people, me, queue, tap, busy, onConfirmed, hostIds }: { event: MotiveEvent; tables: EventTable[]; people: Person[]; me: Person | null; queue: Queue; tap: Tap; busy: boolean; onConfirmed: () => void; hostIds?: Set<string> }) {
   // Waiting lists only move people before the event starts.
   const started = new Date(event.starts_at).getTime() <= nowMs() || tables.some((t) => t.started_at);
   const [pick, setPick] = useState<{ table: EventTable; seat: number } | null>(null);
@@ -48,12 +48,12 @@ export function TablesPicker({ event, tables, people, me, queue, tap, busy, onCo
                   {seated.length}/{table.seats}
                 </T>
               </View>
-              <PokerTable table={table} seated={seated} meId={me?.userId ?? null} onSeat={!finished && !(full && !mine) ? (seat) => setPick({ table, seat }) : undefined} onPerson={setPerson} />
+              <PokerTable table={table} seated={seated} meId={me?.userId ?? null} hostIds={hostIds} onSeat={!finished && !(full && !mine) ? (seat) => setPick({ table, seat }) : undefined} onPerson={setPerson} />
               {willing.length > 0 && <Muted className="mt-2 text-center text-xs font-sans-semibold">+{willing.length} also happy to play here</Muted>}
               <View className="mt-3 items-center">
                 {mine ? (
                   <View className="items-center gap-1.5">
-                    <Muted className="text-xs">You&apos;re in Seat {me?.seatNo ?? "?"}. Tap an empty seat to move.</Muted>
+                    <Muted className="text-center text-xs">You&apos;re in Seat {me?.seatNo ?? "?"}. Tap an empty seat to move (the committee may reshuffle the table).</Muted>
                     <Button variant="ghost" className="py-2" onPress={() => void tap(() => chooseTable(supabase, event.id, null))} disabled={busy} testID="leave-table">Leave this table</Button>
                   </View>
                 ) : full ? (
@@ -121,7 +121,7 @@ export function TablesPicker({ event, tables, people, me, queue, tap, busy, onCo
             {pick && (
               <View className="gap-3">
                 <T variant="display-bold" className="text-lg">Seat {pick.seat} at {pick.table.name}</T>
-                <Muted className="text-sm">{me?.tableId === pick.table.id ? "Move to this seat?" : me?.tableId ? "Move to this table and take this seat?" : "Take this seat? It's yours until you leave the table."}</Muted>
+                <Muted className="text-sm">{me?.tableId === pick.table.id ? "Move to this seat?" : me?.tableId ? "Move to this table and take this seat?" : "Take this seat? You keep it unless you move or the committee reshuffles the table."}</Muted>
                 <View className="flex-row gap-2">
                   <Button
                     className="flex-1"
@@ -142,7 +142,7 @@ export function TablesPicker({ event, tables, people, me, queue, tap, busy, onCo
           </Pressable>
         </Pressable>
       </Modal>
-      <PersonCardSheet userId={person} onClose={() => setPerson(null)} />
+      <PersonCardSheet userId={person} host={!!person && !!hostIds?.has(person)} onClose={() => setPerson(null)} />
       {unseated.length > 0 && (
         <Card>
           <Muted className="mb-2 text-sm font-sans-semibold">Going, no table yet</Muted>
@@ -161,8 +161,9 @@ export function TablesPicker({ event, tables, people, me, queue, tap, busy, onCo
 }
 
 // Green felt with numbered seats around the edge. Players sit at their own
-// seat number; an empty seat shows its number and can be tapped.
-export function PokerTable({ table, seated, meId, onSeat, onPerson }: { table: EventTable; seated: Person[]; meId: string | null; onSeat?: (seat: number) => void; onPerson?: (userId: string) => void }) {
+// seat number; an empty seat shows its number and can be tapped. Hosts (the
+// committee) get an amber ring.
+export function PokerTable({ table, seated, meId, hostIds, onSeat, onPerson }: { table: EventTable; seated: Person[]; meId: string | null; hostIds?: Set<string>; onSeat?: (seat: number) => void; onPerson?: (userId: string) => void }) {
   const [size, setSize] = useState({ w: 0, h: 0 });
   const seats = table.seats;
   // Anyone without a number yet (shouldn't happen) is shown in the first empty seats.
@@ -189,9 +190,9 @@ export function PokerTable({ table, seated, meId, onSeat, onPerson }: { table: E
             <View key={n} className="absolute items-center" style={{ left: cx - 32, top: cy - (above ? (person ? 36 : 32) : person ? 17 : 15), width: 64, flexDirection: above ? "column-reverse" : "column" }}>
               {person ? (
                 <Pressable onPress={onPerson ? () => onPerson(person.userId) : undefined} accessibilityLabel={`Seat ${n}: ${person.name}`} className="items-center" testID={`seat-player-${person.userId}`}>
-                  <Avatar name={person.name} url={person.avatarUrl} size={34} ring={person.userId === meId} />
+                  <Avatar name={person.name} url={person.avatarUrl} size={34} ring={person.userId === meId || !!hostIds?.has(person.userId)} ringColor={person.userId === meId ? undefined : "#b45309"} />
                   <View className={`${above ? "mb-0.5" : "mt-0.5"} max-w-16 flex-row items-center gap-0.5 rounded bg-surface/90 px-1`}>
-                    <T variant="bold" className="text-[10px] leading-3" numberOfLines={1}>{n} · {person.userId === meId ? "You" : person.name.split(" ")[0]}</T>
+                    <T variant="bold" className="shrink text-[10px] leading-3" numberOfLines={1}>{n} · {person.userId === meId ? "You" : person.name.split(" ")[0]}</T>
                     <Flag code={person.country} size={9} />
                   </View>
                 </Pressable>

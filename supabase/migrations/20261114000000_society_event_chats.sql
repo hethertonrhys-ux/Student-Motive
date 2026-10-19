@@ -25,7 +25,8 @@ select e.id from public.events e where e.ends_at > now()
 on conflict (event_id) do nothing;
 
 -- 2. Who can use a chat: as before, plus a society's committee in its
---    events' chats.
+--    events' chats (the committee itself, not Function admins, whose Chats
+--    list stays their own).
 create or replace function public.can_use_thread(tid uuid)
 returns boolean
 language sql stable security definer set search_path = ''
@@ -40,7 +41,7 @@ as $$
       or (t.event_id is not null
         and (public.is_event_host(t.event_id)
              or public.is_going_to(t.event_id)
-             or exists (select 1 from public.events e where e.id = t.event_id and e.society_id is not null and public.is_society_admin(e.society_id))))
+             or exists (select 1 from public.events e where e.id = t.event_id and e.society_id is not null and public.is_society_committee(e.society_id))))
       or (t.social_event_id is not null
         and (public.social_is_host(t.social_event_id) or public.social_is_going(t.social_event_id)))
     )
@@ -58,7 +59,7 @@ declare
 begin
   if auth.uid() is null then raise exception 'Log in first'; end if;
   if not (public.is_event_host(eid) or public.is_going_to(eid)
-          or exists (select 1 from public.events e where e.id = eid and e.society_id is not null and public.is_society_admin(e.society_id))) then
+          or exists (select 1 from public.events e where e.id = eid and e.society_id is not null and public.is_society_committee(e.society_id))) then
     raise exception 'Only people going can see the chat';
   end if;
   insert into public.threads (event_id) values (eid) on conflict (event_id) do nothing;
@@ -69,13 +70,18 @@ $$;
 
 -- 3. Who counts as the host of an event: the student hosting it, or the
 --    society's committee. Shown with the Host badge in the chat and the
---    going list. Only for events the caller is part of.
+--    going list. Only for events the caller is part of or allowed to see.
 create or replace function public.event_hosts(eid uuid)
 returns setof uuid
 language sql stable security definer set search_path = ''
 as $$
   select e.host_user_id from public.events e
   where e.id = eid and e.host_user_id is not null
+    and ((select auth.uid()) is not null)
+    and (public.is_event_host(eid) or public.is_going_to(eid)
+         or (not e.is_hidden
+             and not public.is_blocked_between(e.host_user_id, (select auth.uid()))
+             and (e.visibility = 'public' or public.are_friends(e.host_user_id, (select auth.uid())))))
   union
   select a.user_id from public.society_admins a
   join public.events e on e.society_id = a.society_id
@@ -87,7 +93,11 @@ revoke execute on function public.event_hosts(uuid) from public, anon;
 grant execute on function public.event_hosts(uuid) to authenticated;
 
 -- 4. The chat list: as before, but chats of events that finished more than
---    a week ago drop off (the chat itself stays).
+--    a week ago drop off (the chat itself stays). Now that every event has
+--    a chat, the list first narrows down to the chats that could be mine
+--    (my DMs, events I'm going to, host or run, Social plans I'm in) with
+--    plain lookups, and only then applies the full can_use_thread check,
+--    so the badge and the Chats tab stay quick however many events exist.
 create or replace function public.my_threads()
 returns table (
   id uuid, event_id uuid, title text, other_id uuid, other_name text, other_avatar text,
@@ -95,6 +105,19 @@ returns table (
 )
 language sql stable security definer set search_path = ''
 as $$
+  with mine as materialized (
+    select t.id from public.threads t
+    where t.user_a = (select auth.uid()) or t.user_b = (select auth.uid())
+       or t.event_id in (
+            select en.event_id from public.event_entries en where en.user_id = (select auth.uid()) and en.status = 'going'
+            union select ev.id from public.events ev where ev.host_user_id = (select auth.uid())
+            union select ev.id from public.events ev join public.society_admins a on a.society_id = ev.society_id where a.user_id = (select auth.uid()))
+       or t.social_event_id in (
+            select s.id from public.social_events s where s.host_id = (select auth.uid())
+            union select m.event_id from public.social_event_members m where m.user_id = (select auth.uid()) and m.status = 'going')
+  ), ok as materialized (
+    select mine.id from mine where public.can_use_thread(mine.id)
+  )
   select t.id, t.event_id,
          coalesce(e.title, se.title, coalesce(nullif(op.display_name, ''), 'Member')),
          op.id, coalesce(nullif(op.display_name, ''), 'Member'), op.avatar_url,
@@ -104,6 +127,7 @@ as $$
             and m.created_at > coalesce(r.last_read_at, '-infinity'::timestamptz)),
          t.social_event_id
   from public.threads t
+  join ok on ok.id = t.id
   left join public.events e on e.id = t.event_id
   left join public.social_events se on se.id = t.social_event_id
   left join public.profiles op on op.id = case when t.user_a = (select auth.uid()) then t.user_b else t.user_a end
@@ -113,8 +137,7 @@ as $$
     select body, created_at, sender_id from public.messages m
     where m.thread_id = t.id order by created_at desc limit 1
   ) lm on true
-  where public.can_use_thread(t.id)
-    and (e.id is null or e.ends_at > now() - interval '7 days')
+  where (e.id is null or e.ends_at > now() - interval '7 days')
     and (se.id is null or se.ends_at > now() - interval '7 days')
   order by coalesce(lm.created_at, t.created_at) desc
   limit 100;
