@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getFriendRequests, getSocietyPosts, getTableMoves, getTwoTruthsDays, type FriendRequest, type SocietyPost, type TableMove, type TwoTruthsDay } from "./notifications";
+import { getFriendRequests, getSocietyPosts, getTableMoves, getTwoTruthsDays, type FriendRequest, type SocietyPost, type TableMove, type TwoTruthsDay, getSeatChanges, type SeatChange } from "./notifications";
 import { getCards, getFriendships, getHiddenPeople, relationFor, type PersonCard, type Relation } from "./social";
 
 // Messages, friends and notifications, read and written straight from the
@@ -154,19 +154,19 @@ export async function searchPeople(supabase: SupabaseClient, myId: string, query
 
 // ---- Notifications ----
 
-export type Notifications = { posts: SocietyPost[]; requests: FriendRequest[]; moves: TableMove[]; plays: TwoTruthsDay[]; cards: Map<string, PersonCard> };
+export type Notifications = { posts: SocietyPost[]; requests: FriendRequest[]; moves: TableMove[]; seats: SeatChange[]; plays: TwoTruthsDay[]; cards: Map<string, PersonCard> };
 
 export async function loadNotifications(supabase: SupabaseClient, myId: string): Promise<Notifications> {
-  const [posts, requests, moves, plays] = await Promise.all([getSocietyPosts(supabase, myId), getFriendRequests(supabase, myId), getTableMoves(supabase, myId), getTwoTruthsDays(supabase)]);
+  const [posts, requests, moves, seats, plays] = await Promise.all([getSocietyPosts(supabase, myId), getFriendRequests(supabase, myId), getTableMoves(supabase, myId), getSeatChanges(supabase, myId), getTwoTruthsDays(supabase)]);
   const cards = await getCards(supabase, requests.map((r) => r.id));
-  return { posts, requests, moves, plays, cards };
+  return { posts, requests, moves, seats, plays, cards };
 }
 
 // For the badge: when each notification happened. The phone compares them
 // with when you last opened Notifications.
 export async function getNotificationTimes(supabase: SupabaseClient, myId: string): Promise<string[]> {
   const n = await loadNotifications(supabase, myId);
-  return [...n.posts, ...n.requests, ...n.moves, ...n.plays].map((x) => x.at);
+  return [...n.posts, ...n.requests, ...n.moves, ...n.seats, ...n.plays].map((x) => x.at);
 }
 
 // "5 min ago", "3 h ago", "2 days ago".

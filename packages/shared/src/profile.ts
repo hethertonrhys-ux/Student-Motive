@@ -180,6 +180,14 @@ export async function saveAccountDetails(supabase: SupabaseClient, myId: string,
   return error ? { error: "Couldn't save. Please try again." } : {};
 }
 
+// Poker stats for the little card at the table: counts only, no money.
+export type PokerStats = { games_played: number; best_finish: number | null };
+export async function loadPokerStats(supabase: SupabaseClient, id: string): Promise<PokerStats> {
+  const { data } = await supabase.rpc("poker_stats", { person: id });
+  const row = (data ?? {}) as Partial<PokerStats>;
+  return { games_played: Number(row.games_played ?? 0), best_finish: row.best_finish ?? null };
+}
+
 // Kept for the website: name and course only.
 export async function saveProfile(supabase: SupabaseClient, myId: string, input: { name: string; course: string }): Promise<Result> {
   const clean = (v: string, max: number) => v.trim().replace(/[ \t]+/g, " ").slice(0, max);

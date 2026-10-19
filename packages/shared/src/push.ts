@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // send it. The sending itself happens on the server (the send-push edge
 // function), fed by database triggers; the app only keeps these settings.
 
-export type NotificationKind = "messages" | "friends" | "society_events" | "reminders" | "hosting";
+export type NotificationKind = "messages" | "friends" | "society_events" | "reminders" | "hosting" | "seating";
 export type NotificationSettings = Record<NotificationKind, boolean>;
 
 export const NOTIFICATION_KINDS: { key: NotificationKind; title: string; detail: string }[] = [
@@ -13,12 +13,13 @@ export const NOTIFICATION_KINDS: { key: NotificationKind; title: string; detail:
   { key: "society_events", title: "Society events", detail: "When a society you're a member of posts a new event." },
   { key: "reminders", title: "Starting soon", detail: "Half an hour before an event you've joined starts." },
   { key: "hosting", title: "Your events", detail: "When someone joins, or asks to join, an event you're hosting." },
+  { key: "seating", title: "Poker seating", detail: "When the committee reshuffles your table and you get a new seat." },
 ];
 
-export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = { messages: true, friends: true, society_events: true, reminders: true, hosting: true };
+export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = { messages: true, friends: true, society_events: true, reminders: true, hosting: true, seating: true };
 
 export async function loadNotificationSettings(supabase: SupabaseClient, myId: string): Promise<NotificationSettings> {
-  const { data } = await supabase.from("notification_settings").select("messages, friends, society_events, reminders, hosting").eq("user_id", myId).maybeSingle();
+  const { data } = await supabase.from("notification_settings").select("messages, friends, society_events, reminders, hosting, seating").eq("user_id", myId).maybeSingle();
   return { ...DEFAULT_NOTIFICATION_SETTINGS, ...((data as Partial<NotificationSettings> | null) ?? {}) };
 }
 

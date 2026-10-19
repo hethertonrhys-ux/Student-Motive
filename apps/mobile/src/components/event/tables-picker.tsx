@@ -1,15 +1,21 @@
 import { useState } from "react";
-import { Pressable, View } from "react-native";
-import { chooseTable, confirmSeat, hasEnded, joinEvent, joinTableWaitlist, leaveEvent, leaveTableWaitlist, nowMs, setAlsoTables, type EventTable, type MotiveEvent, type Person, type Queue } from "@function/shared";
+import { Modal, Pressable, View } from "react-native";
+import { chooseTable, confirmSeat, hasEnded, joinEvent, joinTableWaitlist, leaveEvent, leaveTableWaitlist, nowMs, setAlsoTables, takeSeat, type EventTable, type MotiveEvent, type Person, type Queue } from "@function/shared";
 import { Avatar } from "@/components/avatar";
+import { Flag } from "@/components/flag";
+import { PersonCardSheet } from "@/components/profile/person-card-sheet";
 import { Button, Card, Muted, T } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 import { LinkButton, type Tap } from "./panels";
 
-// Poker-style tables: pick a seat and your avatar appears there.
+// Poker-style tables with numbered seats: tap an empty seat to sit there,
+// "Sit anywhere" for a random one, tap a player for their card.
 export function TablesPicker({ event, tables, people, me, queue, tap, busy, onConfirmed }: { event: MotiveEvent; tables: EventTable[]; people: Person[]; me: Person | null; queue: Queue; tap: Tap; busy: boolean; onConfirmed: () => void }) {
   // Waiting lists only move people before the event starts.
   const started = new Date(event.starts_at).getTime() <= nowMs() || tables.some((t) => t.started_at);
+  const [pick, setPick] = useState<{ table: EventTable; seat: number } | null>(null);
+  const [person, setPerson] = useState<string | null>(null);
+  const finished = hasEnded(event.ends_at);
   const unseated = people.filter((p) => p.status === "going" && (!p.tableId || !tables.some((t) => t.id === p.tableId)));
   const myTable = me?.tableId ? tables.find((t) => t.id === me.tableId) : null;
   return (
@@ -42,11 +48,14 @@ export function TablesPicker({ event, tables, people, me, queue, tap, busy, onCo
                   {seated.length}/{table.seats}
                 </T>
               </View>
-              <PokerTable seats={table.seats} seated={seated} meId={me?.userId ?? null} />
+              <PokerTable table={table} seated={seated} meId={me?.userId ?? null} onSeat={!finished && !(full && !mine) ? (seat) => setPick({ table, seat }) : undefined} onPerson={setPerson} />
               {willing.length > 0 && <Muted className="mt-2 text-center text-xs font-sans-semibold">+{willing.length} also happy to play here</Muted>}
               <View className="mt-3 items-center">
                 {mine ? (
-                  <Button variant="ghost" className="py-2" onPress={() => void tap(() => chooseTable(supabase, event.id, null))} disabled={busy} testID="leave-table">Leave this table</Button>
+                  <View className="items-center gap-1.5">
+                    <Muted className="text-xs">You&apos;re in Seat {me?.seatNo ?? "?"}. Tap an empty seat to move.</Muted>
+                    <Button variant="ghost" className="py-2" onPress={() => void tap(() => chooseTable(supabase, event.id, null))} disabled={busy} testID="leave-table">Leave this table</Button>
+                  </View>
                 ) : full ? (
                   <View className="items-center gap-1.5">
                     <T variant="semibold" className="text-sm text-muted">Table full{q?.waiting ? ` · ${q.waiting} waiting` : ""}</T>
@@ -59,10 +68,11 @@ export function TablesPicker({ event, tables, people, me, queue, tap, busy, onCo
                       <Button variant="ghost" className="py-2" onPress={() => void tap(() => joinTableWaitlist(supabase, event.id, table.id))} disabled={busy} testID="join-waitlist">Join waiting list</Button>
                     ) : null}
                   </View>
-                ) : me ? (
-                  <Button className="py-2" onPress={() => void tap(() => chooseTable(supabase, event.id, table.id))} disabled={busy} testID="sit">{me.tableId ? "Move here" : "Sit here"}</Button>
                 ) : (
-                  <Button className="py-2" onPress={() => void tap(() => joinEvent(supabase, event.id, table.id))} disabled={busy} testID="sit">Sit here</Button>
+                  <View className="items-center gap-1.5">
+                    <Button className="py-2" onPress={() => void tap(() => takeSeat(supabase, event.id, table.id, null))} disabled={busy || finished} testID="sit">{me?.tableId ? "Move here (any seat)" : "Sit anywhere"}</Button>
+                    <Muted className="text-xs">or tap an empty seat</Muted>
+                  </View>
                 )}
               </View>
             </Card>
@@ -103,6 +113,36 @@ export function TablesPicker({ event, tables, people, me, queue, tap, busy, onCo
           <T variant="semibold" className="text-sm text-brand" onPress={() => void tap(() => joinEvent(supabase, event.id, null))} testID="just-going">Just say I&apos;m going</T>
         </Muted>
       )}
+
+      {/* "Sit here" for the seat that was tapped. */}
+      <Modal visible={!!pick} transparent animationType="fade" onRequestClose={() => setPick(null)}>
+        <Pressable className="flex-1 justify-end bg-black/40" onPress={() => setPick(null)}>
+          <Pressable className="rounded-t-3xl bg-surface p-5 pb-10" onPress={(e) => e.stopPropagation()} testID="seat-sheet">
+            {pick && (
+              <View className="gap-3">
+                <T variant="display-bold" className="text-lg">Seat {pick.seat} at {pick.table.name}</T>
+                <Muted className="text-sm">{me?.tableId === pick.table.id ? "Move to this seat?" : me?.tableId ? "Move to this table and take this seat?" : "Take this seat? It's yours until you leave the table."}</Muted>
+                <View className="flex-row gap-2">
+                  <Button
+                    className="flex-1"
+                    disabled={busy}
+                    onPress={() => {
+                      const chosen = pick;
+                      setPick(null);
+                      void tap(() => takeSeat(supabase, event.id, chosen.table.id, chosen.seat));
+                    }}
+                    testID="sit-here"
+                  >
+                    Sit here
+                  </Button>
+                  <Button variant="ghost" onPress={() => setPick(null)}>Cancel</Button>
+                </View>
+              </View>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+      <PersonCardSheet userId={person} onClose={() => setPerson(null)} />
       {unseated.length > 0 && (
         <Card>
           <Muted className="mb-2 text-sm font-sans-semibold">Going, no table yet</Muted>
@@ -120,30 +160,50 @@ export function TablesPicker({ event, tables, people, me, queue, tap, busy, onCo
   );
 }
 
-// Green felt with seats around the edge.
-function PokerTable({ seats, seated, meId }: { seats: number; seated: Person[]; meId: string | null }) {
+// Green felt with numbered seats around the edge. Players sit at their own
+// seat number; an empty seat shows its number and can be tapped.
+export function PokerTable({ table, seated, meId, onSeat, onPerson }: { table: EventTable; seated: Person[]; meId: string | null; onSeat?: (seat: number) => void; onPerson?: (userId: string) => void }) {
   const [size, setSize] = useState({ w: 0, h: 0 });
+  const seats = table.seats;
+  // Anyone without a number yet (shouldn't happen) is shown in the first empty seats.
+  const bySeat = new Map<number, Person>();
+  for (const p of seated) if (p.seatNo && p.seatNo <= seats && !bySeat.has(p.seatNo)) bySeat.set(p.seatNo, p);
+  for (const p of seated) {
+    if (bySeat.get(p.seatNo ?? -1) === p) continue;
+    for (let n = 1; n <= seats; n++) if (!bySeat.has(n)) { bySeat.set(n, p); break; }
+  }
   return (
-    <View className="mx-auto mt-4 w-full max-w-sm" style={{ aspectRatio: 16 / 10 }} onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+    <View className="mx-auto mt-4 w-full max-w-sm" style={{ aspectRatio: 16 / 10 }} onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })} testID={`felt-${table.id}`}>
       <View className="absolute rounded-full" style={{ left: "16%", right: "16%", top: "16%", bottom: "16%", borderWidth: 6, borderColor: "#5b3a1e", backgroundColor: "#1a7a44" }} />
       {size.w > 0 &&
         Array.from({ length: seats }, (_, i) => {
-          // Seats spaced evenly around an ellipse, starting at the top.
+          const n = i + 1;
+          // Seats spaced evenly around an ellipse, Seat 1 at the top, clockwise.
           const angle = (i / seats) * 2 * Math.PI - Math.PI / 2;
           const cx = size.w * (0.5 + 0.44 * Math.cos(angle));
           const cy = size.h * (0.5 + 0.4 * Math.sin(angle));
-          const person = seated[i];
+          const person = bySeat.get(n);
+          // Seats along the top edge put their label above the circle so it isn't hidden by the felt.
+          const above = Math.sin(angle) < -0.3;
           return (
-            <View key={i} className="absolute items-center" style={{ left: cx - 32, top: cy - (person ? 24 : 15), width: 64 }}>
+            <View key={n} className="absolute items-center" style={{ left: cx - 32, top: cy - (above ? (person ? 36 : 32) : person ? 17 : 15), width: 64, flexDirection: above ? "column-reverse" : "column" }}>
               {person ? (
-                <>
+                <Pressable onPress={onPerson ? () => onPerson(person.userId) : undefined} accessibilityLabel={`Seat ${n}: ${person.name}`} className="items-center" testID={`seat-player-${person.userId}`}>
                   <Avatar name={person.name} url={person.avatarUrl} size={34} ring={person.userId === meId} />
-                  <View className="mt-0.5 max-w-16 rounded bg-surface/90 px-1">
-                    <T variant="bold" className="text-[10px] leading-3" numberOfLines={1}>{person.userId === meId ? "You" : person.name.split(" ")[0]}</T>
+                  <View className={`${above ? "mb-0.5" : "mt-0.5"} max-w-16 flex-row items-center gap-0.5 rounded bg-surface/90 px-1`}>
+                    <T variant="bold" className="text-[10px] leading-3" numberOfLines={1}>{n} · {person.userId === meId ? "You" : person.name.split(" ")[0]}</T>
+                    <Flag code={person.country} size={9} />
                   </View>
-                </>
+                </Pressable>
               ) : (
-                <View accessibilityLabel="Empty seat" className="h-[30px] w-[30px] rounded-full border-2 border-dashed border-line bg-surface/60" />
+                <Pressable onPress={onSeat ? () => onSeat(n) : undefined} disabled={!onSeat} accessibilityLabel={`Seat ${n}, empty`} className="items-center" testID={`seat-${table.id}-${n}`}>
+                  <View className="h-[30px] w-[30px] items-center justify-center rounded-full border-2 border-dashed border-line bg-surface/60">
+                    <T variant="bold" className="text-[11px] text-muted">{n}</T>
+                  </View>
+                  <View className={`${above ? "mb-0.5" : "mt-0.5"} rounded bg-surface/90 px-1`}>
+                    <T variant="bold" className="text-[10px] leading-3 text-muted">Seat {n}</T>
+                  </View>
+                </Pressable>
               )}
             </View>
           );

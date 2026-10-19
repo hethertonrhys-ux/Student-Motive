@@ -24,6 +24,10 @@ export const setAlsoTables = async (supabase: SupabaseClient, eventId: string, t
 export const joinTableWaitlist = async (supabase: SupabaseClient, eventId: string, tableId: string): Promise<Result> => done(await supabase.rpc("join_table_waitlist", { eid: eventId, tid: tableId }));
 export const leaveTableWaitlist = async (supabase: SupabaseClient, eventId: string): Promise<Result> => done(await supabase.rpc("leave_table_waitlist", { eid: eventId }));
 export const confirmSeat = async (supabase: SupabaseClient, eventId: string): Promise<Result> => done(await supabase.rpc("confirm_seat", { eid: eventId }));
+// A chosen seat (seat number) or, with null, any empty seat at the table. Joins the event if needed.
+export const takeSeat = async (supabase: SupabaseClient, eventId: string, tableId: string, seat: number | null): Promise<Result> => done(await supabase.rpc("take_seat", { eid: eventId, tid: tableId, seat }));
+// Committee: reshuffle everyone at a table; each player is told their new seat.
+export const randomiseSeats = async (supabase: SupabaseClient, eventId: string, tableId: string): Promise<Result> => done(await supabase.rpc("randomise_table_seats", { eid: eventId, tid: tableId }));
 
 // Reporting your own result (e.g. leaving early) and settle-ups with tablemates.
 export const recordMyResult = async (supabase: SupabaseClient, eventId: string, netPence: number): Promise<Result> => done(await supabase.rpc("record_my_result", { eid: eventId, net_pence: netPence }));

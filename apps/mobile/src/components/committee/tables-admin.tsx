@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Pressable, View } from "react-native";
-import { addLateArrival, moveEntry, removeEntry, setTableStarted, type EventTable, type Person } from "@function/shared";
+import { addLateArrival, moveEntry, randomiseSeats, removeEntry, setTableStarted, type EventTable, type Person } from "@function/shared";
 import { Avatar } from "@/components/avatar";
 import { LinkButton, type Tap } from "@/components/event/panels";
 import { Select } from "@/components/select";
@@ -62,9 +62,16 @@ export function TablesAdmin({ eventId, tables, people, eventStarted, finished, t
               <Muted className="mt-2 text-sm">Empty</Muted>
             ) : (
               <View className="mt-3 gap-2">
-                {list.map((p) => (
+                {table && list.length > 1 && !finished && (
+                  <View className="flex-row items-center justify-between gap-2">
+                    <Muted className="text-xs">Seats are numbered. Reshuffle for fairness; everyone gets told their new seat.</Muted>
+                    <LinkButton onPress={() => void tap(() => randomiseSeats(supabase, eventId, table.id))} confirmText={`Randomise the seating at ${table.name}? Everyone there gets a new seat number and a notification.`} disabled={busy} testID={`randomise-${table.id}`}>Randomise seating</LinkButton>
+                  </View>
+                )}
+                {[...list].sort((a, b) => (a.seatNo ?? 99) - (b.seatNo ?? 99)).map((p) => (
                   <View key={p.userId} className="flex-row items-center justify-between gap-2" testID={`seated-${p.userId}`}>
                     <View className="min-w-0 flex-1 flex-row items-center gap-2">
+                      {table && <T variant="bold" className="w-14 text-xs text-muted" testID={`seat-of-${p.userId}`}>{p.seatNo ? `Seat ${p.seatNo}` : ""}</T>}
                       <Avatar name={p.name} url={p.avatarUrl} size={28} />
                       <T variant="semibold" numberOfLines={1}>{p.name}</T>
                     </View>

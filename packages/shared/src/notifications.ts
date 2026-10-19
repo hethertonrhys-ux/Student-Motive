@@ -64,6 +64,21 @@ export async function getTableMoves(supabase: SupabaseClient, me: string): Promi
   }));
 }
 
+export type SeatChange = { id: string; eventId: string; event: string; table: string; seatNo: number | null; at: string };
+
+// Times the committee reshuffled your table (or moved your seat).
+export async function getSeatChanges(supabase: SupabaseClient, me: string): Promise<SeatChange[]> {
+  const { data } = await supabase
+    .from("seat_changes")
+    .select("id, event_id, seat_no, created_at, events(title), event_tables(name)")
+    .eq("user_id", me)
+    .gte("created_at", new Date(Date.now() - DAYS * 864e5).toISOString())
+    .order("created_at", { ascending: false })
+    .limit(20);
+  type Row = { id: string; event_id: string; seat_no: number | null; created_at: string; events: { title: string } | null; event_tables: { name: string } | null };
+  return ((data ?? []) as unknown as Row[]).map((r) => ({ id: r.id, eventId: r.event_id, event: r.events?.title ?? "your event", table: r.event_tables?.name ?? "your table", seatNo: r.seat_no, at: r.created_at }));
+}
+
 export type TwoTruthsDay = { day: string; at: string; plays: number; right: number; rightNames: string[] };
 
 // People playing your Two truths and a lie, one notification per day (UK

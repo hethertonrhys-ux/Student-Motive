@@ -1,26 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
-import { Link, useLocalSearchParams } from "expo-router";
+import { Link, useIsFocused, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Linking, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  audienceLabel,
-  bankEditorRows,
-  categoryLabel,
-  formatCost,
-  formatEventTime,
-  getCards,
-  hasEnded,
-  isLive,
-  loadEvent,
-  loadParticipation,
-  nowMs,
-  uniShort,
-  type EventWithDetails,
-  type Participation,
-  type PersonCard,
-} from "@function/shared";
+import { audienceLabel, bankEditorRows, categoryLabel, type EventWithDetails, formatCost, formatEventTime, getCards, hasEnded, isLive, loadEvent, loadParticipation, nowMs, type Participation, type PersonCard, uniShort } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { CompleteProfileCard } from "@/components/complete-profile-card";
@@ -68,10 +52,13 @@ export default function EventScreen() {
       return { host: cards.get(ev!.host_user_id!) ?? null, exact: exact ?? null, entries, guestCards };
     },
   });
+  const focused = useIsFocused();
   const part = useQuery({
     queryKey: ["participation", id, userId],
     enabled: !!ev && !hosted && !!userId,
     queryFn: () => loadParticipation(supabase, ev!.id, ev!.society_id, ev!.format, userId!),
+    // Poker tables: other players sitting down or a reshuffle show up without a tap.
+    refetchInterval: focused && ev?.format === "tables" && !hasEnded(ev.ends_at) ? 30_000 : false,
   });
 
   const [busy, setBusy] = useState(false);
