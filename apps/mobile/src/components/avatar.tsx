@@ -11,13 +11,15 @@ export function initials(name: string) {
   return ((parts[0]?.[0] ?? "?") + (parts.length > 1 ? parts.at(-1)![0] : "")).toUpperCase();
 }
 
-export function Avatar({ name, url, size = 36 }: { name: string; url?: string | null; size?: number }) {
+// ring: a brand-coloured ring, used to mark "you" in a list.
+export function Avatar({ name, url, size = 36, ring = false }: { name: string; url?: string | null; size?: number; ring?: boolean }) {
   let hash = 2166136261;
   for (const ch of name) hash = Math.imul(hash ^ ch.charCodeAt(0), 16777619);
   const colour = COLOURS[(hash >>> 0) % COLOURS.length];
-  if (url) return <Image source={{ uri: url }} style={{ width: size, height: size, borderRadius: size / 2 }} contentFit="cover" />;
+  const ringStyle = ring ? { borderWidth: 2, borderColor: "#DA291C" } : {};
+  if (url) return <Image source={{ uri: url }} style={{ width: size, height: size, borderRadius: size / 2, ...ringStyle }} contentFit="cover" />;
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colour }} className="items-center justify-center">
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colour, ...ringStyle }} className="items-center justify-center">
       <T variant="bold" style={{ fontSize: size * 0.38, color: "#fff" }}>{initials(name)}</T>
     </View>
   );

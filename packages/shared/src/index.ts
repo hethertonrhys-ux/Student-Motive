@@ -22,3 +22,4 @@ export * from "./events";
 export * from "./map";
 export * from "./map-events";
 export * from "./societies";
+export * from "./event-actions";

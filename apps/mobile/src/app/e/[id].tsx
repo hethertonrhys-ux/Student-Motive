@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { Link, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
@@ -6,69 +6,98 @@ import { Linking, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   audienceLabel,
+  bankEditorRows,
   categoryLabel,
   formatCost,
   formatEventTime,
   getCards,
-  getEventPeople,
   hasEnded,
   isLive,
   loadEvent,
+  loadParticipation,
+  nowMs,
   uniShort,
   type EventWithDetails,
-  type Person,
+  type Participation,
+  type PersonCard,
 } from "@function/shared";
+import { Avatar } from "@/components/avatar";
+import { CompleteProfileCard } from "@/components/complete-profile-card";
+import { BankLedger, MyBankLine } from "@/components/event/bank-ledger";
+import { MyResults } from "@/components/event/my-results";
+import { EntryPanel, GoingPanel, HostedJoinCard, NameForm, PeopleSection, PersonRow, WhosComing, type HostedStatus, type Tap } from "@/components/event/panels";
+import { SelfReport } from "@/components/event/self-report";
+import { TablesPicker } from "@/components/event/tables-picker";
 import { ShareButton } from "@/components/share-button";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
 import { useProfile } from "@/lib/profile";
-import { supabase } from "@/lib/supabase";
 import { SITE_URL } from "@/lib/site";
+import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
+type Entry = { user_id: string; status: "going" | "waitlist" | "requested"; created_at: string };
+type Exact = { address: string | null; lat: number | null; lng: number | null } | null;
+
 // A society event (or a student-hosted one): the details, who can come,
-// and the "I'm going" button. Sign-up lists, tables and results (phase 5)
-// are shown as counts for now.
+// and everything about taking part: I'm going, sign-up lists, tables and
+// waiting lists, the bank, your own result, and who pays who at the end.
 export default function EventScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useSession();
   const { profile } = useProfile();
   const queryClient = useQueryClient();
+  const userId = session?.user.id ?? null;
 
   const event = useQuery({ queryKey: ["event", id], queryFn: () => loadEvent(supabase, id), enabled: !!id });
-  const extras = useQuery({
-    queryKey: ["event-extras", id, session?.user.id ?? null],
-    enabled: !!event.data,
+  const ev = event.data;
+  const hosted = Boolean(ev?.host_user_id);
+  // Student-hosted events: who's hosting, the exact address if you may see it, and the guest list.
+  const hostInfo = useQuery({
+    queryKey: ["event-host", id, userId],
+    enabled: !!ev && hosted,
     queryFn: async () => {
-      const ev = event.data!;
-      const [people, member, host] = await Promise.all([
-        session ? getEventPeople(supabase, ev.id) : Promise.resolve({ people: [] as Person[], tables: [] }),
-        session && ev.society_id ? supabase.rpc("is_society_member", { sid: ev.society_id }).then((r) => r.data === true) : Promise.resolve(false),
-        ev.host_user_id ? getCards(supabase, [ev.host_user_id]).then((c) => c.get(ev.host_user_id!) ?? null) : Promise.resolve(null),
+      const [cards, { data: exact }, { data: entryRows }] = await Promise.all([
+        getCards(supabase, [ev!.host_user_id!]),
+        supabase.from("event_private_details").select("address, lat, lng").eq("event_id", ev!.id).maybeSingle<NonNullable<Exact>>(),
+        userId ? supabase.from("event_entries").select("user_id, status, created_at").eq("event_id", ev!.id).order("created_at") : Promise.resolve({ data: [] as Entry[] }),
       ]);
-      return { people: people.people, isMember: member, host };
+      const entries = (entryRows ?? []) as Entry[];
+      const guestCards = await getCards(supabase, entries.map((e) => e.user_id));
+      return { host: cards.get(ev!.host_user_id!) ?? null, exact: exact ?? null, entries, guestCards };
     },
   });
-  const [actionError, setActionError] = useState<string | null>(null);
-  const refresh = () => Promise.all([queryClient.invalidateQueries({ queryKey: ["event", id] }), queryClient.invalidateQueries({ queryKey: ["event-extras", id] }), queryClient.invalidateQueries({ queryKey: ["feed"] })]);
-  const join = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.rpc("join_event", { eid: id, tid: null });
-      if (error) throw new Error(friendly(error.message));
-    },
-    onSuccess: refresh,
-    onError: (e: Error) => setActionError(e.message),
-  });
-  const leave = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.rpc("leave_event", { eid: id });
-      if (error) throw new Error(friendly(error.message));
-    },
-    onSuccess: refresh,
-    onError: (e: Error) => setActionError(e.message),
+  const part = useQuery({
+    queryKey: ["participation", id, userId],
+    enabled: !!ev && !hosted && !!userId,
+    queryFn: () => loadParticipation(supabase, ev!.id, ev!.society_id, ev!.format, userId!),
   });
 
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [seatConfirmed, setSeatConfirmed] = useState(false);
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["event", id] }),
+      queryClient.invalidateQueries({ queryKey: ["participation", id] }),
+      queryClient.invalidateQueries({ queryKey: ["event-host", id] }),
+      queryClient.invalidateQueries({ queryKey: ["feed"] }),
+      queryClient.invalidateQueries({ queryKey: ["map-events"] }),
+      queryClient.invalidateQueries({ queryKey: ["profile"] }), // the name form changes it
+    ]);
+  // One tap: run it, show its error if any, then reload what changed.
+  const tap: Tap = async (run) => {
+    setBusy(true);
+    setActionError(null);
+    try {
+      const result = await run();
+      if (result.error) setActionError(result.error);
+      else await refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (event.isPending) return <Screen><Muted>Loading…</Muted></Screen>;
-  const ev = event.data;
   if (!ev) {
     return (
       <Screen>
@@ -78,18 +107,15 @@ export default function EventScreen() {
     );
   }
 
-  const hosted = Boolean(ev.host_user_id);
+  const host = hostInfo.data?.host ?? null;
+  const exact = hostInfo.data?.exact ?? null;
   const earlyStart = (ev.event_tables ?? []).some((t) => t.started_at) && !hasEnded(ev.ends_at);
   const live = !ev.is_cancelled && (isLive(ev.starts_at, ev.ends_at) || earlyStart);
   const finished = hasEnded(ev.ends_at);
   const cost = formatCost(ev.cost_pence);
-  const pin = ev.venues ? { lat: ev.venues.lat, lng: ev.venues.lng } : ev.lat != null && ev.lng != null ? { lat: ev.lat, lng: ev.lng } : null;
-  const mapsUrl = pin && !hosted ? `https://www.google.com/maps/search/?api=1&query=${pin.lat},${pin.lng}` : null;
-  const me = extras.data?.people.find((p) => p.userId === session?.user.id) ?? null;
-  // Members-only events need membership; "[Uni] students" events need that uni (the database checks too).
-  const sameUni = !ev.societies || !profile || ev.societies.university === profile.university;
-  const uniOnly = ev.audience === "uni" && !sameUni && !extras.data?.isMember;
-  const canJoin = (!ev.members_only || extras.data?.isMember === true) && !uniOnly;
+  const pin = ev.venues ? { lat: ev.venues.lat, lng: ev.venues.lng } : exact?.lat != null && exact?.lng != null ? { lat: exact.lat, lng: exact.lng } : ev.lat != null && ev.lng != null ? { lat: ev.lat, lng: ev.lng } : null;
+  // For hosted events, only link to directions once you can see the exact spot.
+  const mapsUrl = pin && (!hosted || exact) ? `https://www.google.com/maps/search/?api=1&query=${pin.lat},${pin.lng}` : null;
 
   return (
     <Screen>
@@ -110,7 +136,14 @@ export default function EventScreen() {
           </Pressable>
         </Link>
       )}
-      {extras.data?.host && <Muted className="mt-2">Hosted by <T variant="semibold" className="text-brand">{extras.data.host.name}</T></Muted>}
+      {host && (
+        <Link href={`/u/${host.id}` as never} asChild>
+          <Pressable className="mt-3 flex-row items-center gap-2 self-start">
+            <Avatar name={host.name} url={host.avatar_url} size={28} />
+            <T variant="semibold">Hosted by <T variant="semibold" className="text-brand">{host.name}</T></T>
+          </Pressable>
+        </Link>
+      )}
 
       <Card className="mt-6 gap-4">
         <Row label="When">{formatEventTime(ev.starts_at, ev.ends_at)}</Row>
@@ -119,7 +152,7 @@ export default function EventScreen() {
             <Muted className="text-sm font-sans-semibold">Where</Muted>
             <T variant="semibold">{ev.venues ? ev.venues.name : ev.location_note || "See the map"}{ev.venues && ev.location_note ? ` · ${ev.location_note}` : ""}</T>
             {ev.venues?.address && <Muted className="text-sm">{ev.venues.address}</Muted>}
-            {hosted && <Muted className="text-sm">The exact address is shared with people going.</Muted>}
+            {hosted && (exact?.address ? <T className="text-sm">{exact.address}</T> : <Muted className="text-sm">The exact address is shared with people going.</Muted>)}
             {mapsUrl && (
               <Pressable onPress={() => Linking.openURL(mapsUrl)}>
                 <T variant="semibold" className="text-sm text-brand">Open in Maps →</T>
@@ -132,74 +165,190 @@ export default function EventScreen() {
         <Row label={ev.format === "entries" && !hosted ? "Entered" : "Going"}>{ev.going_count} {ev.going_count === 1 ? "person" : "people"}</Row>
       </Card>
 
-      {ev.description && <T className="mt-6 text-lg leading-7">{ev.description}</T>}
-
-      {!ev.is_cancelled && !finished && (
-        <View className="mt-6">
+      {!ev.is_cancelled && (
+        <View className="mt-6 gap-6">
           {!session ? (
-            <Card className="flex-row flex-wrap items-center justify-between gap-3">
-              <T variant="semibold" className="flex-1">{ev.format === "tables" ? "Log in to pick your table." : ev.format === "entries" ? "Log in to enter." : "Log in to say you're going."}</T>
-              <Link href={{ pathname: "/login", params: { next: `/e/${ev.id}` } }} asChild>
-                <Button>Log in</Button>
-              </Link>
-            </Card>
-          ) : uniOnly ? (
-            <Card>
-              <T variant="semibold">This event is for {uniShort(ev.societies?.university)} students</T>
-              <Muted className="text-sm">Only students at {uniShort(ev.societies?.university)} can join.</Muted>
-            </Card>
-          ) : !canJoin ? (
-            <Card className="flex-row flex-wrap items-center justify-between gap-3">
-              <View className="flex-1">
-                <T variant="semibold">Members only</T>
-                <Muted className="text-sm">Join {ev.societies?.name ?? "the society"} to take part.</Muted>
-              </View>
-              {ev.societies && sameUni && (
-                <Link href={`/s/${ev.societies.slug}` as never} asChild>
-                  <Button>Become a member</Button>
+            !finished && (
+              <Card className="flex-row flex-wrap items-center justify-between gap-3">
+                <T variant="semibold" className="flex-1">{hosted ? "Log in to join." : ev.format === "tables" ? "Log in to pick your table." : ev.format === "entries" ? "Log in to enter." : "Log in to say you're going."}</T>
+                <Link href={{ pathname: "/login", params: { next: `/e/${ev.id}` } }} asChild>
+                  <Button>Log in</Button>
                 </Link>
-              )}
-            </Card>
-          ) : ev.format !== "standard" ? (
-            <Card>
-              <T variant="semibold">{ev.format === "tables" ? "Tables" : "Sign-up list"}</T>
-              <Muted className="text-sm">
-                {me ? (me.status === "waitlist" ? "You're on the waiting list." : "You're in.") : "Picking tables and entering arrives in phase 5. For now, use the website."}
-              </Muted>
-            </Card>
+              </Card>
+            )
+          ) : hosted ? (
+            <HostedPart event={ev} info={hostInfo.data ?? null} userId={userId!} displayName={profile?.display_name ?? null} finished={finished} tap={tap} busy={busy} onNamed={refresh} />
+          ) : !profile || part.isPending ? (
+            <Muted>Loading…</Muted>
+          ) : part.data ? (
+            <SocietyPart event={ev} p={part.data} userId={userId!} profile={{ display_name: profile.display_name, university: profile.university }} finished={finished} tap={tap} busy={busy} refresh={refresh} seatConfirmed={seatConfirmed} onConfirmed={() => setSeatConfirmed(true)} />
           ) : (
-            <Card className="flex-row flex-wrap items-center justify-between gap-3">
-              {me ? (
-                <>
-                  <T variant="semibold"><T className="text-ok">✓</T> You&apos;re going</T>
-                  <Pressable onPress={() => leave.mutate()} disabled={leave.isPending} testID="leave">
-                    <T variant="semibold" className="text-sm text-muted">Can&apos;t make it</T>
-                  </Pressable>
-                </>
-              ) : (
-                <>
-                  <T variant="semibold">Coming?</T>
-                  <Button onPress={() => join.mutate()} disabled={join.isPending || extras.isPending} testID="join">I&apos;m going</Button>
-                </>
-              )}
-            </Card>
+            <T variant="semibold" className="text-sm text-danger">Couldn&apos;t load who&apos;s going. Pull down to try again.</T>
           )}
-          {actionError && <T variant="semibold" className="mt-2 text-sm text-danger">{actionError}</T>}
+          {actionError && <T variant="semibold" className="text-sm text-danger" testID="action-error">{actionError}</T>}
         </View>
       )}
+
+      {ev.description && <T className="mt-6 text-lg leading-7">{ev.description}</T>}
 
       <View className="mt-8 flex-row flex-wrap gap-3">
         {ev.ticket_url && <Button onPress={() => Linking.openURL(ev.ticket_url!)}>Tickets / sign up</Button>}
         <ShareButton url={`${SITE_URL}/e/${ev.id}`} title={ev.title} />
       </View>
+
+      <Card className="mt-10 bg-brand-soft">
+        <T variant="display-bold" className="text-lg">See what&apos;s on in London tonight</T>
+        <Muted>Every society event and social on one live map.</Muted>
+        <Link href="/(tabs)/map" asChild>
+          <Pressable className="mt-2 self-start">
+            <T variant="semibold" className="text-brand">Open the live map →</T>
+          </Pressable>
+        </Link>
+      </Card>
     </Screen>
+  );
+}
+
+// The "take part" part of a society event.
+function SocietyPart({ event, p, userId, profile, finished, tap, busy, refresh, seatConfirmed, onConfirmed }: { event: EventWithDetails; p: Participation; userId: string; profile: { display_name: string | null; university: string }; finished: boolean; tap: Tap; busy: boolean; refresh: () => Promise<unknown>; seatConfirmed: boolean; onConfirmed: () => void }) {
+  const society = event.societies;
+  const me = p.people.find((x) => x.userId === userId) ?? null;
+  // Members-only events need membership; "[Uni] students" events need that uni (checked again by the database).
+  const sameUni = !society || society.university === profile.university;
+  const uniOnly = event.audience === "uni" && !sameUni && !p.isMember;
+  const canJoin = (!event.members_only || p.isMember) && !uniOnly;
+
+  // Members see each other's names, so ask for one before joining.
+  if (!finished && canJoin && !me && !profile.display_name) return <NameForm userId={userId} onSaved={refresh} />;
+
+  const myTable = me?.tableId ? p.tables.find((t) => t.id === me.tableId) : null;
+  const started = new Date(event.starts_at).getTime() <= nowMs() || Boolean(myTable?.started_at);
+  const myBankRow = me && myTable ? (p.ledger.rows.find((r) => r.user_id === me.userId && r.table_id === myTable.id) ?? null) : null;
+
+  return (
+    <>
+      {finished ? (
+        me && event.results_published ? <MyResults eventId={event.id} userId={userId} tables={p.tables} rows={p.ledger.rows} payments={p.ledger.payments} onChange={refresh} /> : null
+      ) : uniOnly ? (
+        <Card>
+          <T variant="semibold">This event is for {uniShort(society?.university)} students</T>
+          <Muted className="text-sm">Only students at {uniShort(society?.university)} can join.</Muted>
+        </Card>
+      ) : !canJoin ? (
+        <Card className="flex-row flex-wrap items-center justify-between gap-3">
+          <View className="flex-1">
+            <T variant="semibold">Members only</T>
+            <Muted className="text-sm">Join {society?.name ?? "the society"} to take part.</Muted>
+          </View>
+          {society && sameUni && (
+            <Link href={`/s/${society.slug}` as never} asChild>
+              <Button>Become a member</Button>
+            </Link>
+          )}
+        </Card>
+      ) : event.format === "tables" ? (
+        <>
+          {seatConfirmed && me?.tableId && me.confirmedTableId === me.tableId && (
+            <T variant="semibold" className="rounded-2xl bg-ok/10 px-4 py-3 text-sm text-ok" testID="seat-confirmed">✓ Seat confirmed. See you at {myTable?.name}.</T>
+          )}
+          <TablesPicker event={event} tables={p.tables} people={p.people} me={me} queue={p.queue} tap={tap} busy={busy} onConfirmed={onConfirmed} />
+        </>
+      ) : event.format === "entries" ? (
+        <EntryPanel event={event} people={p.people} me={me} tap={tap} busy={busy} />
+      ) : (
+        <GoingPanel event={event} me={me} tap={tap} busy={busy} />
+      )}
+
+      {/* Just joined: a gentle nudge to finish their profile (once per run). */}
+      {!finished && me?.status === "going" && <CompleteProfileCard prompts={p.prompts} />}
+
+      {/* Tables where this player is the bank: their bank screen. */}
+      {!event.results_published &&
+        p.tables
+          .filter((t) => t.bank_user_id === userId)
+          .map((t) => {
+            const saved = p.ledger.rows.filter((r) => r.table_id === t.id);
+            const seated = p.people.filter((x) => x.status === "going" && x.tableId === t.id);
+            return (
+              <View key={t.id} className="gap-2">
+                <T variant="display" className="text-xl">You&apos;re the bank for {t.name}</T>
+                <BankLedger key={saved.map((r) => `${r.id}:${r.buyin_pence}:${r.cashout_pence}:${r.paid_out}:${r.adjust_pence}`).join("|")} event={event} table={t} initialRows={bankEditorRows(saved, seated)} onSaved={refresh} />
+              </View>
+            );
+          })}
+
+      {/* Playing at a table with a bank (and not the bank): buy in and cash out with them. */}
+      {me?.status === "going" && !event.results_published && myTable?.bank_user_id && myTable.bank_user_id !== userId && <MyBankLine table={myTable} mine={myBankRow} people={p.people} />}
+
+      {me?.status === "going" && !event.results_published && started && (event.format !== "tables" || me.tableId) && !myTable?.bank_user_id && (
+        <SelfReport event={event} me={me} people={p.people} rows={p.ledger.rows} payments={p.ledger.payments} onChange={refresh} />
+      )}
+
+      {/* Members see who else is coming. */}
+      {p.isMember && event.format !== "tables" && p.people.some((x) => x.status === "going") && (
+        <WhosComing people={p.people.filter((x) => x.status === "going")} meId={userId} numbered={event.format === "entries"} finished={finished} />
+      )}
+    </>
+  );
+}
+
+type HostInfo = { host: PersonCard | null; exact: Exact; entries: Entry[]; guestCards: Map<string, PersonCard> };
+
+// The join / guest-list part of an event a student is hosting (the guest
+// side; the host's own tools arrive with the Social tab in phase 6).
+function HostedPart({ event, info, userId, displayName, finished, tap, busy, onNamed }: { event: EventWithDetails; info: HostInfo | null; userId: string; displayName: string | null; finished: boolean; tap: Tap; busy: boolean; onNamed: () => Promise<unknown> }) {
+  if (!info) return <Muted>Loading…</Muted>;
+  const isHost = userId === event.host_user_id;
+  const mine = info.entries.find((e) => e.user_id === userId) ?? null;
+  const going = info.entries.filter((e) => e.status === "going");
+  const waiting = info.entries.filter((e) => e.status === "waitlist");
+  const requests = info.entries.filter((e) => e.status === "requested");
+  const full = event.capacity !== null && event.going_count >= event.capacity;
+  const canSeeGuests = isHost || mine?.status === "going";
+  const hostName = info.host?.name ?? "The host";
+  return (
+    <>
+      {isHost ? (
+        <Card className="gap-3">
+          <T variant="display-bold" className="text-lg">You&apos;re hosting</T>
+          <Muted className="text-sm">
+            {event.going_count} going{event.capacity ? ` of ${event.capacity}` : ""}{requests.length ? ` · ${requests.length} waiting for your answer` : ""}{event.visibility === "friends" ? " · Friends only" : " · On the public map"}
+          </Muted>
+          <Muted className="text-sm">Editing, the event chat and answering requests are on the website for now.</Muted>
+          <Button variant="ghost" className="self-start py-2" onPress={() => Linking.openURL(`${SITE_URL}/e/${event.id}`)}>Manage on the website</Button>
+        </Card>
+      ) : finished ? null : !displayName && !mine ? (
+        <NameForm userId={userId} onSaved={onNamed} />
+      ) : (
+        <HostedJoinCard event={event} mine={(mine?.status ?? null) as HostedStatus} hostName={hostName} full={full} tap={tap} busy={busy} />
+      )}
+
+      {canSeeGuests && (
+        <PeopleSection title={`Going (${going.length + 1})`}>
+          {info.host && <PersonRow id={info.host.id} name={info.host.name} avatarUrl={info.host.avatar_url} detail="Host" first />}
+          {going.map((e) => {
+            const c = info.guestCards.get(e.user_id);
+            return <PersonRow key={e.user_id} id={e.user_id} name={c?.name ?? "Member"} avatarUrl={c?.avatar_url} detail={c?.course} />;
+          })}
+        </PeopleSection>
+      )}
+      {isHost && waiting.length > 0 && (
+        <PeopleSection title={`Waiting list (${waiting.length})`}>
+          {waiting.map((e, i) => {
+            const c = info.guestCards.get(e.user_id);
+            return <PersonRow key={e.user_id} id={e.user_id} name={c?.name ?? "Member"} avatarUrl={c?.avatar_url} detail={c?.course} first={i === 0} />;
+          })}
+        </PeopleSection>
+      )}
+      {!canSeeGuests && going.length === 0 && event.going_count > 0 && <Muted className="text-sm">{event.going_count} going. You&apos;ll see who once you&apos;re in.</Muted>}
+    </>
   );
 }
 
 function Screen({ children }: { children: React.ReactNode }) {
   return (
     <SafeAreaView className="flex-1 bg-bg">
-      <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10">{children}</ScrollView>
+      <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10" keyboardShouldPersistTaps="handled">{children}</ScrollView>
     </SafeAreaView>
   );
 }
@@ -219,9 +368,4 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
       <T variant="semibold">{children}</T>
     </View>
   );
-}
-
-// The database's own messages are readable; just tidy the prefix it adds.
-function friendly(message: string) {
-  return message.replace(/^.*?:\s*/, "").trim() || "Something went wrong. Please try again.";
 }

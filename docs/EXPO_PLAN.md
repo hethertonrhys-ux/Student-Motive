@@ -403,6 +403,15 @@ Phases 1–3 are what you asked to see first. Phases 4–8 can be reordered;
   society page (join with your name, request sent, leave, the other-uni
   message, the Unclaimed label and claim link). The committee dashboard
   and the claim form open on the website until phase 9.
+- **Phase 5: done.** The full event page: the name form before a first
+  join, I'm going, the sign-up list with a limit and waiting list, tables
+  (sit, move, leave, also-tables, confirm your seat, waiting lists for
+  full tables), the bank's screen (buy-ins, rebuys, cash-outs, paid, the
+  even split), buy-in/cash-out line for players, your own result and
+  settle-ups, and after results are published: your result, who pays who,
+  "I've paid" / "Got it" and undo. Student-hosted events show the guest
+  side (join, ask to join, waiting list, who's going); the host's tools
+  come with Social in phase 6.
 
 ### Things to decide before phase 0
 
