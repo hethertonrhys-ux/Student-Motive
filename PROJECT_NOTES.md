@@ -53,6 +53,12 @@ Running notes on how Function is put together and how it's built. They're for wh
 
 These are in `supabase/migrations/20261024…` to `20261101…`, applied in date order. See `OVERNIGHT_REPORT.md` section 3 for the steps. Branch `all-waiting-items` has all of them merged together and tested.
 
+- **`delete-account`** (branch off `expo-app`): a "Delete my account" button at
+  the bottom of the app's profile editor (Me → Edit profile). Apple requires
+  this for the App Store. SQL: `supabase/migrations/20261107000000_delete_my_account.sql`
+  (one new function, `delete_my_account()`; nothing existing changes). Run it
+  in the Supabase SQL Editor, then merge the branch into `expo-app`.
+
 ## Tests (run locally, not in the repo)
 
 **Local stack**

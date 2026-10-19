@@ -465,10 +465,12 @@ Phases 1–3 are what you asked to see first. Phases 4–8 can be reordered;
   Push notifications are not built: they need a new `push_tokens` table
   and a Supabase edge function, so they stay a separate item for later.
   Two things to know for the App Store: the privacy and terms pages still
-  carry the website's "Draft" banner and must be reviewed, and there is no
-  "delete my account" button in the app (the website never had one either;
-  the Support page promises it). Apple requires one for apps with sign-up,
-  so that needs a database function and a button before submission.
+  carry the website's "Draft" banner and must be reviewed, and "Delete my
+  account" (which Apple requires for apps with sign-up; the website never
+  had one) is ready on the `delete-account` branch: a button at the bottom
+  of Me → Edit profile plus one new database function, with the SQL in
+  `supabase/migrations/20261107000000_delete_my_account.sql`. Run the SQL,
+  then merge that branch into `expo-app`.
 
 ### Things to decide before phase 0
 
