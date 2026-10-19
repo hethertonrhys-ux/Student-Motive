@@ -412,6 +412,14 @@ Phases 1–3 are what you asked to see first. Phases 4–8 can be reordered;
   "I've paid" / "Got it" and undo. Student-hosted events show the guest
   side (join, ask to join, waiting list, who's going); the host's tools
   come with Social in phase 6.
+- **Phase 6: done.** Social: Discover with search and filters, Hosting
+  (with the requests badge) and Going; the host form with the place
+  picker (LSE places, then addresses from Photon, a tappable map; the
+  phone's own date and time pickers on iOS/Android, the browser's on the
+  web), rough spot for everyone and the exact address for people going,
+  cost, open/private, friends only; the event page with who's going,
+  I'm in / request / leave, the host's requests and guest list, edit,
+  cancel, report, Message host and the group chat link (chats in phase 8).
 
 ### Things to decide before phase 0
 

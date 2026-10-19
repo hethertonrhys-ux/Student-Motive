@@ -23,3 +23,4 @@ export * from "./map";
 export * from "./map-events";
 export * from "./societies";
 export * from "./event-actions";
+export * from "./social-actions";
