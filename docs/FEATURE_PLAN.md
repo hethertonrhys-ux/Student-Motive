@@ -204,6 +204,46 @@ events and only when someone opens it. Changes:
 7. **Branch.** Build on `overnight-updates` so it includes last night's
    changes, and open a pull request into `expo-app` after you've merged #7?
 
+## Refinements from the second review
+
+A second, independent read of the code added these, all now part of the plan:
+
+- **Recommendations.** The friend-signal function applies the same visibility
+  rules as the event tables, so it can never reveal attendance at an event you
+  can't see. Joining or leaving an event refreshes the recommended list.
+  Limit: next 14 days, top 20.
+- **Filters.** The map hides the two boxes when logged out (they'd hide every
+  pin). The filter button's badge counts the new boxes too. Society events
+  that students host through the old route count as "friends hosting" as well.
+- **Flags.** Rendered as a separate element, never joined into the name
+  string (so searches, pushes and tests are unaffected). Windows browsers show
+  flags as two letters, so the two-letter code is the fallback. The country
+  question is asked in Edit profile only, not during sign-up.
+- **Admin.** "Verification status" = email confirmed, 2FA on/off, and uni
+  email vs invited email, from one admin-only function. Images are removed by
+  exact file path parsed from the stored URL, never by folder (society logos
+  share the folder). Deletion runs server-side in one transaction. Optional
+  extra: social event reports are currently stored but shown nowhere; adding
+  them to the Reports section needs one new status column. I'll include it
+  unless you say no.
+- **Time checks.** A social with finish equal to start currently saves as a
+  24-hour event; it will be blocked. Overnight socials (22:00 to 02:00) keep
+  working with a visible "next morning" note.
+- **Poker seats.** The seat trigger runs inside the same row lock the
+  existing functions take; randomising clears seats first then reassigns.
+  Reducing a table's seats re-seats anyone above the new number. The event
+  page refreshes seating every 30 seconds while open, so a randomise shows up
+  without a tap. The push kind `seating` is added to the queue rule, the
+  settings table and the settings screen together in one migration. "Games
+  played" comes from an admin-free function that counts only, and cash games
+  have no finishing positions, so "best finish" only appears for tournaments.
+- **Society chats.** Widening the chat rule touches one function that gates
+  every chat, so it gets its own test with a non-member, a member going, a
+  committee member and an outsider. Committee ids are exposed to chat members
+  through a small function (they're not readable directly). Chats of finished
+  events drop off the list seven days after the event ends, without deleting
+  anything.
+
 ## Order of work
 
 1 Recommended → 2 Filters → 3 Flags → 4 Admin → 5 Time checks → 6 Poker seats
