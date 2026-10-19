@@ -3,6 +3,7 @@ import { useState, type ReactNode } from "react";
 import { Alert, Platform, Pressable, View } from "react-native";
 import { joinEvent, leaveEvent, saveName, type MotiveEvent, type Person } from "@function/shared";
 import { Avatar } from "@/components/avatar";
+import { Flag } from "@/components/flag";
 import { Button, Card, Input, Muted, T } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 
@@ -92,6 +93,7 @@ export function WhosComing({ people, meId, numbered, finished }: { people: Perso
             {numbered && <T className="w-6 text-right text-sm text-muted">{p.finishPosition ?? (finished ? "" : i + 1)}</T>}
             <Avatar name={p.name} url={p.avatarUrl} size={28} ring={p.userId === meId} />
             <T variant="semibold">{p.userId === meId ? `${p.name} (you)` : p.name}</T>
+            <Flag code={p.country} size={14} />
           </View>
         ))}
       </View>
@@ -175,14 +177,17 @@ export function PeopleSection({ title, children }: { title: string; children: Re
   );
 }
 
-export function PersonRow({ id, name, avatarUrl, detail, children, first }: { id: string; name: string; avatarUrl?: string | null; detail?: string | null; children?: ReactNode; first?: boolean }) {
+export function PersonRow({ id, name, avatarUrl, detail, children, first, country }: { id: string; name: string; avatarUrl?: string | null; detail?: string | null; children?: ReactNode; first?: boolean; country?: string | null }) {
   return (
     <View className={`flex-row items-center gap-3 px-4 py-3 ${first ? "" : "border-t border-line"}`}>
       <Link href={`/u/${id}` as never} asChild>
         <Pressable className="min-w-0 flex-1 flex-row items-center gap-3">
           <Avatar name={name} url={avatarUrl} size={40} />
           <View className="min-w-0 flex-1">
-            <T variant="semibold" numberOfLines={1}>{name}</T>
+            <View className="flex-row items-center gap-1.5">
+              <T variant="semibold" numberOfLines={1} className="shrink">{name}</T>
+              <Flag code={country} size={14} />
+            </View>
             {detail && <Muted className="text-xs" numberOfLines={1}>{detail}</Muted>}
           </View>
         </Pressable>

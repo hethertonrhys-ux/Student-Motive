@@ -11,6 +11,7 @@ export type Person = {
   joinedAt: string;
   alsoTables: string[];
   confirmedTableId: string | null;
+  country: string | null;
 };
 
 // Everyone who's joined an event, with their names. The database decides what
@@ -27,7 +28,7 @@ export async function getEventPeople(supabase: SupabaseClient, eventId: string) 
 
   const ids = (entries ?? []).map((e) => e.user_id as string);
   const { data: cards } = ids.length
-    ? await supabase.from("profile_cards").select("id, name, avatar_url").in("id", ids)
+    ? await supabase.from("profile_cards").select("id, name, avatar_url, country").in("id", ids)
     : { data: [] };
   const byId = new Map((cards ?? []).map((c) => [c.id as string, c]));
 
@@ -41,6 +42,7 @@ export async function getEventPeople(supabase: SupabaseClient, eventId: string) 
     joinedAt: e.created_at,
     alsoTables: (e.also_tables as string[] | null) ?? [],
     confirmedTableId: (e.confirmed_table_id as string | null) ?? null,
+    country: (byId.get(e.user_id)?.country as string | null) ?? null,
   }));
 
   return { people, tables: (tables ?? []) as EventTable[] };

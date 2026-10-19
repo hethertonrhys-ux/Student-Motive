@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // What anyone can see of a person: `name` is their nickname if they set
 // one, otherwise their full name. full_name is there for profile pages,
 // which show both.
-export type PersonCard = { id: string; name: string; avatar_url: string | null; course: string | null; bio: string | null; full_name?: string | null; nickname?: string | null; university?: string | null; graduation_year?: number | null };
+export type PersonCard = { id: string; name: string; avatar_url: string | null; course: string | null; bio: string | null; full_name?: string | null; nickname?: string | null; university?: string | null; graduation_year?: number | null; country?: string | null };
 
 // How the logged-in user is connected to someone.
 export type Relation = "self" | "friends" | "incoming" | "outgoing" | "none";
@@ -12,7 +12,7 @@ export type Relation = "self" | "friends" | "incoming" | "outgoing" | "none";
 export async function getCards(supabase: SupabaseClient, ids: string[]): Promise<Map<string, PersonCard>> {
   const unique = [...new Set(ids)].filter(Boolean);
   if (unique.length === 0) return new Map();
-  const { data } = await supabase.from("profile_cards").select("id, name, avatar_url, course, bio, full_name, nickname, university, graduation_year").in("id", unique);
+  const { data } = await supabase.from("profile_cards").select("id, name, avatar_url, course, bio, full_name, nickname, university, graduation_year, country").in("id", unique);
   return new Map(((data ?? []) as PersonCard[]).map((c) => [c.id, c]));
 }
 

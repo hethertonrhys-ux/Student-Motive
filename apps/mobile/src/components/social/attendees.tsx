@@ -2,9 +2,10 @@ import { Link } from "expo-router";
 import { useState } from "react";
 import { Modal, Pressable, ScrollView, View } from "react-native";
 import { Avatar } from "@/components/avatar";
+import { Flag } from "@/components/flag";
 import { Card, Muted, T } from "@/components/ui";
 
-type Person = { id: string; name: string; avatar_url: string | null };
+type Person = { id: string; name: string; avatar_url: string | null; country?: string | null };
 
 // How many faces fit on a phone before the "+N more" button.
 const SHOWN = 6;
@@ -65,7 +66,9 @@ export function Attendees({ host, people, guests }: { host: Person | null; peopl
                 <Link href={`/u/${host.id}` as never} asChild>
                   <Pressable className="flex-row items-center gap-3 py-2.5">
                     <Avatar name={host.name} url={host.avatar_url} size={40} ring />
-                    <T variant="semibold" className="flex-1" numberOfLines={1}>{host.name}</T>
+                    <T variant="semibold" className="shrink" numberOfLines={1}>{host.name}</T>
+                    <Flag code={host.country} size={14} />
+                    <View className="flex-1" />
                     <View className="rounded-full bg-amber-100 px-2 py-0.5">
                       <T variant="bold" className="text-[11px] text-amber-800">Host</T>
                     </View>
@@ -77,6 +80,7 @@ export function Attendees({ host, people, guests }: { host: Person | null; peopl
                   <Pressable className="flex-row items-center gap-3 border-t border-line py-2.5">
                     <Avatar name={p.name} url={p.avatar_url} size={40} />
                     <T variant="semibold" numberOfLines={1}>{p.name}</T>
+                    <Flag code={p.country} size={14} />
                   </Pressable>
                 </Link>
               ))}

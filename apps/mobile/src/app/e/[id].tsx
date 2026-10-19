@@ -329,10 +329,10 @@ function HostedPart({ event, info, userId, displayName, finished, tap, busy, onN
 
       {canSeeGuests && (
         <PeopleSection title={`Going (${going.length + 1})`}>
-          {info.host && <PersonRow id={info.host.id} name={info.host.name} avatarUrl={info.host.avatar_url} detail="Host" first />}
+          {info.host && <PersonRow id={info.host.id} name={info.host.name} avatarUrl={info.host.avatar_url} country={info.host.country} detail="Host" first />}
           {going.map((e) => {
             const c = info.guestCards.get(e.user_id);
-            return <PersonRow key={e.user_id} id={e.user_id} name={c?.name ?? "Member"} avatarUrl={c?.avatar_url} detail={c?.course} />;
+            return <PersonRow key={e.user_id} id={e.user_id} name={c?.name ?? "Member"} avatarUrl={c?.avatar_url} country={c?.country} detail={c?.course} />;
           })}
         </PeopleSection>
       )}
@@ -340,7 +340,7 @@ function HostedPart({ event, info, userId, displayName, finished, tap, busy, onN
         <PeopleSection title={`Waiting list (${waiting.length})`}>
           {waiting.map((e, i) => {
             const c = info.guestCards.get(e.user_id);
-            return <PersonRow key={e.user_id} id={e.user_id} name={c?.name ?? "Member"} avatarUrl={c?.avatar_url} detail={c?.course} first={i === 0} />;
+            return <PersonRow key={e.user_id} id={e.user_id} name={c?.name ?? "Member"} avatarUrl={c?.avatar_url} country={c?.country} detail={c?.course} first={i === 0} />;
           })}
         </PeopleSection>
       )}

@@ -118,8 +118,8 @@ export default function SocialEventScreen() {
       </Card>
 
       <Attendees
-        host={host ? { id: host.id, name: host.name, avatar_url: host.avatar_url } : null}
-        people={isHost || mine === "going" ? going.map((g) => ({ id: g.user_id, name: cards.get(g.user_id)?.name ?? "Member", avatar_url: cards.get(g.user_id)?.avatar_url ?? null })) : null}
+        host={host ? { id: host.id, name: host.name, avatar_url: host.avatar_url, country: host.country } : null}
+        people={isHost || mine === "going" ? going.map((g) => ({ id: g.user_id, name: cards.get(g.user_id)?.name ?? "Member", avatar_url: cards.get(g.user_id)?.avatar_url ?? null, country: cards.get(g.user_id)?.country ?? null })) : null}
         guests={event.going_count}
       />
 
@@ -161,11 +161,11 @@ export default function SocialEventScreen() {
       {isHost && going.length > 0 && (
         <View className="mt-8">
           <PeopleSection title={`Going (${going.length + 1})`}>
-            {host && <PersonRow id={host.id} name={host.name} avatarUrl={host.avatar_url} detail="Host" first />}
+            {host && <PersonRow id={host.id} name={host.name} avatarUrl={host.avatar_url} country={host.country} detail="Host" first />}
             {going.map((g) => {
               const c = cards.get(g.user_id);
               return (
-                <PersonRow key={g.user_id} id={g.user_id} name={c?.name ?? "Member"} avatarUrl={c?.avatar_url}>
+                <PersonRow key={g.user_id} id={g.user_id} name={c?.name ?? "Member"} avatarUrl={c?.avatar_url} country={c?.country}>
                   {!finished && <LinkButton onPress={() => void tap(() => removeSocialGuest(supabase, event.id, g.user_id))} confirmText={`Remove ${c?.name ?? "them"} from this event?`} disabled={busy} testID={`remove-${g.user_id}`}>Remove</LinkButton>}
                 </PersonRow>
               );
