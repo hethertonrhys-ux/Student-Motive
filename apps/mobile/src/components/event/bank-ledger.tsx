@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { bankSummary, formatPounds, parsePoundsSum, payoutOf, saveBankLedger, splitDifference, type BankEditorRow, type BankRow, type EventTable, type LedgerRowRecord, type MotiveEvent, type Person } from "@function/shared";
+import { Icon } from "@/components/icon";
 import { Button, Card, Input, Muted, T } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 
@@ -76,7 +76,7 @@ export function BankLedger({ event, table, initialRows, onSaved }: { event: Moti
                 <Input value={r.name} onChangeText={(v) => update(r.key, { name: v })} editable={!r.userId} placeholder="Player name" maxLength={60} className={`flex-1 py-2 font-sans-semibold ${r.userId ? "bg-bg" : ""}`} accessibilityLabel="Player name" />
                 {net !== null && <T variant="display-bold" className={net > 0 ? "text-ok" : net < 0 ? "text-danger" : ""}>{formatPounds(net, true)}</T>}
                 <Pressable onPress={() => setRows((cur) => cur.filter((x) => x.key !== r.key))} accessibilityLabel={`Remove ${r.name || "player"}`} className="px-1">
-                  <Ionicons name="close" size={18} color="#5e5d78" />
+                  <Icon name="close" size={18} color="#5e5d78" />
                 </Pressable>
               </View>
               <View className="mt-2 flex-row gap-2">
@@ -103,7 +103,7 @@ export function BankLedger({ event, table, initialRows, onSaved }: { event: Moti
                     {r.adjust !== 0 && <Muted className="text-xs"> (incl. split {formatPounds(r.adjust, true)})</Muted>}
                   </T>
                   <View className="flex-row items-center gap-2">
-                    <View className={`h-5 w-5 items-center justify-center rounded-md border ${r.paidOut ? "border-ok bg-ok" : "border-line bg-surface"}`}>{r.paidOut && <Ionicons name="checkmark" size={14} color="#fff" />}</View>
+                    <View className={`h-5 w-5 items-center justify-center rounded-md border ${r.paidOut ? "border-ok bg-ok" : "border-line bg-surface"}`}>{r.paidOut && <Icon name="checkmark" size={14} color="#fff" />}</View>
                     <T variant="semibold" className="text-sm">{r.paidOut ? "Paid ✓" : "Paid?"}</T>
                   </View>
                 </Pressable>

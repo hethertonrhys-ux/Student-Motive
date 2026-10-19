@@ -12,7 +12,7 @@ const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 const SITE_URL = (process.env.EXPO_PUBLIC_SITE_URL || "https://studentfunction.com").replace(/\/$/, "");
 const SITE_NAME = "Function";
-const DEFAULT_DESCRIPTION = "London's student social life, all in one place. Societies, events and socials for students at LSE, UCL, King's and Imperial, on one live map.";
+const DEFAULT_DESCRIPTION = "London's student social life, all in one place. Societies, events and socials for students at every London university, on one live map.";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const LONDON = "Europe/London";
 

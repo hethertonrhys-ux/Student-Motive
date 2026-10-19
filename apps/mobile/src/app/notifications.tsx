@@ -3,6 +3,7 @@ import { Link } from "expo-router";
 import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ago, dayWord, initialOf, loadNotifications, twoTruthsLine } from "@function/shared";
+import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { FriendButton } from "@/components/profile/people";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
@@ -24,11 +25,7 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10">
-        <Link href="/(tabs)/me" asChild>
-          <Pressable className="self-start">
-            <T variant="semibold" className="text-sm text-muted">← Me</T>
-          </Pressable>
-        </Link>
+        <BackButton fallback={"/(tabs)/me"} />
         <Heading className="mt-3">Notifications</Heading>
         {!myId ? (
           <Card className="mt-6 flex-row flex-wrap items-center justify-between gap-3">

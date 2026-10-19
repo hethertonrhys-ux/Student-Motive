@@ -276,8 +276,8 @@ London's student social life, in one place.
 **Description:**
 
 Function puts every society, every event and every social at London's
-universities on one live map. Open it and see what's on tonight at LSE,
-UCL, King's and Imperial.
+universities on one live map. Open it and see what's on tonight, whichever
+London university you're at.
 
 - The live map: what's happening right now and later, with walking
   directions.
@@ -297,6 +297,48 @@ Log in with your university email. No passwords.
 student,societies,university,London,LSE,UCL,KCL,Imperial,events,socials,map,freshers
 
 ---
+
+## 5b. Settings for the overnight-updates changes (sign-up, 2FA, push)
+
+These go with the `overnight-updates` branch. Each is a dashboard setting
+or a one-off command; none changes existing data.
+
+**Login codes (Supabase → Authentication → Providers → Email):**
+- *Email OTP Length*: Supabase's minimum is **6** digits (it won't allow 4),
+  so set it to 6. The app accepts 6 to 10 digits.
+- *Email OTP Expiration*: 600 seconds (10 minutes).
+- Authentication → Rate Limits: *Rate limit for verifying OTP* down to
+  something like 10 per 5 minutes per IP, which caps guessing.
+
+**Two-factor authentication (Supabase → Authentication → Multi-Factor):**
+- *TOTP (authenticator app)*: switch on (free on every plan). That's enough
+  for the "Authenticator app" option in Me → Account settings → Password &
+  security.
+- *Phone (SMS)*: needs the Pro plan plus an SMS provider (Twilio etc., set
+  under Authentication → Providers → Phone). Until that's on, the "text
+  message" option in the app shows "This kind of 2FA isn't switched on for
+  Function yet".
+
+**Push notifications:**
+1. Run `supabase/migrations/20261109000000_push_notifications.sql` in the
+   SQL Editor.
+2. Make web-push keys once, on your computer: `npx web-push generate-vapid-keys`.
+   It prints a public and a private key.
+3. Deploy the sender and give it its secrets (Supabase CLI, from the repo
+   root; `npx supabase login` and `npx supabase link --project-ref
+   xrpbmcoptyrpgkdowfdt` first):
+   ```
+   npx supabase secrets set PUSH_SECRET=<a long random string> VAPID_PUBLIC_KEY=<public key> VAPID_PRIVATE_KEY=<private key> VAPID_SUBJECT=mailto:help@studentfunction.com SITE_URL=https://studentfunction.com
+   npx supabase functions deploy send-push --no-verify-jwt
+   ```
+4. Open `supabase/RUN_ONCE_push_cron.sql`, replace `<PROJECT_REF>` and
+   `<PUSH_SECRET>`, and run it in the SQL Editor (Database → Extensions
+   must have `pg_cron` and `pg_net` on; the file turns them on too).
+5. In Vercel (the function-app project) add the environment variable
+   `EXPO_PUBLIC_VAPID_PUBLIC_KEY` = the public key, and redeploy. Also add
+   `EXPO_PUBLIC_SUPPORT_EMAIL` = `help@studentfunction.com`.
+6. Phones: pushes to the iPhone/Android apps need the Expo project id from
+   `npx eas init` (part 3) and an EAS build; they don't work in Expo Go.
 
 ## 6. After launch
 

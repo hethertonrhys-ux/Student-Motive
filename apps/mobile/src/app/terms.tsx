@@ -1,6 +1,6 @@
 import { MailLink } from "@/components/landing";
 import { H2, Li, P, ProsePage } from "@/components/prose-page";
-import { CONTACT_EMAIL } from "@/lib/site";
+import { SUPPORT_EMAIL } from "@/lib/site";
 
 export const generateMetadata = () => ({ title: "Terms of use · Function" });
 
@@ -40,7 +40,7 @@ export default function TermsPage() {
       </P>
 
       <H2>Contact</H2>
-      <P><MailLink email={CONTACT_EMAIL} /></P>
+      <P><MailLink email={SUPPORT_EMAIL} /></P>
     </ProsePage>
   );
 }

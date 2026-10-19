@@ -2,6 +2,7 @@ import Head from "expo-router/head";
 import type { ReactNode } from "react";
 import { ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BackButton } from "@/components/back-button";
 import { SiteFooter } from "@/components/landing";
 import { Heading, Muted, T } from "@/components/ui";
 
@@ -13,6 +14,7 @@ export function ProsePage({ title, updated, children }: { title: string; updated
       {/* The browser tab's title when you get here from another screen (the built page already has it). */}
       <Head><title>{`${title} · Function`}</title></Head>
       <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-12">
+        <BackButton fallback="/" className="mb-4" />
         <Heading className="text-4xl" testID="prose-title">{title}</Heading>
         {updated && <Muted className="mt-2 text-sm">Last updated {updated}</Muted>}
         <View className="mt-8 gap-4">{children}</View>

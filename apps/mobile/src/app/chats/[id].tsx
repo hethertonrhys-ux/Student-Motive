@@ -1,17 +1,18 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useLocalSearchParams } from "expo-router";
+import { Link, useIsFocused, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { AppState, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View, type ScrollViewInstance } from "react-native";
+import { AppState, KeyboardAvoidingView, Platform, Pressable, ScrollView, View, type ScrollViewInstance } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { deleteMessage, fetchMessages, loadThreadInfo, reportMessage, sendMessage, type ChatMessage } from "@function/shared";
+import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { LinkButton } from "@/components/event/panels";
-import { Icon } from "@/components/icon";
 import { Button, Heading, Input, Muted, T } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
-const POLL_MS = 4000;
+const POLL_MS = 4000; // right after a message
+const QUIET_AFTER_MS = 60_000; // then every fourth check (16 s) once the chat has been quiet for a minute
 const time = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
 const day = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Europe/London" });
 
@@ -31,6 +32,12 @@ export default function ChatScreen() {
   const [reportReason, setReportReason] = useState("Harassment or bullying");
   const [sending, setSending] = useState(false);
   const lastAt = useRef<string | null>(null);
+  const lastActivity = useRef(Date.now());
+  const focused = useIsFocused();
+  const focusedRef = useRef(true);
+  useEffect(() => {
+    focusedRef.current = focused;
+  }, [focused]);
   const scroll = useRef<ScrollViewInstance>(null);
 
   const merge = (incoming: ChatMessage[]) =>
@@ -47,12 +54,17 @@ export default function ChatScreen() {
   useEffect(() => {
     if (!myId || !id) return;
     let stopped = false;
+    let ticks = 0;
     const tick = async () => {
-      if (AppState.currentState !== "active") return;
+      if (AppState.currentState !== "active" || !focusedRef.current) return;
+      ticks += 1;
+      if (Date.now() - lastActivity.current > QUIET_AFTER_MS && ticks % 4 !== 0) return;
       const fresh = await fetchMessages(supabase, id, lastAt.current);
+      if (fresh.length) lastActivity.current = Date.now();
       if (!stopped) merge(fresh);
     };
-    void tick().then(() => queryClient.invalidateQueries({ queryKey: ["unread"] }));
+    // Opening marks the chat read: refresh the badge and the chats list behind this screen.
+    void tick().then(() => Promise.all([queryClient.invalidateQueries({ queryKey: ["unread"] }), queryClient.invalidateQueries({ queryKey: ["threads"] })]));
     const timer = setInterval(tick, POLL_MS);
     return () => {
       stopped = true;
@@ -70,6 +82,7 @@ export default function ChatScreen() {
     if (!text) return;
     setSending(true);
     setError(null);
+    lastActivity.current = Date.now();
     const result = await sendMessage(supabase, id, text);
     if (result.error) setError(result.error);
     else {
@@ -89,11 +102,7 @@ export default function ChatScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1">
         <View className="mx-auto w-full max-w-2xl flex-1 px-4">
           <View className="flex-row items-center gap-3 border-b border-line py-3">
-            <Link href="/(tabs)/chats" asChild>
-              <Pressable className="px-1" accessibilityLabel="Back to chats">
-                <Icon name="chevron-back" size={24} color="#5e5d78" />
-              </Pressable>
-            </Link>
+            <BackButton fallback="/(tabs)/chats" label="Back to chats" />
             {header?.event ? (
               <Link href={`/e/${header.event.id}` as never} asChild>
                 <Pressable className="min-w-0 flex-1">
@@ -191,13 +200,12 @@ export default function ChatScreen() {
           <View className="border-t border-line py-3">
             {error && <T variant="semibold" className="mb-2 text-sm text-danger">{error}</T>}
             <View className="flex-row items-end gap-2">
-              <TextInput
+              <Input
                 value={draft}
                 onChangeText={setDraft}
                 multiline
                 maxLength={2000}
                 placeholder="Message"
-                placeholderTextColor="rgba(94, 93, 120, 0.7)"
                 accessibilityLabel="Message"
                 onKeyPress={(e) => {
                   // On a keyboard, Enter sends (Shift+Enter for a new line).
@@ -206,7 +214,7 @@ export default function ChatScreen() {
                     void send();
                   }
                 }}
-                className="max-h-32 min-h-11 flex-1 rounded-xl border border-line bg-surface px-3.5 py-2.5 font-sans text-base text-ink web:outline-none web:focus:border-brand"
+                className="max-h-32 min-h-11 flex-1"
                 testID="draft"
               />
               <Button className="h-11 px-4" onPress={() => void send()} disabled={sending || !draft.trim()} testID="send">Send</Button>

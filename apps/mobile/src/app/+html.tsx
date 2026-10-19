@@ -1,7 +1,7 @@
 import { ScrollViewStyleReset, useServerDocumentContext } from "expo-router/html";
 import type { PropsWithChildren } from "react";
 
-const DESCRIPTION = "London's student social life, all in one place. Societies, events and socials for students at LSE, UCL, King's and Imperial, on one live map.";
+const DESCRIPTION = "London's student social life, all in one place. Societies, events and socials for students at every London university, on one live map.";
 
 // The page around the web app: what search engines and link previews see,
 // and what lets phones add Function to their home screen (the manifest).
@@ -34,6 +34,8 @@ export default function Root({ children }: PropsWithChildren) {
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <ScrollViewStyleReset />
         {headNodes}
+        {/* The service worker caches the app's files (fast launches from the home screen) and shows push notifications. */}
+        <script dangerouslySetInnerHTML={{ __html: "if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}" }} />
         {/* The page background before any script runs, so there is no white flash in dark mode. */}
         <style dangerouslySetInnerHTML={{ __html: "body{background:#f7f7fb}@media(prefers-color-scheme:dark){body{background:#0d0c1d}}" }} />
       </head>

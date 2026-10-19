@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "expo-router";
+import { Link, useIsFocused } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -8,16 +8,21 @@ import { SocialEventCard } from "@/components/social/event-card";
 import { EMPTY_FILTERS, Filters } from "@/components/social/filters";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
+import { usePullToRefresh, useRefetchOnFocus } from "@/lib/use-refetch-on-focus";
 import { useSession } from "@/providers/session";
 
 // The Social tab: plans hosted by students. Discover, what you're hosting
 // and what you're going to.
 export default function SocialScreen() {
-  const { session } = useSession();
+  const { session, loading } = useSession();
   const myId = session?.user.id ?? null;
+  const focused = useIsFocused();
   const [tab, setTab] = useState<SocialTab>("discover");
   const [filters, setFilters] = useState<DiscoverFilters>(EMPTY_FILTERS);
-  const data = useQuery({ queryKey: ["social-tab", tab, myId], queryFn: () => loadSocialTab(supabase, myId, tab), refetchInterval: 60_000 });
+  // Waits for the saved login to be read, so a cold start fetches once, not twice.
+  const data = useQuery({ queryKey: ["social-tab", tab, myId], queryFn: () => loadSocialTab(supabase, myId, tab), enabled: !loading, refetchInterval: focused ? 60_000 : false });
+  useRefetchOnFocus(data);
+  const pull = usePullToRefresh(data.refetch);
   const d = data.data;
   const now = nowMs();
   const filtered = Boolean(filters.categories.length || filters.date || filters.type || filters.available || filters.q.trim());
@@ -28,19 +33,16 @@ export default function SocialScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-bg">
-      <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-8" keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={data.isRefetching} onRefresh={() => void data.refetch()} />}>
+      <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-4" keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={() => void pull.onRefresh()} />}>
         <View className="flex-row items-center justify-between gap-3">
-          <View className="flex-1">
-            <Heading>Social</Heading>
-            <Muted className="text-sm">Plans hosted by students. Join one or start your own.</Muted>
-          </View>
+          <Heading className="text-2xl">Social</Heading>
           <Link href={hostHref as never} asChild>
-            <Button testID="host">+ Host</Button>
+            <Button className="py-2" testID="host">+ Host</Button>
           </Link>
         </View>
 
-        {/* Tabs */}
-        <View className="mt-6 flex-row rounded-2xl border border-line bg-surface p-1">
+        {/* Tabs: right at the top, under your thumb. */}
+        <View className="mt-3 flex-row rounded-2xl border border-line bg-surface p-1">
           {(["discover", "hosting", "going"] as const).map((t) => (
             <Pressable key={t} onPress={() => setTab(t)} accessibilityRole="tab" accessibilityState={{ selected: tab === t }} testID={`tab-${t}`} className={`relative flex-1 items-center rounded-xl py-2.5 ${tab === t ? "bg-brand" : ""}`}>
               <T variant="bold" className={`text-sm ${tab === t ? "text-brand-ink" : "text-muted"}`}>{t === "discover" ? "Discover" : t === "hosting" ? "Hosting" : "Going"}</T>
@@ -54,7 +56,8 @@ export default function SocialScreen() {
         </View>
 
         {tab === "discover" && (
-          <View className="mt-5">
+          <View className="mt-3">
+            <Muted className="mb-3 text-sm">Plans hosted by students. Join one or start your own.</Muted>
             <Filters filters={filters} onChange={setFilters} />
           </View>
         )}

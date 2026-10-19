@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Profile } from "@function/shared";
+import { accountDetailsMissing, PROFILE_COLUMNS, type Profile } from "@function/shared";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
@@ -11,7 +11,7 @@ export function useProfile() {
     queryKey: ["profile", id],
     enabled: !!id,
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("id, email, display_name, is_admin, university").eq("id", id!).single();
+      const { data, error } = await supabase.from("profiles").select(PROFILE_COLUMNS).eq("id", id!).single();
       if (error) throw error;
       return data as Profile;
     },
@@ -24,11 +24,13 @@ export function useInvalidateProfile() {
   return () => client.invalidateQueries({ queryKey: ["profile"] });
 }
 
-// After logging in: does this account still need the welcome step?
-// (Brand new, hasn't seen it on this device, and has no prompts yet.)
-const NEW_ACCOUNT_MS = 15 * 60 * 1000;
-export async function needsWelcome(userId: string, createdAt: string | undefined, seenWelcome: boolean) {
-  if (seenWelcome || !createdAt || Date.now() - new Date(createdAt).getTime() > NEW_ACCOUNT_MS) return false;
-  const { count } = await supabase.from("profile_prompts").select("prompt_id", { count: "exact", head: true }).eq("user_id", userId);
-  return !count;
+// After logging in: does this account still need the account-details step
+// (full name and graduation year)? True for brand-new accounts and for
+// older ones made before those details were asked for.
+export async function needsAccountDetails(userId: string) {
+  const { data } = await supabase.from("profiles").select("full_name, graduation_year").eq("id", userId).maybeSingle();
+  return accountDetailsMissing((data as { full_name: string | null; graduation_year: number | null } | null) ?? { full_name: null, graduation_year: null });
 }
+
+// The old name, kept so every caller keeps working.
+export const needsWelcome = (userId: string, _createdAt?: string, _seen?: boolean) => needsAccountDetails(userId);

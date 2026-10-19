@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { Link, useRouter } from "expo-router";
 import { useState } from "react";
-import { Modal, Pressable, ScrollView, TextInput, View, useWindowDimensions } from "react-native";
+import { Modal, Pressable, ScrollView, View, useWindowDimensions } from "react-native";
 import { blockUser, guessTwoTruths, openFriendChat, REPORT_REASONS, removeFriend, reportPhoto, reportUser, respondToFriendRequest, sendFriendRequest, unblockUser, type Relation, type TwoTruthsView } from "@function/shared";
 import { Avatar } from "@/components/avatar";
 import { LinkButton } from "@/components/event/panels";
@@ -99,7 +99,7 @@ export function ProfileMenu({ id, myId, name, blockedByMe, onChanged }: { id: st
               <Chip key={r} active={reason === r} onPress={() => setReason(r)}>{r}</Chip>
             ))}
           </View>
-          <TextInput value={details} onChangeText={setDetails} multiline maxLength={2000} placeholder="Anything else we should know (optional)" placeholderTextColor="rgba(94, 93, 120, 0.7)" className="min-h-20 w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 font-sans text-base text-ink" style={{ textAlignVertical: "top" }} />
+          <Input value={details} onChangeText={setDetails} multiline maxLength={2000} placeholder="Anything else we should know (optional)" className="min-h-20" style={{ textAlignVertical: "top" }} />
           {state.error && <T className="text-sm text-danger">{state.error}</T>}
           <View className="flex-row gap-2">
             <Button

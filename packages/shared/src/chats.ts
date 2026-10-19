@@ -50,8 +50,11 @@ export async function fetchMessages(supabase: SupabaseClient, threadId: string, 
   if (after) query = query.gt("created_at", after);
   const { data } = await query;
   const rows = (data ?? []).reverse() as { id: string; body: string; created_at: string; sender_id: string | null; deleted_at: string | null }[];
-  const cards = await getCards(supabase, rows.map((r) => r.sender_id).filter((x): x is string => !!x));
-  await supabase.rpc("mark_thread_read", { tid: threadId });
+  // Who sent them, and (on opening, or when something new arrived) mark the chat read: both at once.
+  const [cards] = await Promise.all([
+    getCards(supabase, rows.map((r) => r.sender_id).filter((x): x is string => !!x)),
+    after === null || rows.length > 0 ? supabase.rpc("mark_thread_read", { tid: threadId }) : Promise.resolve(null),
+  ]);
   return rows.map((r) => ({
     id: r.id,
     body: r.deleted_at ? "" : r.body,

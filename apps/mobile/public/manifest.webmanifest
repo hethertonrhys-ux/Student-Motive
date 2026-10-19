@@ -1,7 +1,7 @@
 {
   "name": "Function",
   "short_name": "Function",
-  "description": "London's student social life, all in one place. Societies, events and socials for students at LSE, UCL, King's and Imperial, on one live map.",
+  "description": "London's student social life, all in one place. Societies, events and socials for students at every London university, on one live map.",
   "id": "/",
   "start_url": "/map",
   "scope": "/",

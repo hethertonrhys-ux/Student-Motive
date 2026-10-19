@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useLocalSearchParams, useRouter } from "expo-router";
-import { Pressable, ScrollView } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { SOCIAL_EVENT_FIELDS, isoToLondonInput, uniById, updateSocialEvent, type SocialEvent } from "@function/shared";
+import { BackButton } from "@/components/back-button";
 import { SocialEventForm } from "@/components/social/event-form";
 import { Card, Heading, Muted, T } from "@/components/ui";
 import { useProfile } from "@/lib/profile";
@@ -34,11 +35,7 @@ export default function EditSocialEventScreen() {
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-8" keyboardShouldPersistTaps="handled">
-        <Link href={`/social/${id}` as never} asChild>
-          <Pressable className="self-start">
-            <T variant="semibold" className="text-sm text-muted">← Back to your event</T>
-          </Pressable>
-        </Link>
+        <BackButton fallback={`/social/${id}`} />
         <Heading className="mb-6 mt-3">Edit your event</Heading>
         {!myId || page.isPending ? (
           <Muted>Loading…</Muted>

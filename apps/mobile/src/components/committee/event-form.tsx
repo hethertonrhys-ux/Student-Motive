@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { useState } from "react";
-import { Pressable, TextInput, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { AUDIENCES, CATEGORIES, DEFAULT_SEATS, FORMATS, POKER_STAKES, audienceLabel, isoToLondonInput, uniById, uniShort, type Audience, type EventFormat, type EventInput, type EventTable, type MotiveEvent, type TableDraft, type Venue } from "@function/shared";
 import { DateField, TimeField } from "@/components/fields/date-time";
 import { Icon } from "@/components/icon";
@@ -20,7 +20,7 @@ const VENUE_GROUPS: { kind: Venue["kind"]; label: string }[] = [
 const AUDIENCE_HELP: Record<Audience, (uni: string) => string> = {
   members: () => "Only your approved members can see and join it.",
   uni: (uni) => `Every ${uni} student can see it.`,
-  london: () => "Students from LSE, UCL, King's and Imperial can see and join it.",
+  london: () => "Students from any London university can see and join it.",
 };
 
 type Props = {
@@ -91,19 +91,19 @@ export function CommitteeEventForm({ onSubmit, venues, event, tables = [], uni }
       </View>
       <Check checked={freeFood} onPress={() => setFreeFood((f) => !f)} title="Free food" testID="ev-free-food" />
 
-      <View className="flex-row flex-wrap gap-3">
-        <View className="min-w-[45%] flex-1">
+      <View className="gap-3">
+        <View>
           <Label>Starts</Label>
-          <View className="gap-2">
-            <DateField value={startDate} onChange={setStartDate} testID="ev-start-date" accessibilityLabel="Start date" />
-            <TimeField value={startTime} onChange={setStartTime} testID="ev-start-time" accessibilityLabel="Start time" />
+          <View className="flex-row gap-3">
+            <View className="flex-[3]"><DateField value={startDate} onChange={setStartDate} testID="ev-start-date" accessibilityLabel="Start date" /></View>
+            <View className="flex-[2]"><TimeField value={startTime} onChange={setStartTime} testID="ev-start-time" accessibilityLabel="Start time" /></View>
           </View>
         </View>
-        <View className="min-w-[45%] flex-1">
+        <View>
           <Label>Ends</Label>
-          <View className="gap-2">
-            <DateField value={endDate} onChange={setEndDate} testID="ev-end-date" accessibilityLabel="End date" />
-            <TimeField value={endTime} onChange={setEndTime} testID="ev-end-time" accessibilityLabel="End time" />
+          <View className="flex-row gap-3">
+            <View className="flex-[3]"><DateField value={endDate} onChange={setEndDate} testID="ev-end-date" accessibilityLabel="End date" /></View>
+            <View className="flex-[2]"><TimeField value={endTime} onChange={setEndTime} testID="ev-end-time" accessibilityLabel="End time" /></View>
           </View>
         </View>
       </View>
@@ -208,7 +208,7 @@ export function CommitteeEventForm({ onSubmit, venues, event, tables = [], uni }
 
       <View>
         <Label>Description <Muted className="text-sm">(optional)</Muted></Label>
-        <TextInput value={description} onChangeText={setDescription} multiline maxLength={5000} placeholder="What's happening, who it's for, what to bring…" placeholderTextColor="rgba(94, 93, 120, 0.7)" className="min-h-28 w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 font-sans text-base text-ink web:outline-none web:focus:border-brand" style={{ textAlignVertical: "top" }} testID="ev-description" />
+        <Input value={description} onChangeText={setDescription} multiline maxLength={5000} placeholder="What's happening, who it's for, what to bring…" className="min-h-28" style={{ textAlignVertical: "top" }} testID="ev-description" />
       </View>
       <View>
         <Label>Ticket or sign-up link <Muted className="text-sm">(optional)</Muted></Label>

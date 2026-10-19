@@ -34,7 +34,7 @@ export function SocialEventCard({ event, host, status, pending = 0 }: { event: S
               <T variant="display-bold" className="mt-0.5 text-lg leading-6">{event.title}</T>
             </View>
             <View className={`rounded-full px-2.5 py-1 ${event.is_private ? "bg-ink" : "bg-brand-soft"}`}>
-              <T variant="bold" className={`text-xs ${event.is_private ? "text-[#ffffff]" : "text-brand"}`}>{event.is_private ? "Private" : "Open"}</T>
+              <T variant="bold" className={`text-xs ${event.is_private ? "text-bg" : "text-brand"}`}>{event.is_private ? "Private" : "Open"}</T>
             </View>
           </View>
           <View className="gap-0.5">
@@ -53,7 +53,7 @@ export function SocialEventCard({ event, host, status, pending = 0 }: { event: S
             <View className="flex-row flex-wrap items-center gap-1.5">
               {event.is_cancelled && <Pill box="bg-danger/10" text="text-danger">Cancelled</Pill>}
               {event.friends_only && <Pill>Friends only</Pill>}
-              {pending > 0 && <Pill box="bg-live" text="text-[#ffffff]">{`${pending} request${pending === 1 ? "" : "s"}`}</Pill>}
+              {pending > 0 && <Pill box="bg-live" text="text-white">{`${pending} request${pending === 1 ? "" : "s"}`}</Pill>}
               {cost && <Pill>{cost}</Pill>}
               {status && <Pill box={STATUS[status].box} text={STATUS[status].text}>{STATUS[status].label}</Pill>}
               <Pill box={full ? "bg-danger/10" : "bg-ok/10"} text={full ? "text-danger" : "text-ok"}>{full ? "Full" : `${left} of ${event.spaces} spaces left`}</Pill>

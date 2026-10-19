@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useLocalSearchParams, useRouter } from "expo-router";
-import { Pressable, ScrollView } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { createEvent, getVenues, loadManagedSociety } from "@function/shared";
+import { BackButton } from "@/components/back-button";
 import { CommitteeEventForm } from "@/components/committee/event-form";
 import { Card, Heading, Muted, T } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
@@ -20,11 +21,7 @@ export default function NewEventScreen() {
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10" keyboardShouldPersistTaps="handled">
-        <Link href={`/dashboard/${societyId}` as never} asChild>
-          <Pressable className="self-start">
-            <T variant="semibold" className="text-sm text-muted">← {society?.name ?? "Back"}</T>
-          </Pressable>
-        </Link>
+        <BackButton fallback={`/dashboard/${societyId}`} />
         <Heading className="mb-8 mt-3">Post an event</Heading>
         {!society || !venues.data ? (
           <Muted>{managed.isPending || venues.isPending ? "Loading…" : "You don't run this society."}</Muted>

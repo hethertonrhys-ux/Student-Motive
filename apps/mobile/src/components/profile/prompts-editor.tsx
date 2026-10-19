@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Pressable, TextInput, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { exampleFor, MAX_ANSWER, MAX_PROMPTS, promptById, promptsFor, saveProfilePrompts, type Prompt, type PromptAnswer, type TwoTruthsOwn, type Uni } from "@function/shared";
 import { Icon } from "@/components/icon";
 import { TwoTruthsForm } from "@/components/two-truths-form";
-import { Button, Card, Muted, T } from "@/components/ui";
+import { Button, Card, Input, Muted, T } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 
 const SHOWN = 5;
@@ -144,18 +144,7 @@ export function PromptsEditor({ initial, uni, twoTruths, onChanged }: { initial:
       ) : editing ? (
         <View className="rounded-xl border-2 border-brand p-3">
           <T variant="semibold">{editing.prompt.text}</T>
-          <TextInput
-            autoFocus
-            multiline
-            maxLength={limit}
-            value={editing.text}
-            onChangeText={(text) => setEditing({ ...editing, text })}
-            placeholder={exampleFor(editing.prompt, uni)}
-            placeholderTextColor="rgba(94, 93, 120, 0.7)"
-            className="mt-2 min-h-20 w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 font-sans text-base text-ink web:outline-none web:focus:border-brand"
-            style={{ textAlignVertical: "top" }}
-            testID="prompt-answer"
-          />
+          <Input autoFocus multiline maxLength={limit} value={editing.text} onChangeText={(text) => setEditing({ ...editing, text })} placeholder={exampleFor(editing.prompt, uni)} className="mt-2 min-h-20" style={{ textAlignVertical: "top" }} testID="prompt-answer" />
           <View className="mt-2 flex-row items-center justify-between gap-3">
             <Muted className="text-xs">{editing.text.length}/{limit}</Muted>
             <View className="flex-row gap-2">

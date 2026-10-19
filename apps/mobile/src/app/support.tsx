@@ -1,6 +1,6 @@
 import { MailLink } from "@/components/landing";
 import { H2, P, ProsePage } from "@/components/prose-page";
-import { CONTACT_EMAIL } from "@/lib/site";
+import { SUPPORT_EMAIL } from "@/lib/site";
 
 export const generateMetadata = () => ({ title: "Support · Function" });
 
@@ -8,7 +8,7 @@ export default function SupportPage() {
   return (
     <ProsePage title="Support">
       <P>
-        Need help, want to report something, or want your society added? Email <MailLink email={CONTACT_EMAIL} /> and
+        Need help, want to report something, or want your society added? Email <MailLink email={SUPPORT_EMAIL} /> and
         we&apos;ll get back to you within a day.
       </P>
 

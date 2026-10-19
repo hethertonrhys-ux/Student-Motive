@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Pressable, Text, TextInput, View, type PressableProps, type TextInputProps, type TextProps, type ViewProps } from "react-native";
+import { usePlaceholderColor } from "@/lib/theme";
 
 // The website's shared styles (.btn, .btn-ghost, .card, .input, .label in
 // globals.css) as components, with the same names and the same classes, so
@@ -33,9 +34,10 @@ export function Label({ className = "", ...props }: TextProps & { className?: st
 }
 
 export function Input({ className = "", ...props }: TextInputProps & { className?: string }) {
+  const placeholder = usePlaceholderColor();
   return (
     <TextInput
-      placeholderTextColor="rgba(94, 93, 120, 0.7)"
+      placeholderTextColor={placeholder}
       className={`w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 font-sans text-base text-ink web:outline-none web:focus:border-brand ${className}`}
       {...props}
     />

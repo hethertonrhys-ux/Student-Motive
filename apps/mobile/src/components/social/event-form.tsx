@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, TextInput, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { SOCIAL_CATEGORIES, type SocialEvent, type SocialEventInput } from "@function/shared";
 import { DateField, TimeField } from "@/components/fields/date-time";
 import { Icon } from "@/components/icon";
@@ -63,21 +63,23 @@ export function SocialEventForm({ onSubmit, event, exact, defaults, centre }: Pr
 
       <View>
         <Label>Description</Label>
-        <TextInput value={description} onChangeText={setDescription} multiline numberOfLines={4} maxLength={3000} placeholder="What's the plan? Who's it for? What should people bring?" placeholderTextColor="rgba(94, 93, 120, 0.7)" className="min-h-24 w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 font-sans text-base text-ink web:outline-none web:focus:border-brand" style={{ textAlignVertical: "top" }} testID="description" />
+        <Input value={description} onChangeText={setDescription} multiline numberOfLines={4} maxLength={3000} placeholder="What's the plan? Who's it for? What should people bring?" className="min-h-24" style={{ textAlignVertical: "top" }} testID="description" />
       </View>
 
-      <View className="flex-row flex-wrap gap-3">
-        <View className="min-w-[45%] flex-1">
+      <View className="gap-3">
+        <View>
           <Label>Date</Label>
           <DateField value={date} onChange={setDate} testID="date" accessibilityLabel="Date" />
         </View>
-        <View className="flex-1">
-          <Label>Start time</Label>
-          <TimeField value={start} onChange={setStart} testID="start" accessibilityLabel="Start time" />
-        </View>
-        <View className="flex-1">
-          <Label>Finish <Muted className="text-sm">(optional)</Muted></Label>
-          <TimeField value={finish} onChange={setFinish} testID="finish" accessibilityLabel="Finish time" />
+        <View className="flex-row gap-3">
+          <View className="flex-1">
+            <Label>Start time</Label>
+            <TimeField value={start} onChange={setStart} testID="start" accessibilityLabel="Start time" />
+          </View>
+          <View className="flex-1">
+            <Label>Finish <Muted className="text-sm">(optional)</Muted></Label>
+            <TimeField value={finish} onChange={setFinish} testID="finish" accessibilityLabel="Finish time" />
+          </View>
         </View>
       </View>
 

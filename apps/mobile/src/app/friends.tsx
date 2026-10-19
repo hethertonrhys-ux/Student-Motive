@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { loadFriends, searchPeople, type SearchResult } from "@function/shared";
+import { BackButton } from "@/components/back-button";
 import { PeopleSection, PersonRow } from "@/components/event/panels";
 import { Icon } from "@/components/icon";
 import { FriendButton } from "@/components/profile/people";
@@ -24,11 +25,7 @@ export default function FriendsScreen() {
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10" keyboardShouldPersistTaps="handled">
-        <Link href="/(tabs)/chats" asChild>
-          <Pressable className="self-start">
-            <T variant="semibold" className="text-sm text-muted">← Messages</T>
-          </Pressable>
-        </Link>
+        <BackButton fallback={"/(tabs)/chats"} />
         <Heading className="mt-3">Friends</Heading>
         {!myId ? (
           <Card className="mt-6 flex-row flex-wrap items-center justify-between gap-3">

@@ -1,20 +1,20 @@
-import { Ionicons } from "@expo/vector-icons";
+import type Ionicons from "@expo/vector-icons/Ionicons";
 import { Link } from "expo-router";
-import { Pressable, ScrollView, TextInput, View, useColorScheme } from "react-native";
+import { Modal, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CATEGORY_STYLE, MAP_CATEGORIES, distanceMetres, eventStatus, howFar, mapCategoryLabel, timeFormat, type MapCategory, type MapEvent } from "@function/shared";
 import { Button, Muted, T } from "@/components/ui";
 import { Icon } from "@/components/icon";
+import { usePlaceholderColor, useTheme } from "@/lib/theme";
 import { PIN_ICON } from "./types";
 
 // The things you tap on around the map: the filter panel, the search bar
 // and the event cards. Plain React Native, so they're the same on the web
 // and on the phone.
 
-const useInk = () => (useColorScheme() === "dark" ? "#f2f1fb" : "#15142b");
-
 // A round button with an icon (filter, search, list).
 export function RoundButton({ icon, label, active, onPress, testID }: { icon: keyof typeof Ionicons.glyphMap; label: string; active?: boolean; onPress: () => void; testID?: string }) {
-  const ink = useInk();
+  const { colors } = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -23,18 +23,20 @@ export function RoundButton({ icon, label, active, onPress, testID }: { icon: ke
       testID={testID}
       className={`h-10 w-10 items-center justify-center rounded-full border shadow-lg ${active ? "border-brand bg-brand-soft" : "border-line bg-surface"}`}
     >
-      <Icon name={icon} size={22} color={active ? "#DA291C" : ink} />
+      <Icon name={icon} size={22} color={active ? colors.brand : colors.ink} />
     </Pressable>
   );
 }
 
-export function FilterPanel({ selected, onChange, onClose }: { selected: MapCategory[]; onChange: (next: MapCategory[]) => void; onClose: () => void }) {
+export function FilterPanel({ open, selected, onChange, onClose }: { open: boolean; selected: MapCategory[]; onChange: (next: MapCategory[]) => void; onClose: () => void }) {
+  const insets = useSafeAreaInsets();
   const toggle = (value: MapCategory) => onChange(selected.includes(value) ? selected.filter((c) => c !== value) : [...selected, value]);
+  // A modal sits above the map and its pins on every platform, so the panel
+  // is solid and nothing shows through it. Tapping outside closes it.
   return (
-    <>
-      {/* Tapping anywhere outside the panel closes it. */}
-      <Pressable accessibilityLabel="Close filters" onPress={onClose} className="absolute -inset-[1000px]" />
-      <View accessibilityRole="none" className="absolute right-0 top-12 w-72 max-w-full rounded-2xl border border-line bg-surface p-2 shadow-xl" testID="filter-panel">
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      <Pressable accessibilityLabel="Close filters" onPress={onClose} className="flex-1 bg-black/20" />
+      <View accessibilityRole="none" className="absolute right-3 w-72 max-w-[calc(100%-24px)] rounded-2xl border border-line bg-surface p-2 shadow-xl" style={{ top: insets.top + 12 + 44 + 8, ...(Platform.OS === "web" ? { boxShadow: "0 12px 32px rgba(0,0,0,0.25)" } : null) }} testID="filter-panel">
         <View className="flex-row items-center justify-between px-2 pb-2 pt-1">
           <T variant="display-bold">Categories</T>
           <View className="flex-row gap-3">
@@ -50,8 +52,8 @@ export function FilterPanel({ selected, onChange, onClose }: { selected: MapCate
           {MAP_CATEGORIES.map((c) => {
             const on = selected.includes(c.value);
             return (
-              <Pressable key={c.value} onPress={() => toggle(c.value)} accessibilityRole="checkbox" accessibilityState={{ checked: on }} testID={`filter-${c.value}`} className="flex-row items-center gap-3 rounded-xl px-2 py-2.5">
-                <View className={`h-5 w-5 items-center justify-center rounded-md border ${on ? "border-brand bg-brand" : "border-line bg-surface"}`}>{on && <Ionicons name="checkmark" size={14} color="#fff" />}</View>
+              <Pressable key={c.value} onPress={() => toggle(c.value)} accessibilityRole="checkbox" accessibilityState={{ checked: on }} aria-checked={on} testID={`filter-${c.value}`} className="flex-row items-center gap-3 rounded-xl px-2 py-2.5">
+                <View className={`h-5 w-5 items-center justify-center rounded-md border ${on ? "border-brand bg-brand" : "border-line bg-surface"}`}>{on && <Icon name="checkmark" size={14} color="#fff" />}</View>
                 <T variant="semibold">{c.label}</T>
               </Pressable>
             );
@@ -62,16 +64,17 @@ export function FilterPanel({ selected, onChange, onClose }: { selected: MapCate
           <Button onPress={onClose} className="py-1.5" testID="filter-done">Done</Button>
         </View>
       </View>
-    </>
+    </Modal>
   );
 }
 
 export function SearchBar({ value, onChange, onCancel }: { value: string; onChange: (v: string) => void; onCancel: () => void }) {
+  const placeholder = usePlaceholderColor();
   return (
     <View className="flex-row items-center gap-2">
       <View className="relative flex-1">
         <View className="pointer-events-none absolute left-3.5 top-0 h-11 justify-center">
-          <Ionicons name="search" size={20} color="#5e5d78" />
+          <Icon name="search" size={20} color="#5e5d78" />
         </View>
         <TextInput
           value={value}
@@ -79,14 +82,14 @@ export function SearchBar({ value, onChange, onCancel }: { value: string; onChan
           autoFocus
           returnKeyType="search"
           placeholder="Event, society or place"
-          placeholderTextColor="rgba(94, 93, 120, 0.7)"
+          placeholderTextColor={placeholder}
           accessibilityLabel="Search events by name, society or place"
           testID="search-input"
           className="h-11 w-full rounded-full border border-line bg-surface pl-11 pr-10 font-sans text-base text-ink shadow-lg web:outline-none web:focus:border-brand"
         />
         {!!value && (
           <Pressable onPress={() => onChange("")} accessibilityLabel="Clear search" className="absolute right-2 top-2 h-7 w-7 items-center justify-center rounded-full">
-            <Ionicons name="close" size={20} color="#5e5d78" />
+            <Icon name="close" size={20} color="#5e5d78" />
           </Pressable>
         )}
       </View>
@@ -111,7 +114,7 @@ export function EventCard({ event, now, me, onDirections, directionsState }: { e
           </View>
         )}
         <View className="flex-row items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: `${colour}1f` }}>
-          <Ionicons name={PIN_ICON[event.category] as never} size={13} color={colour} />
+          <Icon name={PIN_ICON[event.category] as never} size={13} color={colour} />
           <T variant="bold" className="text-[11px]" style={{ color: colour }}>{mapCategoryLabel(event.category)}{event.freeFood ? " · Free food" : ""}</T>
         </View>
       </View>
@@ -136,11 +139,11 @@ export function EventCard({ event, now, me, onDirections, directionsState }: { e
 
 // The card (or cards, for a group all in one place) over the bottom of the map.
 export function EventSheet({ events, now, me, onClose, onDirections, directionsState, error }: { events: MapEvent[]; now: number; me: [number, number] | null; onClose: () => void; onDirections: (event: MapEvent) => void; directionsState: string | null; error: string | null }) {
-  const ink = useInk();
+  const { colors } = useTheme();
   return (
     <View className="absolute inset-x-3 bottom-3 max-h-[60%] rounded-2xl border border-line bg-surface px-4 pb-2 pt-1 shadow-xl" testID="sheet">
       <Pressable onPress={onClose} accessibilityLabel="Close" className="absolute right-2 top-2 z-10 h-8 w-8 items-center justify-center rounded-full" testID="close-sheet">
-        <Ionicons name="close" size={22} color={ink} />
+        <Icon name="close" size={22} color={colors.ink} />
       </Pressable>
       <ScrollView>
         {events.map((e, i) => (

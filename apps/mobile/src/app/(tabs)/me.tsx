@@ -7,6 +7,7 @@ import { Avatar } from "@/components/avatar";
 import { Icon } from "@/components/icon";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
 import { useProfile } from "@/lib/profile";
+import { disablePushOnThisDevice } from "@/lib/push";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
@@ -19,6 +20,7 @@ export default function MeScreen() {
   const queryClient = useQueryClient();
 
   async function logOut() {
+    await disablePushOnThisDevice();
     await supabase.auth.signOut();
     queryClient.clear();
     router.replace("/");
@@ -26,7 +28,9 @@ export default function MeScreen() {
 
   const rows: { href: string; icon: React.ComponentProps<typeof Icon>["name"]; title: string; detail: string; testID: string }[] = [
     { href: `/u/${session?.user.id}`, icon: "person-circle-outline", title: "My profile", detail: "How other students see you", testID: "my-profile" },
-    { href: "/account", icon: "create-outline", title: "Edit profile", detail: "Photos, prompts, name and course", testID: "edit-profile" },
+    { href: "/account", icon: "create-outline", title: "Edit profile", detail: "Photos, prompts, name, nickname and course", testID: "edit-profile" },
+    { href: "/account/security", icon: "lock-closed-outline", title: "Password & security", detail: "Set a password, two-factor authentication", testID: "security" },
+    { href: "/account/notifications", icon: "notifications-circle-outline", title: "Notification settings", detail: "Choose what Function tells you about", testID: "notification-settings" },
     { href: "/friends", icon: "people-outline", title: "Friends", detail: "Requests, people you may know", testID: "friends" },
     { href: "/notifications", icon: "notifications-outline", title: "Notifications", detail: "What's happened lately", testID: "notifications" },
   ];

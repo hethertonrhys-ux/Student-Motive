@@ -30,7 +30,9 @@ import type { MapHandle } from "@/components/map/types";
 import { Muted, T } from "@/components/ui";
 import { WhatsOnList } from "@/components/whats-on-list";
 import { whereAmI } from "@/lib/location";
-import { useSavedCategories } from "@/lib/map-prefs";
+import { isFiltering, useSavedCategories } from "@/lib/map-prefs";
+import { useRefetchOnFocus } from "@/lib/use-refetch-on-focus";
+import { useIsFocused } from "expo-router";
 import { useProfile } from "@/lib/profile";
 import { useMounted } from "@/lib/use-mounted";
 import { supabase } from "@/lib/supabase";
@@ -50,12 +52,17 @@ export default function MapScreen() {
   const [mapError, setMapError] = useState(false);
 
   // Events refresh every minute; "live" is checked every 30 seconds.
-  const data = useQuery({ queryKey: ["map-events"], queryFn: () => loadMapEvents(supabase), refetchInterval: 60_000 });
+
   const [now, setNow] = useState(() => Date.now());
+  const focused = useIsFocused();
+  const data = useQuery({ queryKey: ["map-events"], queryFn: () => loadMapEvents(supabase), refetchInterval: focused ? 60_000 : false });
+  useRefetchOnFocus(data);
   useEffect(() => {
+    if (!focused) return;
+    setNow(Date.now());
     const tick = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(tick);
-  }, []);
+  }, [focused]);
   const events = data.data?.events ?? [];
   const windows = data.data?.windows;
   // Night colours from sunset to sunrise. The page is built in daylight, so
@@ -79,6 +86,7 @@ export default function MapScreen() {
 
   // Time, categories and search all combine.
   const categoryKey = categories.join(",");
+  const filtering = isFiltering(categories);
   const filtered = useMemo(() => {
     if (!windows) return [];
     const chosen = categoryKey ? categoryKey.split(",") : [];
@@ -198,13 +206,13 @@ export default function MapScreen() {
               })}
             </View>
             <View>
-              <RoundButton icon="options-outline" label={categories.length ? `Filter by category, ${categories.length} selected` : "Filter by category"} active={filterOpen || categories.length > 0} onPress={() => setFilterOpen((o) => !o)} testID="filter" />
-              {categories.length > 0 && (
+              <RoundButton icon="options-outline" label={filtering ? `Filter by category, ${categories.length} selected` : "Filter by category"} active={filterOpen || filtering} onPress={() => setFilterOpen((o) => !o)} testID="filter" />
+              {filtering && (
                 <View className="absolute -right-1 -top-1 min-w-5 items-center rounded-full bg-brand px-1">
                   <T variant="bold" className="text-[11px] leading-5 text-brand-ink">{categories.length}</T>
                 </View>
               )}
-              {filterOpen && <FilterPanel selected={categories} onChange={setCategories} onClose={() => setFilterOpen(false)} />}
+              <FilterPanel open={filterOpen} selected={categories} onChange={setCategories} onClose={() => setFilterOpen(false)} />
             </View>
             <RoundButton
               icon="search"
@@ -245,7 +253,7 @@ export default function MapScreen() {
             ))}
             {visible.length === 0 && (
               <Muted className="px-4 py-3 text-sm">
-                No {whenLabel} events match{categories.length ? " your filters" : ""}. Try another time{categories.length ? " or clear the filters" : ""}.
+                No {whenLabel} events match{filtering ? " your filters" : ""}. Try another time{filtering ? " or clear the filters" : ""}.
               </Muted>
             )}
           </ScrollView>
@@ -254,7 +262,7 @@ export default function MapScreen() {
 
       {/* Bottom: the count (or the walking route), and the uni / London buttons. */}
       {!selected && (
-        <View className="absolute inset-x-0 bottom-0 z-10 flex-row items-end justify-between gap-2 p-3" pointerEvents="box-none">
+        <View className="absolute inset-x-0 bottom-0 z-10 flex-row items-end justify-between gap-2 p-3 web:pb-8" pointerEvents="box-none">
           {walk ? (
             <View className="max-w-[19rem] rounded-2xl border border-line bg-surface px-4 py-2.5 shadow-lg" testID="walk-bar">
               <Muted className="text-xs font-sans-semibold" numberOfLines={1}>Walking to {walk.title}</Muted>
@@ -278,7 +286,7 @@ export default function MapScreen() {
               {data.isError && <T variant="semibold" className="text-xs text-danger">Couldn&apos;t load events. Check your connection.</T>}
               {data.data && visible.length === 0 && (
                 <Muted className="text-xs">
-                  {words.length ? "Nothing matches your search." : categories.length ? "Nothing in your chosen categories. Change the filter." : when === "now" ? "Nothing on right now. Try Tonight." : "Nothing posted yet. Check back soon."}
+                  {words.length ? "Nothing matches your search." : filtering ? "Nothing in your chosen categories. Change the filter." : when === "now" ? "Nothing on right now. Try Tonight." : "Nothing posted yet. Check back soon."}
                 </Muted>
               )}
               {nearest ? (

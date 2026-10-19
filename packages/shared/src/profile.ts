@@ -112,6 +112,10 @@ export async function openFriendChat(supabase: SupabaseClient, id: string): Prom
 
 export type MyProfile = {
   display_name: string;
+  full_name: string;
+  nickname: string;
+  graduation_year: number | null;
+  university: string;
   course: string;
   avatar_url: string | null;
   photos: ProfilePhoto[];
@@ -122,16 +126,20 @@ export type MyProfile = {
 
 export async function loadMyProfile(supabase: SupabaseClient, myId: string): Promise<MyProfile> {
   const [{ data }, photos, { data: settings }, { data: prompts }, { data: twoTruths }] = await Promise.all([
-    supabase.from("profiles").select("display_name, course, avatar_url").eq("id", myId).single(),
+    supabase.from("profiles").select("display_name, full_name, nickname, graduation_year, university, course, avatar_url").eq("id", myId).single(),
     getPhotos(supabase, myId),
     supabase.from("profile_settings").select("show_societies").eq("user_id", myId).maybeSingle(),
     supabase.from("profile_prompts").select("prompt_id, answer").eq("user_id", myId).order("position"),
     // Your own Two truths and a lie (only you can read the lie).
     supabase.from("two_truths").select("s1, s2, s3, lie").eq("user_id", myId).maybeSingle(),
   ]);
-  const row = (data ?? {}) as { display_name?: string | null; course?: string | null; avatar_url?: string | null };
+  const row = (data ?? {}) as { display_name?: string | null; full_name?: string | null; nickname?: string | null; graduation_year?: number | null; university?: string | null; course?: string | null; avatar_url?: string | null };
   return {
     display_name: row.display_name ?? "",
+    full_name: row.full_name ?? "",
+    nickname: row.nickname ?? "",
+    graduation_year: row.graduation_year ?? null,
+    university: row.university ?? "",
     course: row.course ?? "",
     avatar_url: row.avatar_url ?? null,
     photos,
@@ -141,6 +149,34 @@ export async function loadMyProfile(supabase: SupabaseClient, myId: string): Pro
   };
 }
 
+// The year someone can say they graduate: this year to seven years ahead.
+export function graduationYears(now = new Date()): number[] {
+  const first = now.getFullYear();
+  return Array.from({ length: 8 }, (_, i) => first + i);
+}
+
+export type AccountDetailsInput = { fullName: string; nickname: string; graduationYear: number | null; course?: string; university?: string | null };
+
+// Full name, nickname, graduation year (and course on the profile editor).
+// What other students see (display_name) is the nickname if set, otherwise
+// the full name. The university can only be chosen by people whose email
+// isn't a uni address (the database sets it from the email otherwise).
+export async function saveAccountDetails(supabase: SupabaseClient, myId: string, input: AccountDetailsInput): Promise<Result> {
+  const clean = (v: string, max: number) => v.trim().replace(/[ \t]+/g, " ").slice(0, max);
+  const fullName = clean(input.fullName, 80);
+  const nickname = clean(input.nickname, 40);
+  if (fullName.length < 2) return { error: "Enter your full name." };
+  if (fullName.split(" ").length < 2) return { error: "Enter your first and last name." };
+  if (!input.graduationYear) return { error: "Choose the year you graduate." };
+  if (!graduationYears().includes(input.graduationYear)) return { error: "That graduation year doesn't look right." };
+  const update: Record<string, unknown> = { full_name: fullName, nickname: nickname || null, graduation_year: input.graduationYear, display_name: nickname || fullName };
+  if (input.course !== undefined) update.course = clean(input.course, 60) || null;
+  if (input.university) update.university = input.university;
+  const { error } = await supabase.from("profiles").update(update).eq("id", myId);
+  return error ? { error: "Couldn't save. Please try again." } : {};
+}
+
+// Kept for the website: name and course only.
 export async function saveProfile(supabase: SupabaseClient, myId: string, input: { name: string; course: string }): Promise<Result> {
   const clean = (v: string, max: number) => v.trim().replace(/[ \t]+/g, " ").slice(0, max);
   const name = clean(input.name, 60);

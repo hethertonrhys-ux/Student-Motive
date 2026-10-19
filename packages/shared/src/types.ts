@@ -12,9 +12,24 @@ export type Profile = {
   email: string;
   display_name: string | null;
   is_admin: boolean;
-  // "LSE", "UCL", "KCL" or "Imperial" (see lib/universities.ts).
+  // One of the ids in universities.ts ("LSE", "UCL", "QMUL", ...).
   university: UniId;
+  // The account details asked for on sign-up. display_name is what other
+  // students see: the nickname when there is one, otherwise the full name.
+  full_name: string | null;
+  nickname: string | null;
+  graduation_year: number | null;
 };
+
+// The columns the app reads for the logged-in person's own profile.
+export const PROFILE_COLUMNS = "id, email, display_name, is_admin, university, full_name, nickname, graduation_year";
+
+// Accounts made before these fields existed (or who skipped them) are asked
+// to fill them in the next time they open the app.
+export function accountDetailsMissing(profile: Pick<Profile, "full_name" | "graduation_year"> | null | undefined) {
+  if (!profile) return false;
+  return !profile.full_name?.trim() || !profile.graduation_year;
+}
 
 export type Society = {
   id: string;
