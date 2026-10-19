@@ -1,0 +1,17 @@
+{
+  "name": "Function",
+  "short_name": "Function",
+  "description": "London's student social life, all in one place. Societies, events and socials for students at LSE, UCL, King's and Imperial, on one live map.",
+  "id": "/",
+  "start_url": "/map",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f7fb",
+  "theme_color": "#DA291C",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

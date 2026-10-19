@@ -1,0 +1,41 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "npx expo export --platform web --output-dir dist && cp dist/+not-found.html dist/404.html",
+  "outputDirectory": "dist",
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/e/:id",
+      "has": [{ "type": "header", "key": "user-agent", "value": ".*(facebookexternalhit|Facebot|WhatsApp|Twitterbot|Slackbot|LinkedInBot|Discordbot|TelegramBot|Applebot|Googlebot|bingbot|Pinterest|Snapchat|SkypeUriPreview|Embedly|Iframely|redditbot).*" }],
+      "destination": "/api/preview?path=/e/:id"
+    },
+    {
+      "source": "/s/:slug",
+      "has": [{ "type": "header", "key": "user-agent", "value": ".*(facebookexternalhit|Facebot|WhatsApp|Twitterbot|Slackbot|LinkedInBot|Discordbot|TelegramBot|Applebot|Googlebot|bingbot|Pinterest|Snapchat|SkypeUriPreview|Embedly|Iframely|redditbot).*" }],
+      "destination": "/api/preview?path=/s/:slug"
+    },
+    {
+      "source": "/social/:id",
+      "has": [{ "type": "header", "key": "user-agent", "value": ".*(facebookexternalhit|Facebot|WhatsApp|Twitterbot|Slackbot|LinkedInBot|Discordbot|TelegramBot|Applebot|Googlebot|bingbot|Pinterest|Snapchat|SkypeUriPreview|Embedly|Iframely|redditbot).*" }],
+      "destination": "/api/preview?path=/social/:id"
+    },
+    { "source": "/e/:id", "destination": "/e/[id].html" },
+    { "source": "/s/:slug", "destination": "/s/[slug].html" },
+    { "source": "/u/:id", "destination": "/u/[id].html" },
+    { "source": "/chats/:id", "destination": "/chats/[id].html" },
+    { "source": "/social/:id/edit", "destination": "/social/[id]/edit.html" },
+    { "source": "/social/:id", "destination": "/social/[id].html" },
+    { "source": "/dashboard/:societyId/events/new", "destination": "/dashboard/[societyId]/events/new.html" },
+    { "source": "/dashboard/:societyId/events/:eventId/edit", "destination": "/dashboard/[societyId]/events/[eventId]/edit.html" },
+    { "source": "/dashboard/:societyId/events/:eventId", "destination": "/dashboard/[societyId]/events/[eventId].html" },
+    { "source": "/dashboard/:societyId/members", "destination": "/dashboard/[societyId]/members.html" },
+    { "source": "/dashboard/:societyId", "destination": "/dashboard/[societyId].html" }
+  ],
+  "headers": [
+    { "source": "/_expo/static/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },
+    { "source": "/assets/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },
+    { "source": "/manifest.webmanifest", "headers": [{ "key": "Content-Type", "value": "application/manifest+json" }] }
+  ]
+}

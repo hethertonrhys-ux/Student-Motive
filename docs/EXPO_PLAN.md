@@ -445,6 +445,30 @@ Phases 1–3 are what you asked to see first. Phases 4–8 can be reordered;
   remove) and the Function admin page (claims, reports, reported photos,
   who can join, add a society). The app no longer sends anyone to the
   website for these.
+- **Phase 10: done (push notifications left out).** The web build now has
+  everything the old site had around the app: the landing page and the
+  uni pages (/lse, /ucl, /kings, /imperial, which remember the uni for the
+  login page's email example), Privacy, Terms and Support with the footer
+  links, the install guide (steps for iPhone and Android, one-tap install
+  on Android Chrome, the Instagram/TikTok in-app browser warning, the
+  copy-link box, the poster picture), a proper 404 page, the web app
+  manifest with the red theme and icons (`apps/mobile/public`), the page
+  `<head>` for the web build (`src/app/+html.tsx`: description, theme
+  colour, home-screen tags) with per-page titles via `generateMetadata`,
+  and the link-preview function (`apps/mobile/api/preview.js`) that gives
+  WhatsApp, iMessage and the like a title, time, place and picture for
+  shared event, society and social links. `apps/mobile/vercel.json` holds
+  the Vercel build settings, the crawler rewrite to that function, the
+  rewrites for the dynamic pages (`/e/:id` → `/e/[id].html` and so on) and
+  cache headers, ready for phase 11. The analytics rows (sign-up funnel
+  events, all-unis search log) were already written in phases 1 and 4.
+  Push notifications are not built: they need a new `push_tokens` table
+  and a Supabase edge function, so they stay a separate item for later.
+  Two things to know for the App Store: the privacy and terms pages still
+  carry the website's "Draft" banner and must be reviewed, and there is no
+  "delete my account" button in the app (the website never had one either;
+  the Support page promises it). Apple requires one for apps with sign-up,
+  so that needs a database function and a button before submission.
 
 ### Things to decide before phase 0
 
