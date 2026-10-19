@@ -19,7 +19,7 @@ export function Pill({ children, box = "bg-brand-soft", text = "text-brand" }: {
 }
 
 // One event in a list: title, category, when, where, spaces and Open/Private.
-export function SocialEventCard({ event, host, status, pending = 0 }: { event: SocialEvent; host?: { name: string; avatar_url: string | null } | null; status?: MemberStatus | null; pending?: number }) {
+export function SocialEventCard({ event, host, status, pending = 0, note }: { event: SocialEvent; host?: { name: string; avatar_url: string | null } | null; status?: MemberStatus | null; pending?: number; note?: string }) {
   const cat = categoryInfo(event.category);
   const left = spacesLeft(event);
   const full = left === 0;
@@ -28,6 +28,11 @@ export function SocialEventCard({ event, host, status, pending = 0 }: { event: S
     <Link href={`/social/${event.id}` as never} asChild>
       <Pressable testID={`social-${event.id}`}>
         <Card className={`gap-3 p-4 ${event.is_cancelled ? "opacity-60" : ""}`}>
+          {note && (
+            <View className="self-start rounded-full bg-brand-soft px-2.5 py-0.5">
+              <T variant="bold" className="text-xs text-brand" testID="recommend-note">{note}</T>
+            </View>
+          )}
           <View className="flex-row items-start justify-between gap-3">
             <View className="min-w-0 flex-1">
               <T variant="bold" className="text-xs uppercase tracking-wide text-brand">{cat.label}</T>

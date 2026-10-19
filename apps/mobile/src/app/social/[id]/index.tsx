@@ -29,7 +29,7 @@ export default function SocialEventScreen() {
   const page = useQuery({ queryKey: ["social-event", id, myId], queryFn: () => loadSocialEvent(supabase, id, myId), enabled: !!id });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const refresh = () => Promise.all([queryClient.invalidateQueries({ queryKey: ["social-event", id] }), queryClient.invalidateQueries({ queryKey: ["social-tab"] }), queryClient.invalidateQueries({ queryKey: ["map-events"] }), queryClient.invalidateQueries({ queryKey: ["feed"] })]);
+  const refresh = () => Promise.all([queryClient.invalidateQueries({ queryKey: ["social-event", id] }), queryClient.invalidateQueries({ queryKey: ["social-tab"] }), queryClient.invalidateQueries({ queryKey: ["map-events"] }), queryClient.invalidateQueries({ queryKey: ["feed"] }), queryClient.invalidateQueries({ queryKey: ["recommended"] })]);
   const tap: Tap = async (run) => {
     setBusy(true);
     setError(null);

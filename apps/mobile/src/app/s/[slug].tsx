@@ -127,7 +127,7 @@ function MembershipCard({ society, membership, loading }: { society: Society; me
   const [error, setError] = useState<string | null>(null);
   // What you tapped shows straight away; the request goes in the background.
   const [optimistic, setOptimistic] = useState<"pending" | "left" | null>(null);
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["membership", society.id] }).then(() => queryClient.invalidateQueries({ queryKey: ["societies-tab"] }));
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["membership", society.id] }).then(() => Promise.all([queryClient.invalidateQueries({ queryKey: ["societies-tab"] }), queryClient.invalidateQueries({ queryKey: ["filter-context"] }), queryClient.invalidateQueries({ queryKey: ["recommended"] })]));
   const join = useMutation({
     mutationFn: async (yourName: string) => {
       const result = await requestToJoin(supabase, society.id, yourName);

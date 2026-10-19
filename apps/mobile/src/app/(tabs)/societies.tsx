@@ -1,11 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
+import { useState } from "react";
 import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { formatEventTime, loadSocietiesTab, uniShort } from "@function/shared";
 import { Avatar } from "@/components/avatar";
+import { ListModeSwitch, SocietyEventsForYou, type ListMode } from "@/components/recommended-events";
 import { SocietySearch } from "@/components/society-search";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
+import { useFilterContext } from "@/lib/filter-context";
 import { useProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { usePullToRefresh, useRefetchOnFocus } from "@/lib/use-refetch-on-focus";
@@ -19,9 +22,12 @@ export default function SocietiesScreen() {
   const me = profile ? { id: profile.id, university: profile.university } : null;
   const tab = useQuery({ queryKey: ["societies-tab", me?.id ?? null, me?.university ?? null], queryFn: () => loadSocietiesTab(supabase, me), enabled: !session || !!profile });
   useRefetchOnFocus(tab);
-  const pull = usePullToRefresh(tab.refetch);
+  const queryClient = useQueryClient();
+  const pull = usePullToRefresh(() => Promise.all([tab.refetch(), queryClient.invalidateQueries({ queryKey: ["filter-context"] }), queryClient.invalidateQueries({ queryKey: ["recommended", "society"] })]));
   const data = tab.data;
   const myUni = profile?.university;
+  const [mode, setMode] = useState<ListMode>("all");
+  const { context: who, ready: whoReady } = useFilterContext();
 
   return (
     <SafeAreaView className="flex-1 bg-bg">
@@ -30,6 +36,15 @@ export default function SocietiesScreen() {
         <Muted className="mt-1 text-sm">{myUni ? `Every ${uniShort(myUni)} society, hall and more in one place.` : "Every society, hall and more across London's unis."}</Muted>
 
         <SocietySearch societies={data?.all ?? []} myUni={myUni} relations={data?.relations} />
+        {me && (
+          <View className="mt-8">
+            <T variant="display" className="text-xl">Events coming up</T>
+            <View className="mt-3">
+              <ListModeSwitch mode={mode} onChange={setMode} allLabel="All events" testID="societies-mode" />
+            </View>
+            <SocietyEventsForYou me={{ id: me.id, university: me.university }} who={who} ready={whoReady} mode={mode} />
+          </View>
+        )}
 
         {!!data?.upcoming.length && (
           <View className="mt-8">

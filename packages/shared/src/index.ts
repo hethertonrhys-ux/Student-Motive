@@ -29,3 +29,5 @@ export * from "./chats";
 export * from "./committee";
 export * from "./admin";
 export * from "./push";
+export * from "./event-filters";
+export * from "./recommend";

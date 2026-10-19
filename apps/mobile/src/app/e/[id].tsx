@@ -84,6 +84,7 @@ export default function EventScreen() {
       queryClient.invalidateQueries({ queryKey: ["event-host", id] }),
       queryClient.invalidateQueries({ queryKey: ["feed"] }),
       queryClient.invalidateQueries({ queryKey: ["map-events"] }),
+      queryClient.invalidateQueries({ queryKey: ["recommended"] }),
       queryClient.invalidateQueries({ queryKey: ["profile"] }), // the name form changes it
     ]);
   // One tap: run it, show its error if any, then reload what changed.

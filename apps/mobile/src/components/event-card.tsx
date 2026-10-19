@@ -5,7 +5,7 @@ import { formatEventTime, isLive, mapCategoryLabel, type FeedItem } from "@funct
 import { Card, Muted, T } from "@/components/ui";
 
 // One event in a list: when, where, who by, how many are going.
-export function EventCard({ item }: { item: FeedItem }) {
+export function EventCard({ item, note }: { item: FeedItem; note?: string }) {
   const live = isLive(item.startsAt, item.endsAt);
   return (
     <Link href={item.href as never} asChild>
@@ -13,6 +13,11 @@ export function EventCard({ item }: { item: FeedItem }) {
         <Card className="flex-row gap-3 p-4">
           {item.imageUrl && <Image source={{ uri: item.imageUrl }} style={{ width: 64, height: 64, borderRadius: 12 }} contentFit="cover" />}
           <View className="flex-1 gap-0.5">
+            {note && (
+              <View className="mb-0.5 self-start rounded-full bg-brand-soft px-2.5 py-0.5">
+                <T variant="bold" className="text-xs text-brand" testID="recommend-note">{note}</T>
+              </View>
+            )}
             <View className="flex-row flex-wrap items-center gap-1.5">
               {live && (
                 <View className="rounded-full bg-live px-2 py-0.5">
