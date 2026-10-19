@@ -8,34 +8,122 @@
   "rewrites": [
     {
       "source": "/e/:id",
-      "has": [{ "type": "header", "key": "user-agent", "value": ".*(facebookexternalhit|Facebot|WhatsApp|Twitterbot|Slackbot|LinkedInBot|Discordbot|TelegramBot|Applebot|Googlebot|bingbot|Pinterest|Snapchat|SkypeUriPreview|Embedly|Iframely|redditbot).*" }],
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|WhatsApp|Twitterbot|Slackbot|LinkedInBot|Discordbot|TelegramBot|Applebot|Googlebot|bingbot|Pinterest|Snapchat|SkypeUriPreview|Embedly|Iframely|redditbot).*"
+        }
+      ],
       "destination": "/api/preview?path=/e/:id"
     },
     {
       "source": "/s/:slug",
-      "has": [{ "type": "header", "key": "user-agent", "value": ".*(facebookexternalhit|Facebot|WhatsApp|Twitterbot|Slackbot|LinkedInBot|Discordbot|TelegramBot|Applebot|Googlebot|bingbot|Pinterest|Snapchat|SkypeUriPreview|Embedly|Iframely|redditbot).*" }],
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|WhatsApp|Twitterbot|Slackbot|LinkedInBot|Discordbot|TelegramBot|Applebot|Googlebot|bingbot|Pinterest|Snapchat|SkypeUriPreview|Embedly|Iframely|redditbot).*"
+        }
+      ],
       "destination": "/api/preview?path=/s/:slug"
     },
     {
       "source": "/social/:id",
-      "has": [{ "type": "header", "key": "user-agent", "value": ".*(facebookexternalhit|Facebot|WhatsApp|Twitterbot|Slackbot|LinkedInBot|Discordbot|TelegramBot|Applebot|Googlebot|bingbot|Pinterest|Snapchat|SkypeUriPreview|Embedly|Iframely|redditbot).*" }],
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|WhatsApp|Twitterbot|Slackbot|LinkedInBot|Discordbot|TelegramBot|Applebot|Googlebot|bingbot|Pinterest|Snapchat|SkypeUriPreview|Embedly|Iframely|redditbot).*"
+        }
+      ],
       "destination": "/api/preview?path=/social/:id"
     },
-    { "source": "/e/:id", "destination": "/e/%5Bid%5D" },
-    { "source": "/s/:slug", "destination": "/s/%5Bslug%5D" },
-    { "source": "/u/:id", "destination": "/u/%5Bid%5D" },
-    { "source": "/chats/:id", "destination": "/chats/%5Bid%5D" },
-    { "source": "/social/:id/edit", "destination": "/social/%5Bid%5D/edit" },
-    { "source": "/social/:id", "destination": "/social/%5Bid%5D" },
-    { "source": "/dashboard/:societyId/events/new", "destination": "/dashboard/%5BsocietyId%5D/events/new" },
-    { "source": "/dashboard/:societyId/events/:eventId/edit", "destination": "/dashboard/%5BsocietyId%5D/events/%5BeventId%5D/edit" },
-    { "source": "/dashboard/:societyId/events/:eventId", "destination": "/dashboard/%5BsocietyId%5D/events/%5BeventId%5D" },
-    { "source": "/dashboard/:societyId/members", "destination": "/dashboard/%5BsocietyId%5D/members" },
-    { "source": "/dashboard/:societyId", "destination": "/dashboard/%5BsocietyId%5D" }
+    {
+      "source": "/e/:id",
+      "destination": "/e/%5Bid%5D"
+    },
+    {
+      "source": "/s/:slug",
+      "destination": "/s/%5Bslug%5D"
+    },
+    {
+      "source": "/u/:id",
+      "destination": "/u/%5Bid%5D"
+    },
+    {
+      "source": "/chats/:id",
+      "destination": "/chats/%5Bid%5D"
+    },
+    {
+      "source": "/social/:id/edit",
+      "destination": "/social/%5Bid%5D/edit"
+    },
+    {
+      "source": "/social/:id",
+      "destination": "/social/%5Bid%5D"
+    },
+    {
+      "source": "/dashboard/:societyId/events/new",
+      "destination": "/dashboard/%5BsocietyId%5D/events/new"
+    },
+    {
+      "source": "/dashboard/:societyId/events/:eventId/edit",
+      "destination": "/dashboard/%5BsocietyId%5D/events/%5BeventId%5D/edit"
+    },
+    {
+      "source": "/dashboard/:societyId/events/:eventId",
+      "destination": "/dashboard/%5BsocietyId%5D/events/%5BeventId%5D"
+    },
+    {
+      "source": "/dashboard/:societyId/members",
+      "destination": "/dashboard/%5BsocietyId%5D/members"
+    },
+    {
+      "source": "/dashboard/:societyId",
+      "destination": "/dashboard/%5BsocietyId%5D"
+    }
   ],
   "headers": [
-    { "source": "/_expo/static/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },
-    { "source": "/assets/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },
-    { "source": "/manifest.webmanifest", "headers": [{ "key": "Content-Type", "value": "application/manifest+json" }] }
+    {
+      "source": "/_expo/static/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json"
+        }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, must-revalidate"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
+      ]
+    }
   ]
 }

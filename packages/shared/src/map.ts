@@ -135,22 +135,23 @@ export function mapStyle(look: Look, campus: string | object, tiles = "https://t
       { id: "building", type: "fill", source: "omt", "source-layer": "building", minzoom: 13, maxzoom: 15.5, paint: { "fill-color": p.building, "fill-outline-color": p.buildingSide } },
       { id: "lse-building", type: "fill", source: "lse", filter: isCampusBuilding, minzoom: 13, maxzoom: 15.5, paint: { "fill-color": p.lse, "fill-outline-color": p.lseSide } },
       {
-        id: "building-3d", type: "fill-extrusion", source: "omt", "source-layer": "building", minzoom: 15,
+        id: "building-3d", type: "fill-extrusion", source: "omt", "source-layer": "building", minzoom: 15.5,
         paint: {
           "fill-extrusion-color": p.building,
           "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 15, 0, 16, ["coalesce", ["get", "render_height"], 6]],
           "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
-          "fill-extrusion-opacity": ["interpolate", ["linear"], ["zoom"], 15, 0, 15.5, 0.92],
+          // Fully opaque: translucent 3D is drawn twice and shows stripes on phones.
+          "fill-extrusion-opacity": 1,
           "fill-extrusion-vertical-gradient": true,
         },
       },
       {
-        id: "lse-building-3d", type: "fill-extrusion", source: "lse", filter: isCampusBuilding, minzoom: 15,
+        id: "lse-building-3d", type: "fill-extrusion", source: "lse", filter: isCampusBuilding, minzoom: 15.5,
         paint: {
           "fill-extrusion-color": p.lse,
           "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 15, 0, 16, ["get", "height"]],
           "fill-extrusion-base": ["get", "base"],
-          "fill-extrusion-opacity": ["interpolate", ["linear"], ["zoom"], 15, 0, 15.5, 0.92],
+          "fill-extrusion-opacity": 1,
           "fill-extrusion-vertical-gradient": true,
         },
       },

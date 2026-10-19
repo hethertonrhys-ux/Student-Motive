@@ -8,6 +8,7 @@ import { SocietySearch } from "@/components/society-search";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
 import { useProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
+import { usePullToRefresh, useRefetchOnFocus } from "@/lib/use-refetch-on-focus";
 import { useSession } from "@/providers/session";
 
 // The Societies tab: find societies, your memberships, the ones you run and
@@ -17,12 +18,14 @@ export default function SocietiesScreen() {
   const { profile } = useProfile();
   const me = profile ? { id: profile.id, university: profile.university } : null;
   const tab = useQuery({ queryKey: ["societies-tab", me?.id ?? null, me?.university ?? null], queryFn: () => loadSocietiesTab(supabase, me), enabled: !session || !!profile });
+  useRefetchOnFocus(tab);
+  const pull = usePullToRefresh(tab.refetch);
   const data = tab.data;
   const myUni = profile?.university;
 
   return (
     <SafeAreaView className="flex-1 bg-bg">
-      <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-8" keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={tab.isRefetching} onRefresh={() => void tab.refetch()} />}>
+      <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-8" keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={() => void pull.onRefresh()} />}>
         <Heading>Societies</Heading>
         <Muted className="mt-1 text-sm">{myUni ? `Every ${uniShort(myUni)} society, hall and more in one place.` : "Every society, hall and more across London's unis."}</Muted>
 

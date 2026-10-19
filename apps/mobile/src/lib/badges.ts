@@ -15,7 +15,7 @@ const FIRST_LOOK_DAYS = 3; // on a phone that's never opened Notifications, the 
 
 export function useUnreadMessages() {
   const { session } = useSession();
-  const query = useQuery({ queryKey: ["unread", session?.user.id ?? null], queryFn: () => getUnreadCount(supabase), enabled: !!session, refetchInterval: 60_000 });
+  const query = useQuery({ queryKey: ["unread", session?.user.id ?? null], queryFn: () => getUnreadCount(supabase), enabled: !!session, refetchInterval: 120_000 });
   useRefetchOnForeground(["unread"]);
   return query.data ?? 0;
 }
@@ -33,7 +33,7 @@ export function useNewNotifications() {
   const query = useQuery({
     queryKey: ["notification-times", session?.user.id ?? null],
     enabled: !!session,
-    refetchInterval: 60_000,
+    refetchInterval: 300_000,
     queryFn: async () => {
       const [times, seen] = await Promise.all([getNotificationTimes(supabase, session!.user.id), seenAt()]);
       return times.filter((at) => new Date(at).getTime() > seen).length;
