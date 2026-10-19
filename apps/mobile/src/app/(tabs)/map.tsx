@@ -1,17 +1,61 @@
-import { View } from "react-native";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "expo-router";
+import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Card, Heading, Muted } from "@/components/ui";
+import { loadFeed } from "@function/shared";
+import { EventCard } from "@/components/event-card";
+import { Button, Card, Heading, Muted, T } from "@/components/ui";
+import { useProfile } from "@/lib/profile";
+import { supabase } from "@/lib/supabase";
+import { useSession } from "@/providers/session";
 
-// Placeholder until this tab is built.
-export default function MapScreen() {
+// What's on: tonight, tomorrow and the next two weeks. The live map takes
+// this tab in phase 3, with this list one tap away.
+export default function WhatsOnScreen() {
+  const { session } = useSession();
+  const { profile } = useProfile();
+  const myUni = profile?.university ?? null;
+  const feed = useQuery({ queryKey: ["feed", myUni], queryFn: () => loadFeed(supabase, myUni) });
+
   return (
     <SafeAreaView className="flex-1 bg-bg">
-      <View className="mx-auto w-full max-w-2xl px-4 py-8">
-        <Heading>Map</Heading>
-        <Card className="mt-6">
-          <Muted>The live map arrives in phase 3.</Muted>
-        </Card>
-      </View>
+      <ScrollView
+        contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-8"
+        refreshControl={<RefreshControl refreshing={feed.isRefetching} onRefresh={() => void feed.refetch()} />}
+      >
+        <Heading>What&apos;s on</Heading>
+        <Muted className="mt-1 text-sm">Society events and socials across London&apos;s unis.</Muted>
+
+        {!session && (
+          <Card className="mt-6 flex-row flex-wrap items-center justify-between gap-3">
+            <T variant="semibold" className="flex-1">Log in to see your uni&apos;s events and say you&apos;re going.</T>
+            <Link href="/login" asChild>
+              <Button>Log in</Button>
+            </Link>
+          </Card>
+        )}
+
+        {feed.isPending && <Muted className="mt-6">Loading…</Muted>}
+        {feed.isError && <T variant="semibold" className="mt-6 text-danger">Couldn&apos;t load events. Pull down to try again.</T>}
+        {feed.data && feed.data.length === 0 && (
+          <Card className="mt-6">
+            <Muted>Nothing on in the next two weeks yet. Check back soon.</Muted>
+          </Card>
+        )}
+        {feed.data?.map((group) => (
+          <View key={group.key} className="mt-8" testID={`group-${group.key}`}>
+            <T variant="display" className="text-xl">{group.title}</T>
+            <View className="mt-3 gap-3">
+              {group.items.map((item) => (
+                <EventCard key={item.href} item={item} />
+              ))}
+            </View>
+          </View>
+        ))}
+        <Pressable className="mt-10 self-center">
+          <Muted className="text-xs">The live map arrives in phase 3.</Muted>
+        </Pressable>
+      </ScrollView>
     </SafeAreaView>
   );
 }
