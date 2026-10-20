@@ -162,10 +162,8 @@ export async function countMyManagedSocieties(supabase: SupabaseClient, myId: st
   return count ?? 0;
 }
 
-// Event admin (the SU paperwork) is only set up for LSE so far; other unis
-// see "Event admin isn't available for your uni yet". Part 5's rules engine
-// (one config per uni) takes this over.
-export const eventAdminAvailable = (university: string) => university === "LSE";
+// Whether event admin (the SU paperwork) is set up for a uni is
+// eventAdminAvailable() in event-admin/ (LSE so far).
 
 // How many live features a society has on.
 export const featuresOnCount = (subject: FeatureSubject) => FEATURES.filter((f) => f.status === "live" && hasFeature(subject, f.key)).length;

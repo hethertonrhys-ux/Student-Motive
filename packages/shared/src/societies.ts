@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { withoutDrafts } from "./drafts";
 import { promptCount } from "./my-prompts";
 import { nowMs } from "./time";
 import type { MotiveEvent, OrgKind, Profile, Society } from "./types";
@@ -34,7 +35,7 @@ export async function loadSocietiesTab(supabase: SupabaseClient, me: Pick<Profil
     supabase.from("societies").select("id, name, slug, kind, logo_url, university").eq("university", me.university).order("name").limit(2000),
     supabase.from("society_admins").select("societies(id, name, slug, logo_url)").eq("user_id", me.id),
     supabase.from("society_members").select("status, societies(id, name, slug, logo_url)").eq("user_id", me.id),
-    supabase.from("event_entries").select("status, events(id, title, starts_at, ends_at, society_id, societies(name))").eq("user_id", me.id),
+    withoutDrafts(() => supabase.from("event_entries").select("status, events(id, title, starts_at, ends_at, society_id, societies(name))").eq("user_id", me.id), "events.is_draft"),
   ]);
   const runs = ((adminRows ?? []) as unknown as { societies: SocietyLite | null }[])
     .map((r) => r.societies)
@@ -98,7 +99,7 @@ export async function loadSociety(supabase: SupabaseClient, slug: string): Promi
   const { data: society } = await supabase.from("societies").select("*").eq("slug", slug).maybeSingle<Society>();
   if (!society) return null;
   const [{ data: events }, { data: claimed }] = await Promise.all([
-    supabase.from("events").select("*").eq("society_id", society.id).eq("is_cancelled", false).gte("ends_at", new Date().toISOString()).order("starts_at").limit(30),
+    withoutDrafts(() => supabase.from("events").select("*").eq("society_id", society.id).eq("is_cancelled", false).gte("ends_at", new Date().toISOString()).order("starts_at").limit(30)),
     supabase.rpc("society_is_claimed", { sid: society.id }),
   ]);
   return { society, events: (events ?? []) as MotiveEvent[], claimed: typeof claimed === "boolean" ? claimed : null };

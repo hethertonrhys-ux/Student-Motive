@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { cleanAnswers, type ChecklistKey, type CostLine, type EventAdminAnswers, type EventAdminForm, type EventAdminResult, type EventAdminUnavailable } from "./event-admin";
 import { getEventPeople, getLedger, type LedgerPaymentRecord, type LedgerRowRecord, type Person } from "./event-people";
 import { type FeatureSubject, loadSocietyFeatures } from "./features";
 import { parsePounds } from "./ledger";
@@ -109,6 +110,10 @@ export async function updateSociety(supabase: SupabaseClient, societyId: string,
 
 // ---- Events ----
 
+// What the database says when an event of an LSE society with Event admin
+// on is published before "SU approved" is ticked.
+export const SU_APPROVAL_NEEDED = 'Tick "SU approved" before publishing. LSESU must approve events before they\'re promoted.';
+
 export type TableDraft = { id?: string; name: string; level: string; seats: number | string };
 
 export type EventInput = {
@@ -132,6 +137,8 @@ export type EventInput = {
   ticketUrl: string;
   isCancelled?: boolean;
   removeImage?: boolean;
+  // A new event saved as a draft (event admin: it's published once the SU has approved it).
+  isDraft?: boolean;
 };
 
 type TableRow = { id?: string; name: string; level: string | null; seats: number; position: number };
@@ -223,16 +230,23 @@ async function syncTables(supabase: SupabaseClient, eventId: string, tables: Tab
   return null;
 }
 
-export async function createEvent(supabase: SupabaseClient, societyId: string, input: EventInput, image: PhotoBytes | null): Promise<{ id: string } | { error: string }> {
+// Posts a new event (as a draft if input.isDraft). Returns its id; when the
+// event was saved but its tables weren't, the error comes with the id, so
+// trying again can update that event instead of posting it twice.
+export async function createEvent(supabase: SupabaseClient, societyId: string, input: EventInput, image: PhotoBytes | null): Promise<{ id: string } | { error: string; id?: string }> {
   const parsed = readEventInput(input);
   if ("error" in parsed) return { error: parsed.error };
   if (new Date(parsed.values.ends_at) < new Date()) return { error: "That event has already finished. Check the dates." };
   const uploaded = await uploadSocietyImage(supabase, societyId, image);
   if (uploaded.error) return { error: uploaded.error };
-  const { data: created, error } = await supabase.from("events").insert({ ...parsed.values, society_id: societyId, image_url: uploaded.url }).select("id").single();
-  if (error || !created) return { error: "Couldn't post the event. Please try again." };
+  const { data: created, error } = await supabase
+    .from("events")
+    .insert({ ...parsed.values, society_id: societyId, image_url: uploaded.url, ...(input.isDraft ? { is_draft: true } : {}) })
+    .select("id")
+    .single();
+  if (error || !created) return { error: error?.message?.includes('Tick "SU approved"') ? SU_APPROVAL_NEEDED : "Couldn't post the event. Please try again." };
   const tablesError = await syncTables(supabase, created.id as string, parsed.tables);
-  if (tablesError) return { error: "The event was posted, but the tables couldn't be saved. Edit the event to try again." };
+  if (tablesError) return { error: input.isDraft ? "The draft was saved, but the tables couldn't be. Please try again." : "The event was posted, but the tables couldn't be saved. Edit the event to try again.", id: created.id as string };
   return { id: created.id as string };
 }
 
@@ -249,6 +263,137 @@ export async function updateEvent(supabase: SupabaseClient, societyId: string, e
   if (error) return { error: "Couldn't save the event. Please try again." };
   const tablesError = await syncTables(supabase, eventId, parsed.tables);
   if (tablesError) return { error: "The event was saved, but the tables couldn't be. Please try again." };
+  return {};
+}
+
+// ---- Drafts and event admin (the SU paperwork) ----
+
+// A row of public.event_admin: the committee's answers about an event and
+// what Function prepared from them. Only the society's managers can read it.
+export type EventAdminRow = {
+  event_id: string;
+  society_id: string;
+  expected_attendees: number | null;
+  venue_type: EventAdminAnswers["venueType"];
+  alcohol: EventAdminAnswers["alcohol"];
+  external_speaker: boolean;
+  speaker_names: string | null;
+  speaker_org: string | null;
+  non_lse_guests: boolean;
+  open_to_public: boolean;
+  budget_pence: number | null;
+  cost_lines: CostLine[] | null;
+  physical_activity: boolean;
+  food: boolean;
+  native_url: string | null;
+  form: EventAdminForm | null;
+  submit_by: string | null;
+  // Ticked checklist items (the committee's own ticks).
+  checklist: Partial<Record<ChecklistKey, boolean | string>> | null;
+  // When each checklist item this event needs is due ('YYYY-MM-DD').
+  deadlines: Partial<Record<ChecklistKey, string>> | null;
+  su_approved_at: string | null;
+  su_approved_by: string | null;
+  updated_at: string;
+};
+
+export function answersFromRow(row: EventAdminRow): EventAdminAnswers {
+  return cleanAnswers({
+    expectedAttendees: row.expected_attendees,
+    venueType: row.venue_type,
+    alcohol: row.alcohol,
+    externalSpeaker: row.external_speaker,
+    speakerNames: row.speaker_names ?? "",
+    speakerOrg: row.speaker_org ?? "",
+    nonLseGuests: row.non_lse_guests,
+    openToPublic: row.open_to_public,
+    budgetPence: row.budget_pence,
+    costLines: Array.isArray(row.cost_lines) ? row.cost_lines : [],
+    physicalActivity: row.physical_activity,
+    food: row.food,
+    nativeUrl: row.native_url ?? "",
+  });
+}
+
+// An event's answers, or null if there aren't any yet. Throws if they can't
+// be loaded (so a form never starts from blank answers by mistake).
+export async function loadEventAdmin(supabase: SupabaseClient, eventId: string): Promise<EventAdminRow | null> {
+  const { data, error } = await supabase.from("event_admin").select("*").eq("event_id", eventId).maybeSingle<EventAdminRow>();
+  if (error) throw error;
+  return data ?? null;
+}
+
+// Saves the committee's answers, with the form, submit-by date and
+// checklist deadlines worked out from them (eventAdminFor). "SU approved"
+// and the committee's own checklist ticks are left as they are.
+export async function saveEventAdmin(supabase: SupabaseClient, eventId: string, answers: EventAdminAnswers, result: EventAdminResult | EventAdminUnavailable | null): Promise<Result> {
+  const a = cleanAnswers(answers);
+  const native = url(a.nativeUrl);
+  if (native.error) return { error: `Native ticket link: ${native.error}` };
+  const done = result?.available ? result : null;
+  const { error } = await supabase.from("event_admin").upsert(
+    {
+      event_id: eventId,
+      expected_attendees: a.expectedAttendees,
+      venue_type: a.venueType,
+      alcohol: a.alcohol,
+      external_speaker: a.externalSpeaker,
+      speaker_names: a.speakerNames || null,
+      speaker_org: a.speakerOrg || null,
+      non_lse_guests: a.nonLseGuests,
+      open_to_public: a.openToPublic,
+      budget_pence: a.budgetPence,
+      cost_lines: a.costLines,
+      physical_activity: a.physicalActivity,
+      food: a.food,
+      native_url: native.value,
+      form: done?.form ?? null,
+      submit_by: done?.submitBy ?? null,
+      deadlines: done ? Object.fromEntries(done.checklist.filter((c) => c.needed).map((c) => [c.key, c.deadline])) : {},
+    },
+    { onConflict: "event_id" },
+  );
+  return error ? { error: "Couldn't save the event admin answers. Please try again." } : {};
+}
+
+// Ticks (or unticks) "SU approved" for an event.
+export async function setSuApproved(supabase: SupabaseClient, eventId: string, approved: boolean): Promise<Result> {
+  const { error } = await supabase.from("event_admin").upsert({ event_id: eventId, su_approved_at: approved ? new Date().toISOString() : null }, { onConflict: "event_id" });
+  return error ? { error: "Couldn't save that. Please try again." } : {};
+}
+
+// Publishes a draft. For an LSE society with Event admin on, the database
+// refuses until "SU approved" is ticked, and says so.
+export async function publishEvent(supabase: SupabaseClient, eventId: string): Promise<Result> {
+  const { data, error } = await supabase.from("events").update({ is_draft: false }).eq("id", eventId).select("id");
+  if (error) return { error: error.message?.includes('Tick "SU approved"') ? SU_APPROVAL_NEEDED : "Couldn't publish the event. Please try again." };
+  if (!data || data.length === 0) return { error: "Couldn't publish the event. Please try again." };
+  return {};
+}
+
+// What the event form sends about event admin with the event.
+export type EventAdminSave = { answers: EventAdminAnswers; result: EventAdminResult | EventAdminUnavailable | null; suApproved: boolean };
+
+// After the event itself is saved: its event admin answers, "SU approved"
+// (when it changed) and, for a draft the SU has approved, publishing it.
+// `was` is how things stood before. Says whether the event is published now.
+export async function saveEventAdminAndPublish(supabase: SupabaseClient, eventId: string, admin: EventAdminSave, was: { suApproved: boolean; draft: boolean }): Promise<{ error?: string; published: boolean }> {
+  const saved = await saveEventAdmin(supabase, eventId, admin.answers, admin.result);
+  if (saved.error) return { error: saved.error, published: !was.draft };
+  if (admin.suApproved !== was.suApproved) {
+    const approved = await setSuApproved(supabase, eventId, admin.suApproved);
+    if (approved.error) return { error: approved.error, published: !was.draft };
+  }
+  if (!was.draft) return { published: true };
+  if (!admin.suApproved) return { published: false };
+  const published = await publishEvent(supabase, eventId);
+  return published.error ? { error: published.error, published: false } : { published: true };
+}
+
+// Takes an event back to a draft (only the committee sees it again).
+export async function unpublishEvent(supabase: SupabaseClient, eventId: string): Promise<Result> {
+  const { data, error } = await supabase.from("events").update({ is_draft: true }).eq("id", eventId).select("id");
+  if (error || !data || data.length === 0) return { error: "Couldn't unpublish the event. Please try again." };
   return {};
 }
 

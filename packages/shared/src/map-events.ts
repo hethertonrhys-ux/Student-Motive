@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { withoutDrafts } from "./drafts";
 import type { MapWindows } from "./map";
 import { socialToMapCategory, type MapCategory } from "./map-categories";
 import { getCards } from "./social";
@@ -79,14 +80,16 @@ export async function loadMapEvents(supabase: SupabaseClient): Promise<{ events:
     .lt("starts_at", windows.tomorrowEnds)
     .order("starts_at")
     .limit(500);
-  const eventsQuery = supabase
-    .from("events")
-    .select("id, title, category, free_food, starts_at, ends_at, going_count, lat, lng, location_note, venues(name, lat, lng), society_id, societies(name), host_user_id, visibility, event_tables(started_at)")
-    .eq("is_cancelled", false)
-    .gt("ends_at", windows.now)
-    .lt("starts_at", windows.tomorrowEnds)
-    .order("starts_at")
-    .limit(500);
+  const eventsQuery = withoutDrafts(() =>
+    supabase
+      .from("events")
+      .select("id, title, category, free_food, starts_at, ends_at, going_count, lat, lng, location_note, venues(name, lat, lng), society_id, societies(name), host_user_id, visibility, event_tables(started_at)")
+      .eq("is_cancelled", false)
+      .gt("ends_at", windows.now)
+      .lt("starts_at", windows.tomorrowEnds)
+      .order("starts_at")
+      .limit(500),
+  );
   const [{ data, error }, { data: socialData, error: socialError }] = await Promise.all([eventsQuery, socialQuery]);
   if (error) throw error;
   if (socialError) throw socialError;

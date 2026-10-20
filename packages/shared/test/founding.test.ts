@@ -111,6 +111,17 @@ describe("the Founding Society badge", () => {
     expect(progress(null, [event(1, 3)]).badgeActive).toBe(false);
   });
 
+  it("dates a draft published later by when it was published", () => {
+    // Created 8 days ago (and one before agreeing), both published today.
+    const p = progress(20, [event(8, 1, { publishedAt: ago(0) }), event(25, 1, { publishedAt: ago(0) })]);
+    expect(p.daysSinceLastEvent).toBe(0);
+    expect(p.lastEventAt).toBe(ago(0));
+    expect(p.eventsSince).toBe(2);
+    expect(p.badgeActive).toBe(true);
+    // Created 40 days ago, published 5 days ago: the badge is still on.
+    expect(progress(60, [event(40, 1, { publishedAt: ago(5) })]).badgeActive).toBe(true);
+  });
+
   it("works out the days since the last event", () => {
     expect(progress(10, []).daysSinceLastEvent).toBeNull();
     expect(progress(10, [event(3.5, 0), event(8, 0)]).daysSinceLastEvent).toBe(3);

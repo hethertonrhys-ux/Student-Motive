@@ -5,11 +5,13 @@ import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from
 import { Linking, Pressable, View } from "react-native";
 import {
   agreeToFounding,
+  eventAdminAvailable,
   eventLink,
   finishOnboarding,
   FOUNDING_FUNCTION_COMMITS,
   FOUNDING_SOCIETY_COMMITS,
   FOUNDING_STAY_ACTIVE,
+  hasFeature,
   HUB_STEP_LABELS,
   hubSteps,
   isHubStep,
@@ -60,7 +62,7 @@ export default function HubSetupScreen() {
 }
 
 function Wizard({ hub }: { hub: HubSociety }) {
-  const params = useLocalSearchParams<{ step?: string; event?: string }>();
+  const params = useLocalSearchParams<{ step?: string; event?: string; draft?: string }>();
   const router = useRouter();
   const wide = useWide();
   const steps = hubSteps({ isFounding: hub.society.is_founding });
@@ -86,7 +88,7 @@ function Wizard({ hub }: { hub: HubSociety }) {
     founding: () => <FoundingStep hub={hub} onNext={next} />,
     committee: () => <CommitteeStep hub={hub} onNext={next} />,
     event: () => <EventStep hub={hub} onLater={() => go("live")} />,
-    live: () => <LiveStep hub={hub} eventId={typeof params.event === "string" ? params.event : null} />,
+    live: () => <LiveStep hub={hub} eventId={typeof params.event === "string" ? params.event : null} savedAsDraft={params.draft === "1"} />,
   };
 
   const sidebar = wide ? (
@@ -495,9 +497,15 @@ function CommitteeStep({ hub, onNext }: { hub: HubSociety; onNext: () => void })
 // ---- 7. Your first event ----
 
 function EventStep({ hub, onLater }: { hub: HubSociety; onLater: () => void }) {
+  // LSE societies with Event admin on: the form asks "Has the SU approved this event?" (Part 5).
+  const withAdmin = hasFeature(hub.features, "event_admin") && eventAdminAvailable(hub.society.university);
   return (
     <>
-      <StepTitle title="Post your first event">It goes on the map and your society page straight away, and your members hear about it.</StepTitle>
+      <StepTitle title="Post your first event">
+        {withAdmin
+          ? "Function prepares the SU paperwork as you go; your committee checks and submits it. It goes live once the SU has approved it."
+          : "It goes on the map and your society page straight away, and your members hear about it."}
+      </StepTitle>
       <Card className="gap-3">
         {["What it is and when", "Where it is", "How people sign up"].map((line) => (
           <View key={line} className="flex-row items-center gap-3">
@@ -516,7 +524,7 @@ function EventStep({ hub, onLater }: { hub: HubSociety; onLater: () => void }) {
 
 // ---- 8. You're live ----
 
-function LiveStep({ hub, eventId }: { hub: HubSociety; eventId: string | null }) {
+function LiveStep({ hub, eventId, savedAsDraft }: { hub: HubSociety; eventId: string | null; savedAsDraft: boolean }) {
   const s = hub.society;
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -537,7 +545,9 @@ function LiveStep({ hub, eventId }: { hub: HubSociety; eventId: string | null })
 
   const pageLink = societyLink(SITE_URL, s.slug);
   const e = event.data;
-  const storyEvent: StoryEvent | null = e ? { id: e.id, title: e.title, starts_at: e.starts_at, ends_at: e.ends_at, place: e.venues?.name ?? e.location_note } : null;
+  // A draft (waiting for "SU approved") has no public link yet: share the society's page instead.
+  const draft = savedAsDraft || e?.is_draft === true;
+  const storyEvent: StoryEvent | null = e && !draft ? { id: e.id, title: e.title, starts_at: e.starts_at, ends_at: e.ends_at, place: e.venues?.name ?? e.location_note } : null;
   const society = { name: s.name, slug: s.slug };
 
   async function copy(what: "bio" | "event", text: string) {
@@ -567,7 +577,15 @@ function LiveStep({ hub, eventId }: { hub: HubSociety; eventId: string | null })
         <Muted className="text-center text-base">Now tell people where to find you.</Muted>
       </View>
 
-      {eventId && (
+      {eventId && draft && (
+        <Card className="gap-2" testID="hub-event-draft">
+          <T variant="semibold" className="text-base">Saved as a draft. It goes live once your committee ticks &ldquo;SU approved&rdquo;.</T>
+          {e && <Muted className="text-sm">{e.title}</Muted>}
+          <Muted className="text-sm">Until then, share your society&apos;s page.</Muted>
+        </Card>
+      )}
+
+      {eventId && !draft && (
         <Card className="gap-2" testID="hub-event-published">
           {event.isPending ? (
             <Muted>Loading…</Muted>

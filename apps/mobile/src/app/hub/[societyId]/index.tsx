@@ -1,7 +1,7 @@
 import { Link, useLocalSearchParams } from "expo-router";
 import type { ReactNode } from "react";
 import { Pressable, View } from "react-native";
-import { featuresOnCount, uniShort, type HubSociety } from "@function/shared";
+import { eventAdminAvailable, featuresOnCount, hasFeature, uniShort, type HubSociety } from "@function/shared";
 import { FoundingProgressCard } from "@/components/hub/founding-progress";
 import { BigButton, HubGate, HubLayout, SocietyLogo, useWide } from "@/components/hub/hub-layout";
 import { useManagers } from "@/components/hub/managers";
@@ -83,7 +83,13 @@ function Overview({ hub }: { hub: HubSociety }) {
         </HubCard>
 
         <HubCard wide={wide} title="Events" icon="calendar-outline" testID="hub-card-events">
-          <Muted className="text-sm">Post an event and it&apos;s on the map and your page straight away.</Muted>
+          <Muted className="text-sm" testID="hub-events-text">
+            {hasFeature(hub.features, "event_admin") && eventAdminAvailable(s.university) ? (
+              <>Post an event and it goes live once your committee ticks &ldquo;SU approved&rdquo;.</>
+            ) : (
+              <>Post an event and it&apos;s on the map and your page straight away.</>
+            )}
+          </Muted>
           <Link href={`/dashboard/${s.id}/events/new` as never} asChild>
             <BigButton testID="hub-post">+ Post an event</BigButton>
           </Link>

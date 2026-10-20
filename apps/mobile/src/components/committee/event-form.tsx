@@ -1,7 +1,8 @@
 import { Image } from "expo-image";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
-import { type Audience, audienceLabel, AUDIENCES, CATEGORIES, checkEventSpan, DEFAULT_SEATS, type EventFormat, type EventInput, type EventTable, featureConfig, type FeatureKey, type FeatureSubject, FORMATS, hasFeature, isoToLondonInput, type MotiveEvent, POKER_STAKES, type TableDraft, uniById, uniShort, type Venue } from "@function/shared";
+import { type Audience, audienceLabel, AUDIENCES, CATEGORIES, checkEventSpan, DEFAULT_SEATS, EVENT_ADMIN_UNAVAILABLE, eventAdminAvailable, type EventAdminRow, type EventAdminSave, type EventFormat, type EventInput, type EventTable, featureConfig, type FeatureKey, type FeatureSubject, FORMATS, hasFeature, isoToLondonInput, type MotiveEvent, POKER_STAKES, type TableDraft, uniById, uniShort, type Venue } from "@function/shared";
+import { EventAdminSection, useEventAdmin } from "@/components/committee/event-admin-section";
 import { DateField, TimeField } from "@/components/fields/date-time";
 import { Icon } from "@/components/icon";
 import { pickPhotos, type Picked } from "@/components/photos/pick-photos";
@@ -26,7 +27,8 @@ const AUDIENCE_HELP: Record<Audience, (uni: string) => string> = {
 };
 
 type Props = {
-  onSubmit: (input: EventInput, image: Picked | null) => Promise<{ error?: string }>;
+  // `admin` is the event admin answers when that section is shown (LSE societies with Event admin on), otherwise null.
+  onSubmit: (input: EventInput, image: Picked | null, admin: EventAdminSave | null) => Promise<{ error?: string }>;
   venues: Venue[];
   event?: MotiveEvent;
   tables?: EventTable[];
@@ -34,13 +36,16 @@ type Props = {
   uni: string;
   // The features the society uses. Without it, everything is offered (as before features).
   features?: FeatureSubject;
+  // The event's saved event admin answers, when editing.
+  eventAdmin?: EventAdminRow | null;
 };
 
 // The committee's event form: what, when, where, cost, how people join
 // (standard, sign-up list, tables), who can see it, description, link, image.
 // Sign-up lists, tables and cost only show if the society uses them, or if
-// the event being edited already does.
-export function CommitteeEventForm({ onSubmit, venues, event, tables = [], uni, features }: Props) {
+// the event being edited already does. LSE societies with Event admin on
+// also get the Event admin questions and "Has the SU approved this event?".
+export function CommitteeEventForm({ onSubmit, venues, event, tables = [], uni, features, eventAdmin }: Props) {
   const isEdit = Boolean(event);
   const on = (key: FeatureKey) => !features || hasFeature(features, key);
   const formats = FORMATS.filter((f) => {
@@ -80,16 +85,31 @@ export function CommitteeEventForm({ onSubmit, venues, event, tables = [], uni, 
   const custom = venueId === "custom";
   // Pointed out as soon as both times are in, before Save.
   const timeCheck = checkEventSpan(`${startDate}T${startTime}`, `${endDate}T${endTime}`);
+  // Event admin: on for the society (never for one from before features), and set up for its uni.
+  const adminFeature = !!features && hasFeature(features, "event_admin");
+  const adminShown = adminFeature && eventAdminAvailable(uni);
+  const admin = useEventAdmin({
+    row: eventAdmin,
+    uni,
+    fields: { startDate, startTime, endDate, endTime, venue: venues.find((v) => v.id === venueId) ?? null, format, capacity, tables: drafts, freeFood, costKind: showCost ? costKind : "none", costAmount, ticketUrl },
+  });
+  // The Native link takes the place of the ticket link.
+  const nativeInstead = adminShown && admin.nativeShown;
+  // A new event, or a draft: Yes publishes it, Not yet keeps it a draft.
+  const publishing = adminShown && (!isEdit || event?.is_draft === true);
 
   const venueOptions = [{ value: "custom", label: "Somewhere else (pick it on a map)" }, ...VENUE_GROUPS.flatMap((g) => venues.filter((v) => v.kind === g.kind).map((v) => ({ value: v.id, label: `${v.name}${v.short_name ? ` (${v.short_name})` : ""}`, group: g.label })))];
   const updateTable = (i: number, change: Partial<TableDraft>) => setDrafts((cur) => cur.map((t, j) => (j === i ? { ...t, ...change } : t)));
 
   async function submit() {
-    setSaving(true);
     setError(null);
+    const adminSave = adminShown ? admin.toSubmit() : null;
+    if (adminSave && "error" in adminSave) return setError(adminSave.error);
+    setSaving(true);
     const result = await onSubmit(
-      { title, category, freeFood, startsAt: `${startDate}T${startTime}`, endsAt: `${endDate}T${endTime}`, venueId, lat: custom ? (pin?.lat ?? null) : null, lng: custom ? (pin?.lng ?? null) : null, locationNote, costKind, costAmount, format, capacity, membersOnly, audience, tables: format === "tables" ? drafts : [], description, ticketUrl, isCancelled, removeImage },
+      { title, category, freeFood, startsAt: `${startDate}T${startTime}`, endsAt: `${endDate}T${endTime}`, venueId, lat: custom ? (pin?.lat ?? null) : null, lng: custom ? (pin?.lng ?? null) : null, locationNote, costKind, costAmount, format, capacity, membersOnly, audience, tables: format === "tables" ? drafts : [], description, ticketUrl: nativeInstead ? admin.nativeUrl : ticketUrl, isCancelled, removeImage },
       image,
+      adminSave,
     );
     if (result.error) setError(result.error);
     setSaving(false);
@@ -229,10 +249,12 @@ export function CommitteeEventForm({ onSubmit, venues, event, tables = [], uni, 
         <Label>Description <Muted className="text-sm">(optional)</Muted></Label>
         <Input value={description} onChangeText={setDescription} multiline maxLength={5000} placeholder="What's happening, who it's for, what to bring…" className="min-h-28" style={{ textAlignVertical: "top" }} testID="ev-description" />
       </View>
-      <View>
-        <Label>Ticket or sign-up link <Muted className="text-sm">(optional)</Muted></Label>
-        <Input value={ticketUrl} onChangeText={setTicketUrl} keyboardType="url" autoCapitalize="none" placeholder="https://…" testID="ev-ticket" />
-      </View>
+      {!nativeInstead && (
+        <View>
+          <Label>Ticket or sign-up link <Muted className="text-sm">(optional)</Muted></Label>
+          <Input value={ticketUrl} onChangeText={setTicketUrl} keyboardType="url" autoCapitalize="none" placeholder="https://…" testID="ev-ticket" />
+        </View>
+      )}
       <View>
         <Label>Image <Muted className="text-sm">(optional)</Muted></Label>
         {event?.image_url && !removeImage && !image && <Image source={{ uri: event.image_url }} style={{ height: 128, borderRadius: 12, marginBottom: 12 }} contentFit="cover" />}
@@ -256,8 +278,11 @@ export function CommitteeEventForm({ onSubmit, venues, event, tables = [], uni, 
       </View>
       {isEdit && <Check checked={isCancelled} onPress={() => setIsCancelled((c) => !c)} title="Mark as cancelled" danger testID="ev-cancelled" />}
 
+      {adminShown && <EventAdminSection state={admin} />}
+      {adminFeature && !adminShown && <Muted className="text-sm" testID="ea-unavailable">{EVENT_ADMIN_UNAVAILABLE}</Muted>}
+
       {error && <T variant="semibold" className="rounded-xl bg-danger/10 px-3.5 py-2.5 text-sm text-danger" testID="ev-error">{error}</T>}
-      <Button onPress={() => void submit()} disabled={saving || !!timeCheck?.blocked} testID="ev-submit">{saving ? "Saving…" : isEdit ? "Save changes" : "Post event"}</Button>
+      <Button onPress={() => void submit()} disabled={saving || !!timeCheck?.blocked} testID="ev-submit">{saving ? "Saving…" : publishing ? (admin.suApproved ? "Publish event" : "Save as draft") : isEdit ? "Save changes" : "Post event"}</Button>
     </View>
   );
 }

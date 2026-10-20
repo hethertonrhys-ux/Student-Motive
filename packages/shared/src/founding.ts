@@ -17,8 +17,9 @@ type Result = { error?: string };
 // the two in step):
 //   - A "published event" isn't cancelled, hidden by the Function team, or a
 //     draft.
-//   - "Events posted since agreeing": published events created at or after
-//     the agreement.
+//   - "Events posted since agreeing": published events posted at or after
+//     the agreement. An event is dated by when it was published, so a draft
+//     published later counts from then (events.published_at).
 //   - "In the prize draw": at least the target (3) of those, each with at
 //     least one person going.
 //   - "Last event": the newest published event (any time).
@@ -34,6 +35,9 @@ const DAY = 24 * 3600 * 1000;
 
 export type FoundingEvent = {
   createdAt: string | number | Date;
+  // When it was first published (a draft published later counts from then);
+  // createdAt when it was published straight away or isn't known.
+  publishedAt?: string | number | Date | null;
   cancelled: boolean;
   hidden: boolean;
   draft?: boolean;
@@ -56,6 +60,7 @@ export type FoundingProgress = {
 };
 
 const time = (t: string | number | Date) => new Date(t).getTime();
+const postedAt = (e: FoundingEvent) => time(e.publishedAt ?? e.createdAt);
 
 // A society's Founding progress from its events.
 export function foundingProgress({
@@ -74,10 +79,10 @@ export function foundingProgress({
   const nowMs = time(now);
   const agreed = agreedAt == null ? null : time(agreedAt);
   const published = events.filter((e) => !e.cancelled && !e.hidden && !e.draft);
-  const since = agreed == null ? [] : published.filter((e) => time(e.createdAt) >= agreed);
+  const since = agreed == null ? [] : published.filter((e) => postedAt(e) >= agreed);
   const eventsSince = since.length;
   const eventsWithRsvp = since.filter((e) => e.going > 0).length;
-  const last = published.length ? Math.max(...published.map((e) => time(e.createdAt))) : null;
+  const last = published.length ? Math.max(...published.map(postedAt)) : null;
   const latest = Math.max(last ?? -Infinity, agreed ?? -Infinity);
   const agreedOk = isFounding && agreed != null;
   return {

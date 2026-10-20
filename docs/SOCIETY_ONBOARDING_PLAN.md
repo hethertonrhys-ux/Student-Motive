@@ -54,8 +54,9 @@ and gets the right SU paperwork for every new event without thinking about it.
 2. `20261118000000_society_claim_links.sql` (Part 2)
 3. `20261119000000_society_hub.sql` (Part 3)
 4. `20261120000000_feature_requests_founding.sql` (Part 4)
-5. `20261121000000_event_admin.sql` (Part 5)
-6. `RUN_ONCE_hub_cron.sql`: one daily timer for the Hub reminders (Parts 4, 5)
+5. `20261121000000_event_admin.sql` (Part 5a: rules, drafts, the approval gate)
+6. `20261122000000_event_admin_documents.sql` (Part 5b: documents storage, checklist reminders)
+7. `RUN_ONCE_hub_cron.sql`: one daily timer for the Hub reminders (Parts 4, 5)
 
 **Existing permission problems found (fixed in migration 0).**
 - Any logged-in student could edit or delete other people's profiles through
@@ -321,6 +322,54 @@ travel, late finish, physical activity, food and allergens, external speaker,
 weather) and the budget's cost lines are built from the answers and shown as
 a preview. Paid LSE events link to their Native ticket page. Daily reminders
 before each checklist deadline.
+
+*Decisions made while building Part 5a (rules, drafts and the gate):*
+- Trips (outside London / the M25, or overnight) use the Trip Form with 1
+  month's notice: the brief gives none, so the safer one. It's one line in
+  `event-admin/lse.ts`.
+- A month's notice that lands on a weekend or bank holiday moves earlier,
+  to the working day before, so the notice is never shorter than asked
+  ("1 month" before 31 March is 28 February, clamped, then earlier still if
+  that's a weekend).
+- "SU approved" is due 2 working days before the event (time to promote
+  it); the other checklist deadlines are as in the brief.
+- Hazard ratings not given in the brief: a late finish is low (medium when
+  away or overnight), physical activity medium, food low, weather low.
+  There's no "outdoors" question, so trips and physical activity count as
+  likely outdoors.
+- "Has the SU approved this event?" starts at "Not yet", so nothing is
+  published by accident. For an event that's already published, the
+  button stays "Save changes": unticking "SU approved" never unpublishes it.
+- When the event is paid or has non-LSE guests, the Native ticket link
+  takes the place of the ticket link field (and is saved as the event's
+  ticket link).
+- A draft's chat exists from the start, but only its committee (or the
+  student hosting it) can open it, see it in Chats or hear about its
+  messages until it's published.
+- A draft's guest list is only for its committee too: someone the committee
+  adds to a draft sees just their own entry, and reshuffling a draft's
+  table sends no push (the seat change is still recorded).
+- An event is dated by when it was published: `events.published_at`, set
+  only by the database (when it's published, and never moved after that,
+  even if it's unpublished and published again; for an event published
+  straight away it's when it was created). Founding progress, its badge and
+  its "post your next event" nudge, and the society posts in Notifications
+  use it, so a draft published weeks later counts, and shows, from then.
+  Until the migration has run, Notifications dates them by when they were
+  created, as before.
+- A late finish (in the risk assessment preview) is one after 23:00 or
+  before 05:00 London time, or on a later day than the event starts.
+- The draft banner's link goes to the event's edit screen, where the event
+  admin answers are; Part 5b points it at the manage screen once that shows
+  the event admin.
+- Drafts are left out of every public list in the app. Until this
+  migration has run there's no draft column, so the lists load as before
+  rather than failing.
+- The old website (`apps/web`) and app builds already in the stores don't
+  know about drafts. Only a society's managers can see a draft, so at worst
+  a manager sees their own draft in those lists; and a society with Event
+  admin on can't post from an old app build (the database asks for "SU
+  approved" first). No society on Function today has Event admin on.
 
 ---
 

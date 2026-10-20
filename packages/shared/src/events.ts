@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { withoutDrafts } from "./drafts";
 import type { FeatureRow } from "./features";
 import type { MapCategory } from "./map-categories";
 import { socialToMapCategory } from "./map-categories";
@@ -93,7 +94,7 @@ export async function loadFeed(supabase: SupabaseClient, myUni: string | null, n
   const from = new Date(now).toISOString();
   const until = new Date(now + days * 86_400_000).toISOString();
   const [{ data }, { data: socialData }] = await Promise.all([
-    supabase.from("events").select(FEED_EVENT_SELECT).eq("is_cancelled", false).gt("ends_at", from).lt("starts_at", until).order("starts_at").limit(300),
+    withoutDrafts(() => supabase.from("events").select(FEED_EVENT_SELECT).eq("is_cancelled", false).gt("ends_at", from).lt("starts_at", until).order("starts_at").limit(300)),
     supabase.from("social_events").select(FEED_SOCIAL_SELECT).eq("is_cancelled", false).gt("ends_at", from).lt("starts_at", until).order("starts_at").limit(300),
   ]);
   const rows = (data ?? []) as unknown as FeedEventRow[];

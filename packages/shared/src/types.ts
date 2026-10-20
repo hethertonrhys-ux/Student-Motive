@@ -97,6 +97,9 @@ export type MotiveEvent = {
   // Who can see it (society events only).
   audience: Audience;
   results_published: boolean;
+  // A draft is only seen by the society's committee until it's published
+  // (event admin; missing before that migration has run).
+  is_draft?: boolean;
 };
 
 export type EventFormat = "standard" | "entries" | "tables";
