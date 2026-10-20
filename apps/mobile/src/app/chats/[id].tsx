@@ -140,11 +140,25 @@ export default function ChatScreen() {
                 <View key={m.id}>
                   {newDay && <Muted className="py-2 text-center text-xs font-sans-semibold">{day.format(new Date(m.created_at))}</Muted>}
                   <View className={`flex-row items-end gap-2 ${mine ? "justify-end" : ""} ${firstInRun ? "mt-2" : "mt-0.5"}`}>
-                    {!mine && <View className="w-7">{firstInRun && <Avatar name={m.sender_name} url={m.sender_avatar} size={28} />}</View>}
+                    {!mine && (
+                      <View className="w-7">
+                        {firstInRun && (m.sender_id ? (
+                          <Link href={`/u/${m.sender_id}` as never} asChild>
+                            <Pressable accessibilityLabel={`${m.sender_name}'s profile`} testID={`sender-avatar-${m.id}`}><Avatar name={m.sender_name} url={m.sender_avatar} size={28} /></Pressable>
+                          </Link>
+                        ) : <Avatar name={m.sender_name} url={m.sender_avatar} size={28} />)}
+                      </View>
+                    )}
                     <View className={`max-w-[78%] ${mine ? "items-end" : "items-start"}`}>
                       {!mine && firstInRun && (
                         <View className="mb-0.5 ml-1 flex-row items-center gap-1.5">
-                          <Muted className="text-xs font-sans-semibold">{m.sender_name}</Muted>
+                          {m.sender_id ? (
+                            <Link href={`/u/${m.sender_id}` as never} asChild>
+                              <Pressable testID={`sender-${m.id}`}><Muted className="text-xs font-sans-semibold">{m.sender_name}</Muted></Pressable>
+                            </Link>
+                          ) : (
+                            <Muted className="text-xs font-sans-semibold">{m.sender_name}</Muted>
+                          )}
                           {!!m.sender_id && header?.hostIds.has(m.sender_id) && <HostPill testID={`host-pill-${m.id}`} />}
                         </View>
                       )}

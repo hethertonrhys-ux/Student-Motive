@@ -8,6 +8,7 @@ import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { CompleteProfileCard } from "@/components/complete-profile-card";
 import { PushPromptCard } from "@/components/push-prompt";
+import { ReportLink } from "@/components/report-link";
 import { LinkButton, PeopleSection, PersonRow, type Tap } from "@/components/event/panels";
 import { ShareButton } from "@/components/share-button";
 import { Attendees } from "@/components/social/attendees";
@@ -176,45 +177,9 @@ export default function SocialEventScreen() {
 
       <View className="mt-8 flex-row flex-wrap items-center gap-4">
         <ShareButton url={`${SITE_URL}/social/${id}`} title={event.title} />
-        {myId && !isHost && <ReportLink id={id} />}
+        {myId && !isHost && <ReportLink send={(reason) => reportSocialEvent(supabase, id, reason)} />}
       </View>
     </Screen>
-  );
-}
-
-// "Report this event": say why, and the Function team takes a look.
-function ReportLink({ id }: { id: string }) {
-  const [open, setOpen] = useState(false);
-  const [reason, setReason] = useState("");
-  const [done, setDone] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  if (done) return <Muted className="text-sm">Thanks. The Function team will take a look.</Muted>;
-  if (!open) {
-    return (
-      <Pressable onPress={() => setOpen(true)} testID="report">
-        <T variant="semibold" className="text-sm text-muted">Report this event</T>
-      </Pressable>
-    );
-  }
-  return (
-    <View className="w-full gap-2">
-      <Input value={reason} onChangeText={setReason} placeholder="Why are you reporting this event?" maxLength={200} testID="report-reason" />
-      <View className="flex-row gap-2">
-        <Button
-          className="py-2"
-          onPress={async () => {
-            const r = await reportSocialEvent(supabase, id, reason);
-            if (r.error) setError(r.error);
-            else setDone(true);
-          }}
-          testID="send-report"
-        >
-          Send report
-        </Button>
-        <Button variant="ghost" className="py-2" onPress={() => setOpen(false)}>Cancel</Button>
-      </View>
-      {error && <T variant="semibold" className="text-sm text-danger">{error}</T>}
-    </View>
   );
 }
 

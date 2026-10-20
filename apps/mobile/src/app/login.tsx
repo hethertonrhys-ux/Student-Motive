@@ -90,8 +90,8 @@ export default function LoginScreen() {
     await arrive(data.user);
   }
 
-  // Accounts with a password (only the app-review account the Function
-  // team sets up in Supabase; students always use a code).
+  // Accounts with a password (set under Me → Password & security; the
+  // app-review account uses one too). Most students just use a code.
   async function logInWithPassword() {
     const address = email.trim().toLowerCase();
     if (!address || !password) return setError("Enter your email and password.");
@@ -155,7 +155,7 @@ export default function LoginScreen() {
                   <Link href="/privacy" asChild><Pressable testID="agree-privacy"><Muted className="text-xs underline">Privacy policy.</Muted></Pressable></Link>
                 </View>
                 <Pressable onPress={() => { setError(null); setStep("password"); }} className="self-start" testID="use-password">
-                  <Muted className="text-xs">Have a password? (app review accounts only)</Muted>
+                  <Muted className="text-xs">Have a password? Log in with it instead</Muted>
                 </Pressable>
               </>
             ) : step === "password" ? (

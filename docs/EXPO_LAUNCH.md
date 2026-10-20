@@ -76,16 +76,29 @@ before part 4. The old site keeps running untouched.
 you want shown in the App Store, it takes a day or two to be approved),
 Google Play Console (£20 once, play.google.com/console).
 
-From the repo on your computer, on the `expo-app` branch after the
-`app-store-prep` pull request is merged (`git pull`, then `npm install`):
+This works on Windows or a Mac: the iPhone app is built on Expo's servers,
+so you don't need Xcode. You need Node.js (the LTS version from
+nodejs.org) and Git (git-scm.com). On Windows use PowerShell, and clone into
+a short folder such as `C:\code` (very long folder paths can trip Windows up).
+
+Once, to install Expo's build tool and get the code:
+
+```
+npm install -g eas-cli
+git clone https://github.com/hethertonrhys-ux/Student-Motive.git
+cd Student-Motive
+git checkout expo-app
+npm install
+```
+
+Then each time (`git pull` first if you cloned a while ago):
 
 ```
 cd apps/mobile
-npx eas login
-npx eas init            # links the app to your Expo account; say yes to writing the project id into app.json
-git add app.json && git commit -m "EAS project id" && git push
-npx eas build --profile production --platform ios
-npx eas submit --platform ios --latest
+eas login
+eas init            # first time only: links the app to your Expo account; say yes to writing the project id into app.json
+eas build --profile production --platform ios
+eas submit --platform ios --latest
 ```
 
 - iOS: EAS asks to log in to your Apple account and sets up the
@@ -93,6 +106,9 @@ npx eas submit --platform ios --latest
   distribution certificate and provisioning profile, and **yes** when it
   asks "Set up Push Notifications?" (that creates the key notifications on
   iPhones need). If anything asks to install `expo-updates`, say **no**.
+- `eas init` adds the project id to `app.json` on your computer. Commit
+  and push that change (or send the id to whoever maintains the code) so
+  the next build from anywhere keeps it.
 - A production build is what TestFlight and the App Store both take, so
   there's no separate "preview" step. The build takes 15 to 25 minutes;
   EAS shows a link where you can watch it.
@@ -101,7 +117,7 @@ npx eas submit --platform ios --latest
   After a few minutes it appears under **App Store Connect → TestFlight**:
   add yourself and the committee as internal testers (they get an email
   with the TestFlight app link). Each new build is the same two commands.
-- Android later: `npx eas build --profile production --platform android`
+- Android later: `eas build --profile production --platform android`
   gives an `.aab` for the Play Console (part 5).
 
 **What to check on the phone** (the web tests can't cover these):
@@ -110,7 +126,9 @@ npx eas submit --platform ios --latest
   tapping a pin, "Near me" asking for location once, walking directions.
 - Photos: profile picture and "My 5" from the photo library, with the
   phone's own cropper.
-- A login link from the email opens the app (not Safari) and logs you in.
+- A login link from the email opens the app (not Safari) and logs you in,
+  when you asked for the code in the app. (A login started on the website
+  finishes in the browser, as it should.)
 - Sharing an event opens the phone's share sheet.
 - The committee screens for a real event.
 - Dark mode.
@@ -122,7 +140,7 @@ yet.
 ### Links that open the app
 
 `app.json` already asks iOS and Android to open `studentfunction.com`
-links (`/e/…`, `/s/…`, `/social/…`, `/u/…` and the login callback) in the app
+links (`/e/…`, `/s/…`, `/social/…`, `/u/…`) in the app
 once it's installed. For that to work the website must publish two small
 files that name your app, in `apps/mobile/public/.well-known/`.
 
@@ -138,7 +156,7 @@ fingerprint, which exists after the first Android build:
 [ { "relation": [ "delegate_permission/common.handle_all_urls" ], "target": { "namespace": "android_app", "package_name": "com.studentfunction.app", "sha256_cert_fingerprints": [ "AA:BB:…" ] } } ]
 ```
 
-The fingerprint comes from `npx eas credentials --platform android`
+The fingerprint comes from `eas credentials --platform android`
 (choose production → Keystore → it prints "SHA256 Fingerprint").
 
 Until these files are live the links still work; they just open in the
@@ -185,7 +203,8 @@ Do this on a quiet day, after the staging week.
 ### The review account
 
 Apple and Google reviewers must be able to log in. They can't receive your
-email codes, so the app has a password path for review accounts only
+email codes, so they use the password login (any student can set a password
+under Password & security; the review account uses it)
 ("Have a password? (app review accounts only)" under the email box).
 
 1. First allow the email, or the next step fails with "Database error
@@ -207,9 +226,9 @@ email codes, so the app has a password path for review accounts only
 
 ```
 cd apps/mobile
-npx eas build --profile production --platform all
-npx eas submit --platform ios        # uploads to App Store Connect
-npx eas submit --platform android    # uploads to Play Console (first time: upload the .aab by hand, see below)
+eas build --profile production --platform all
+eas submit --platform ios        # uploads to App Store Connect
+eas submit --platform android    # uploads to Play Console (first time: upload the .aab by hand, see below)
 ```
 
 Each production build bumps the build number by itself. `version` in
@@ -315,7 +334,7 @@ For societies: post once and reach every student, not just your members.
 See who's coming. Run sign-ups, tables and results from your phone. Free,
 always.
 
-Log in with your university email. No passwords.
+Log in with your university email. No password needed.
 
 **Keywords (Apple, 100 characters):**
 student,societies,university,London,LSE,UCL,KCL,Imperial,events,socials,map,freshers
@@ -355,14 +374,14 @@ or a one-off command; none changes existing data.
    npx supabase secrets set PUSH_SECRET=<a long random string> VAPID_PUBLIC_KEY=<public key> VAPID_PRIVATE_KEY=<private key> VAPID_SUBJECT=mailto:help@studentfunction.com SITE_URL=https://studentfunction.com
    npx supabase functions deploy send-push --no-verify-jwt
    ```
-4. Open `supabase/RUN_ONCE_push_cron.sql`, replace `<PROJECT_REF>` and
+4. Open `supabase/RUN_ONCE_push_cron.sql`, replace
    `<PUSH_SECRET>`, and run it in the SQL Editor (Database → Extensions
    must have `pg_cron` and `pg_net` on; the file turns them on too).
 5. In Vercel (the function-app project) add the environment variable
    `EXPO_PUBLIC_VAPID_PUBLIC_KEY` = the public key, and redeploy. Also add
    `EXPO_PUBLIC_SUPPORT_EMAIL` = `help@studentfunction.com`.
 6. Phones: pushes to the iPhone/Android apps need the Expo project id from
-   `npx eas init` (part 3) and an EAS build; they don't work in Expo Go.
+   `eas init` (part 3) and an EAS build; they don't work in Expo Go.
 
 ## 6. After launch
 

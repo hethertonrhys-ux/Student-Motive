@@ -3,15 +3,29 @@
     "apps": [],
     "details": [
       {
-        "appIDs": ["FVT2MCM7C9.com.studentfunction.app"],
+        "appIDs": [
+          "FVT2MCM7C9.com.studentfunction.app"
+        ],
         "appID": "FVT2MCM7C9.com.studentfunction.app",
-        "paths": ["/e/*", "/s/*", "/social/*", "/u/*", "/auth/callback"],
+        "paths": [
+          "/e/*",
+          "/s/*",
+          "/social/*",
+          "/u/*"
+        ],
         "components": [
-          { "/": "/e/*" },
-          { "/": "/s/*" },
-          { "/": "/social/*" },
-          { "/": "/u/*" },
-          { "/": "/auth/callback" }
+          {
+            "/": "/e/*"
+          },
+          {
+            "/": "/s/*"
+          },
+          {
+            "/": "/social/*"
+          },
+          {
+            "/": "/u/*"
+          }
         ]
       }
     ]

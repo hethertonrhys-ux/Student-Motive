@@ -12,10 +12,7 @@
       "bundleIdentifier": "com.studentfunction.app",
       "supportsTablet": false,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": [
-          "remote-notification"
-        ]
+        "ITSAppUsesNonExemptEncryption": false
       },
       "associatedDomains": [
         "applinks:studentfunction.com"
@@ -53,11 +50,6 @@
               "scheme": "https",
               "host": "studentfunction.com",
               "pathPrefix": "/u/"
-            },
-            {
-              "scheme": "https",
-              "host": "studentfunction.com",
-              "pathPrefix": "/auth/callback"
             }
           ],
           "category": [
@@ -134,6 +126,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "0b973917-964c-41f7-89f4-c2a2abb81265"
+      }
+    },
+    "owner": "studentmotive"
   }
 }

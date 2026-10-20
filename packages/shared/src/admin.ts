@@ -33,6 +33,13 @@ export type AdminPage = {
   people: Map<string, PersonCard>;
 };
 
+// How many reports are waiting for the Function team (all kinds).
+export async function countOpenReports(supabase: SupabaseClient): Promise<number> {
+  const count = (table: string) => supabase.from(table).select("*", { count: "exact", head: true }).eq("status", "open");
+  const results = await Promise.all([count("reports"), count("social_reports"), count("profile_photo_reports")]);
+  return results.reduce((sum, r) => sum + (r.count ?? 0), 0);
+}
+
 export async function loadAdmin(supabase: SupabaseClient): Promise<AdminPage> {
   const [{ data: claims }, { data: reports }, { data: societies }, { data: allowed }, { data: photoReports }] = await Promise.all([
     supabase.from("society_claims").select("id, committee_role, message, created_at, societies(name, university), profiles(email)").eq("status", "pending").order("created_at"),
