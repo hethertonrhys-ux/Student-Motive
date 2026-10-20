@@ -161,7 +161,13 @@ function HubStatus({ society }: { society: AdminSocietyRow }) {
       setFounding(!next);
       return setError(r.error);
     }
-    await queryClient.invalidateQueries({ queryKey: ["admin", "societies"] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["admin", "societies"] }),
+      queryClient.invalidateQueries({ queryKey: ["admin", "hub", "founding"] }),
+      queryClient.invalidateQueries({ queryKey: ["founding-progress", society.id] }),
+      queryClient.invalidateQueries({ queryKey: ["founding-badge", society.id] }),
+      queryClient.invalidateQueries({ queryKey: ["hub", society.id] }),
+    ]);
   }
   return (
     <View className="gap-3 rounded-xl border border-line bg-surface px-3 py-3">

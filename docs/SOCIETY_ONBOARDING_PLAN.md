@@ -238,6 +238,38 @@ needs no new app packages and works in the current app build.
 - **Committee handover** in the Hub's Committee page: add next year's
   managers, then "Remove me" (not allowed for the last manager).
 
+*Decisions made while building it:*
+- The "request is live" push and the weekly Founding nudge open the
+  society's dashboard, like the "added as a manager" push, until an app build
+  with the Hub is out (the builds in the stores have no Hub screens).
+- Only the society's own managers send requests; a Function admin looking
+  at a society's Hub sees its requests but not the form. A request can't be
+  edited once sent, and its dates, society and sender are set by the server.
+- Function admins can add a short note to a request; the committee sees it
+  under the request ("From Function: ...").
+- A "published event" (not cancelled, not hidden; Part 5 adds "not a
+  draft") is decided in one database function, `society_published_events`,
+  so Part 5 changes one place. Events created at or after the moment of
+  agreeing count.
+- The badge and the prize draw both need the society to still be marked
+  Founding: if the Function team takes Founding away, the badge goes.
+- The Hub's line counts events up to the target ("3 of 3 events posted")
+  and, when an event with nobody going is what's holding them back, says "An
+  event counts once someone's going." The admin list shows the real numbers.
+- Society pages only ask about the badge for societies marked Founding, so
+  every other society page makes no extra request.
+- The nudge goes at most once every 7 days per manager and society (a nudge
+  is skipped if one went in the last six and a half days); its count is of
+  pushes actually queued (people with a phone set up and Society Hub pushes
+  on).
+- Founding numbers come from events.created_at, which people using the app
+  can't set: a new event is created now, and created_at never changes after
+  that (protect_event_fields; Part 5 keeps this when it changes that
+  function).
+- Wanted features lists only features at least one society wants; the
+  Founding Societies list includes societies marked Founding that haven't
+  agreed yet ("Not agreed yet").
+
 ## Part 5: event admin (LSE)
 
 **Rules** (`packages/shared/src/event-admin/`): one config per university;
@@ -262,7 +294,9 @@ LSE now, others show "Event admin isn't available for your uni yet".
 - `events.is_draft`. Drafts are visible only to the society's managers (and
   app admins). Every database function that lists, notifies about or lets
   people join events skips drafts; publishing a draft sends the "new event"
-  notification then.
+  notification then. If this redefines `protect_event_fields`, it keeps
+  Part 4's two `created_at` lines (set to now on insert, never changed on
+  update).
 - **Approval gate**: for an LSE society with Event admin on, an event can't
   go from draft to published until a manager has ticked "SU approved"
   (enforced by a database trigger).

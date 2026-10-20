@@ -148,7 +148,7 @@ export function HubGate({ societyId, children }: { societyId: string | undefined
 
 // ---- The Hub's sections ----
 
-export type HubSection = "overview" | "features" | "committee";
+export type HubSection = "overview" | "features" | "committee" | "requests";
 type SectionLink = { key: string; label: string; href: string; icon: IconName; inHub: boolean };
 
 function sectionLinks(hub: HubSociety): SectionLink[] {
@@ -157,7 +157,7 @@ function sectionLinks(hub: HubSociety): SectionLink[] {
     { key: "overview", label: "Overview", href: `/hub/${id}`, icon: "grid-outline", inHub: true },
     { key: "features", label: "Features", href: `/hub/${id}/features`, icon: "options-outline", inHub: true },
     { key: "committee", label: "Committee", href: `/hub/${id}/committee`, icon: "people-outline", inHub: true },
-    // Part 4 adds "Requests" (/hub/<id>/requests) here, between Committee and Events.
+    { key: "requests", label: "Requests", href: `/hub/${id}/requests`, icon: "bulb-outline", inHub: true },
     { key: "events", label: "Events", href: `/dashboard/${id}`, icon: "calendar-outline", inHub: false },
     { key: "page", label: "Society page", href: `/s/${hub.society.slug}`, icon: "open-outline", inHub: false },
   ];

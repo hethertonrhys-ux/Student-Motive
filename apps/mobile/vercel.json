@@ -100,6 +100,10 @@
       "destination": "/hub/%5BsocietyId%5D/committee"
     },
     {
+      "source": "/hub/:societyId/requests",
+      "destination": "/hub/%5BsocietyId%5D/requests"
+    },
+    {
       "source": "/hub/:societyId",
       "destination": "/hub/%5BsocietyId%5D"
     }

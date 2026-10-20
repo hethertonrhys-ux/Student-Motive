@@ -4,8 +4,9 @@ import { Link, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Linking, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { categoryLabel, formatCost, formatEventTime, initialOf, isLive, leaveSociety, loadMembership, loadSociety, requestToJoin, uniShort, type Membership, type Society } from "@function/shared";
+import { categoryLabel, formatCost, formatEventTime, foundingBadgeActive, initialOf, isLive, leaveSociety, loadMembership, loadSociety, requestToJoin, uniShort, type Membership, type Society } from "@function/shared";
 import { BackButton } from "@/components/back-button";
+import { Icon } from "@/components/icon";
 import { Button, Card, Heading, Input, Label, Muted, T } from "@/components/ui";
 import { useProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
@@ -23,6 +24,9 @@ export default function SocietyScreen() {
     queryFn: () => loadMembership(supabase, society!.id, session!.user.id),
     enabled: !!society && !!session,
   });
+  // The Founding Society badge: only asked for societies the Function team
+  // has marked Founding (every other society never shows it).
+  const badge = useQuery({ queryKey: ["founding-badge", society?.id ?? null], queryFn: () => foundingBadgeActive(supabase, society!.id), enabled: society?.is_founding === true });
 
   if (page.isPending) return <Screen><Muted>Loading…</Muted></Screen>;
   if (!page.data || !society) {
@@ -49,6 +53,12 @@ export default function SocietyScreen() {
           <Heading>{society.name}</Heading>
           <View className="mt-1 flex-row flex-wrap items-center gap-3">
             <T variant="semibold" className="text-sm text-muted">{uniShort(society.university)}</T>
+            {badge.data === true && (
+              <View className="flex-row items-center gap-1 rounded-full bg-brand-soft px-2 py-0.5" testID="founding-badge">
+                <Icon name="ribbon" size={12} color="#DA291C" />
+                <T variant="bold" className="text-xs text-brand">Founding Society</T>
+              </View>
+            )}
             {claimed === false && (
               <View className="rounded-full border border-line px-2 py-0.5" testID="unclaimed">
                 <T variant="bold" className="text-xs text-muted">Unclaimed</T>

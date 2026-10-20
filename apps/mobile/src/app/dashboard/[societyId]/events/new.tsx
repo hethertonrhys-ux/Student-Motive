@@ -38,7 +38,7 @@ export default function NewEventScreen() {
                 // LSE societies with Event admin on: Yes publishes, No saves a draft.
                 const result = await createEvent(supabase, societyId, input, image ? { bytes: image.bytes, type: image.type } : null);
                 if ("error" in result) return { error: result.error };
-                await Promise.all([queryClient.invalidateQueries({ queryKey: ["managed", societyId] }), queryClient.invalidateQueries({ queryKey: ["map-events"] }), queryClient.invalidateQueries({ queryKey: ["feed"] })]);
+                await Promise.all([queryClient.invalidateQueries({ queryKey: ["managed", societyId] }), queryClient.invalidateQueries({ queryKey: ["map-events"] }), queryClient.invalidateQueries({ queryKey: ["feed"] }), queryClient.invalidateQueries({ queryKey: ["founding-progress", societyId] }), queryClient.invalidateQueries({ queryKey: ["founding-badge", societyId] })]);
                 // Back to the Hub's setup underneath, on its last step (or open it there).
                 if (fromHub) router.dismissTo({ pathname: "/hub/[societyId]/setup", params: { societyId, step: "live", event: result.id } } as never);
                 else router.replace({ pathname: "/dashboard/[societyId]", params: { societyId, posted: "1" } } as never);

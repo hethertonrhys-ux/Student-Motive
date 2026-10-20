@@ -2,13 +2,16 @@ import { Link, useLocalSearchParams } from "expo-router";
 import type { ReactNode } from "react";
 import { Pressable, View } from "react-native";
 import { featuresOnCount, uniShort, type HubSociety } from "@function/shared";
+import { FoundingProgressCard } from "@/components/hub/founding-progress";
 import { BigButton, HubGate, HubLayout, SocietyLogo, useWide } from "@/components/hub/hub-layout";
 import { useManagers } from "@/components/hub/managers";
 import { Icon } from "@/components/icon";
 import { Card, Heading, Muted, T } from "@/components/ui";
 
-// A society's Hub home (Overview): finish setting up (until it's done),
-// your page, the features you use, your committee, and posting an event.
+// A society's Hub home (Overview): finish setting up (until it's done), a
+// Founding Society's progress (events posted, prize draw, badge), your page,
+// the features you use, your committee, posting an event and requesting a
+// feature.
 export default function HubHomeScreen() {
   const { societyId } = useLocalSearchParams<{ societyId: string }>();
   return (
@@ -49,7 +52,7 @@ function Overview({ hub }: { hub: HubSociety }) {
         </Link>
       )}
 
-      {/* Part 4 adds the Founding Society progress card and the "Request a feature" card here. */}
+      {s.is_founding && <FoundingProgressCard hub={hub} />}
 
       <View className={wide ? "flex-row flex-wrap gap-4" : "gap-4"}>
         <HubCard wide={wide} title="Your page" icon="storefront-outline" testID="hub-card-page">
@@ -86,12 +89,17 @@ function Overview({ hub }: { hub: HubSociety }) {
           </Link>
           <CardLink href={`/dashboard/${s.id}`} testID="hub-events-link">See your events →</CardLink>
         </HubCard>
+
+        <HubCard wide={wide} title="Request a feature" icon="bulb-outline" testID="hub-card-requests">
+          <Muted className="text-sm">Something that would make running {s.name} easier? Tell us what you need and we&apos;ll look at building it.</Muted>
+          <CardLink href={`/hub/${s.id}/requests`} testID="hub-requests-link">Request a feature →</CardLink>
+        </HubCard>
       </View>
     </View>
   );
 }
 
-function HubCard({ title, icon, wide, testID, children }: { title: string; icon: "storefront-outline" | "options-outline" | "people-outline" | "calendar-outline"; wide: boolean; testID: string; children: ReactNode }) {
+function HubCard({ title, icon, wide, testID, children }: { title: string; icon: "storefront-outline" | "options-outline" | "people-outline" | "calendar-outline" | "bulb-outline"; wide: boolean; testID: string; children: ReactNode }) {
   return (
     <Card className={`gap-3 ${wide ? "min-w-[45%] flex-1" : ""}`} testID={testID}>
       <View className="flex-row items-center gap-2">

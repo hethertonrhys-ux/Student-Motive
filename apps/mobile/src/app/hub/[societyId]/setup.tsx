@@ -179,6 +179,8 @@ function useRefreshSociety(hub: HubSociety) {
       queryClient.invalidateQueries({ queryKey: ["society", hub.society.slug] }),
       queryClient.invalidateQueries({ queryKey: ["my-hub"] }),
       queryClient.invalidateQueries({ queryKey: ["societies-tab"] }),
+      queryClient.invalidateQueries({ queryKey: ["founding-progress", hub.society.id] }),
+      queryClient.invalidateQueries({ queryKey: ["founding-badge", hub.society.id] }),
     ]);
 }
 
