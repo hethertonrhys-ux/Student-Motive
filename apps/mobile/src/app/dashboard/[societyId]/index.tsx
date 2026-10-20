@@ -12,8 +12,9 @@ import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
 // One society's dashboard: its events (upcoming and past) and its details.
+// Arriving from a claim link (?claimed=1) says you're now a manager.
 export default function SocietyDashboardScreen() {
-  const { societyId, posted } = useLocalSearchParams<{ societyId: string; posted?: string }>();
+  const { societyId, posted, claimed } = useLocalSearchParams<{ societyId: string; posted?: string; claimed?: string }>();
   const { session } = useSession();
   const page = useQuery({ queryKey: ["managed", societyId], queryFn: () => loadManagedSociety(supabase, societyId), enabled: !!session && !!societyId });
   // Set once the committee has deleted past events, so the cleanup card stays put.
@@ -30,6 +31,7 @@ export default function SocietyDashboardScreen() {
   return (
     <Screen>
       <Heading>{d.society.name}</Heading>
+      {claimed && <T variant="semibold" className="mt-3 rounded-xl bg-ok/10 px-4 py-3 text-ok" testID="claimed">You&apos;re now a manager of {d.society.name}.</T>}
       <View className="mt-3 flex-row flex-wrap gap-2">
         <Link href={`/dashboard/${societyId}/members` as never} asChild>
           <Button variant="ghost" testID="members-link">Members{d.pendingCount ? ` · ${d.pendingCount} waiting` : ""}</Button>

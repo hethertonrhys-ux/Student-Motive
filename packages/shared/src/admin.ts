@@ -143,6 +143,20 @@ export async function adminSearchUsers(supabase: SupabaseClient, query: string):
   return (data ?? []) as AdminUserRow[];
 }
 
+// Admin panel → Societies: find any society at any uni by name (societies
+// first, then halls, unis and promoters) and whether anyone manages it yet.
+export type AdminSocietyRow = { id: string; slug: string; name: string; kind: Society["kind"]; university: string; logo_url: string | null; claimed: boolean };
+
+export async function adminSearchSocieties(supabase: SupabaseClient, query: string): Promise<AdminSocietyRow[]> {
+  const q = query.trim().slice(0, 80).replace(/[\\%_]/g, (c) => `\\${c}`);
+  let request = supabase.from("societies").select("id, slug, name, kind, university, logo_url, society_admins(user_id)");
+  if (q) request = request.ilike("name", `%${q}%`);
+  const { data, error } = await request.order("kind").order("name").limit(30);
+  if (error) throw error;
+  type Row = Omit<AdminSocietyRow, "claimed"> & { society_admins: { user_id: string }[] | null };
+  return ((data ?? []) as unknown as Row[]).map(({ society_admins, ...s }) => ({ ...s, claimed: (society_admins ?? []).length > 0 }));
+}
+
 export type AdminUserDetail = {
   id: string; email: string; name: string; full_name: string | null; nickname: string | null; university: string | null; graduation_year: number | null; country: string | null; course: string | null;
   created_at: string; is_admin: boolean; email_confirmed_at: string | null; last_sign_in_at: string | null; two_factor: boolean; uni_email: boolean; details_complete: boolean;

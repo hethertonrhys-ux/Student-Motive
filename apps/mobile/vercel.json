@@ -82,6 +82,10 @@
     {
       "source": "/dashboard/:societyId",
       "destination": "/dashboard/%5BsocietyId%5D"
+    },
+    {
+      "source": "/claim/:token",
+      "destination": "/claim/%5Btoken%5D"
     }
   ],
   "headers": [
