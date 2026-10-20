@@ -190,6 +190,31 @@ notification settings).
 phone; the website can also download it as a PNG drawn in the browser). This
 needs no new app packages and works in the current app build.
 
+*Decisions made while building it:*
+- Adding a manager by email says whether they were added straight away or
+  invited, which shows whether that email has an account. Only a society's
+  own managers can ask, about someone they're adding to their committee.
+- The features step saves the pre-ticked set once, the first time a society
+  with no feature choices reaches it. Going back and picking another type
+  afterwards doesn't change features already saved (they're shown, and can
+  be changed, on the same screen).
+- Only the society's own managers finishing the setup mark it as done; a
+  Function admin looking through it doesn't.
+- Existing societies aren't marked as set up: their committees see "Finish
+  setting up" in the Hub. Their features don't change (every feature already
+  has an explicit choice from Part 1).
+- Hub links open in the browser until an app build with the Hub is out,
+  like claim links. Until then the "added as a manager" push opens the
+  society's dashboard, which every app build has.
+- Nobody can be made a manager by someone they've blocked or who has
+  blocked them ("You can't add this person", as for friend requests).
+- Adding by email only invites emails that can sign up (a London uni email,
+  or one the Function team has allowed). Anything else asks for their uni
+  email, rather than keeping an invite that could never be used.
+- The features step only saves the pre-ticked set when one of the society's
+  own managers reaches it; a Function admin looking through the setup sees
+  the pre-ticks without saving them (or the society type).
+
 ## Part 4: feature requests and admin views
 
 - `feature_requests (id, society_id, requested_by, need, current_process,

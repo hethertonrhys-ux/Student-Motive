@@ -9,9 +9,11 @@ import { Card, Heading, Muted } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
-// Post an event for a society you run.
+// Post an event for a society you run. Opened from the Society Hub's setup
+// (?from=hub), posting goes on to the setup's last step to share the event.
 export default function NewEventScreen() {
-  const { societyId } = useLocalSearchParams<{ societyId: string }>();
+  const { societyId, from } = useLocalSearchParams<{ societyId: string; from?: string }>();
+  const fromHub = from === "hub";
   const { session } = useSession();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -21,7 +23,7 @@ export default function NewEventScreen() {
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10" keyboardShouldPersistTaps="handled">
-        <BackButton fallback={`/dashboard/${societyId}`} />
+        <BackButton fallback={fromHub ? `/hub/${societyId}/setup?step=event` : `/dashboard/${societyId}`} />
         <Heading className="mb-8 mt-3">Post an event</Heading>
         {!society || !venues.data ? (
           <Muted>{managed.isPending || venues.isPending ? "Loading…" : "You don't run this society."}</Muted>
@@ -32,10 +34,14 @@ export default function NewEventScreen() {
               uni={society.university}
               features={managed.data?.features}
               onSubmit={async (input, image) => {
+                // Part 5 (event admin) asks "Has the SU approved this event?" here for
+                // LSE societies with Event admin on: Yes publishes, No saves a draft.
                 const result = await createEvent(supabase, societyId, input, image ? { bytes: image.bytes, type: image.type } : null);
                 if ("error" in result) return { error: result.error };
                 await Promise.all([queryClient.invalidateQueries({ queryKey: ["managed", societyId] }), queryClient.invalidateQueries({ queryKey: ["map-events"] }), queryClient.invalidateQueries({ queryKey: ["feed"] })]);
-                router.replace({ pathname: "/dashboard/[societyId]", params: { societyId, posted: "1" } } as never);
+                // Back to the Hub's setup underneath, on its last step (or open it there).
+                if (fromHub) router.dismissTo({ pathname: "/hub/[societyId]/setup", params: { societyId, step: "live", event: result.id } } as never);
+                else router.replace({ pathname: "/dashboard/[societyId]", params: { societyId, posted: "1" } } as never);
                 return {};
               }}
             />

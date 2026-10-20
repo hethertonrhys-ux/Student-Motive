@@ -207,7 +207,14 @@ function SocietyForm({ society }: { society: Society }) {
     setState(r.error ? { error: r.error } : { saved: true });
     if (!r.error) {
       setLogo(null);
-      await Promise.all([queryClient.invalidateQueries({ queryKey: ["managed", society.id] }), queryClient.invalidateQueries({ queryKey: ["society", society.slug] }), queryClient.invalidateQueries({ queryKey: ["societies-tab"] })]);
+      // The Society Hub shows the page too (its "Your page" card and header).
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["managed", society.id] }),
+        queryClient.invalidateQueries({ queryKey: ["society", society.slug] }),
+        queryClient.invalidateQueries({ queryKey: ["societies-tab"] }),
+        queryClient.invalidateQueries({ queryKey: ["hub", society.id] }),
+        queryClient.invalidateQueries({ queryKey: ["my-hub"] }),
+      ]);
     }
   }
   return (

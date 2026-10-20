@@ -55,8 +55,8 @@ describe("the link and the message", () => {
     expect(claimDmMessage("  ", "u")).not.toMatch(EMOJI);
   });
 
-  it("sends people to their society after claiming", () => {
-    expect(afterClaimHref("abc")).toBe("/dashboard/abc?claimed=1");
+  it("sends people to their society's Hub setup after claiming", () => {
+    expect(afterClaimHref("abc")).toBe("/hub/abc/setup");
   });
 });
 

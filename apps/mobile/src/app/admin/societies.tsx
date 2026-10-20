@@ -4,11 +4,12 @@ import { Link } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { adminSearchSocieties, claimDmMessage, claimLinkState, claimLinkUrl, createClaimLink, listClaimLinks, revokeClaimLink, SOCIETY_KINDS, uniShort, type AdminSocietyRow, type ClaimLinkRow } from "@function/shared";
+import { adminSearchSocieties, claimDmMessage, claimLinkState, claimLinkUrl, createClaimLink, listClaimLinks, revokeClaimLink, setSocietyFounding, SOCIETY_KINDS, uniShort, type AdminSocietyRow, type ClaimLinkRow } from "@function/shared";
 import { AdminTabs } from "@/components/admin-tabs";
 import { Avatar } from "@/components/avatar";
 import { BackButton } from "@/components/back-button";
 import { LinkButton } from "@/components/event/panels";
+import { Icon } from "@/components/icon";
 import { Button, Card, Heading, Input, Muted, T } from "@/components/ui";
 import { useProfile } from "@/lib/profile";
 import { SITE_URL } from "@/lib/site";
@@ -22,6 +23,9 @@ const dayTime = (iso: string | number) => new Intl.DateTimeFormat("en-GB", { day
 // The link works once and lasts 7 days; whoever opens it and logs in
 // becomes the society's manager straight away. Each society's links are
 // listed with who used them and when, and unused ones can be cancelled.
+// Each society can also be made a Founding Society (its Hub setup then
+// shows the Founding Society agreement), and shows whether its committee
+// has finished setting up its Hub.
 export default function AdminSocietiesScreen() {
   const { profile, loading } = useProfile();
   const [query, setQuery] = useState("");
@@ -120,6 +124,8 @@ function SocietyLinks({ society, made, onMade }: { society: AdminSocietyRow; mad
       {error && <T variant="semibold" className="text-sm text-danger" testID="claim-link-error">{error}</T>}
       {made && <MadeLink name={society.name} url={made.url} expiresAt={links.data?.find((l) => l.id === made.linkId)?.expires_at ?? made.expiresAt} />}
 
+      <HubStatus society={society} />
+
       <View>
         <T variant="semibold">Claim links</T>
         {links.isPending && <Muted className="mt-1 text-sm">Loading…</Muted>}
@@ -133,6 +139,45 @@ function SocietyLinks({ society, made, onMade }: { society: AdminSocietyRow; mad
           </View>
         )}
       </View>
+    </View>
+  );
+}
+
+// The Founding Society switch (saves straight away) and whether the
+// committee has finished setting up its Hub.
+function HubStatus({ society }: { society: AdminSocietyRow }) {
+  const queryClient = useQueryClient();
+  const [founding, setFounding] = useState(society.is_founding);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function toggle() {
+    const next = !founding;
+    setFounding(next);
+    setSaving(true);
+    setError(null);
+    const r = await setSocietyFounding(supabase, society.id, next);
+    setSaving(false);
+    if (r.error) {
+      setFounding(!next);
+      return setError(r.error);
+    }
+    await queryClient.invalidateQueries({ queryKey: ["admin", "societies"] });
+  }
+  return (
+    <View className="gap-3 rounded-xl border border-line bg-surface px-3 py-3">
+      <Pressable onPress={() => void toggle()} disabled={saving} accessibilityRole="switch" accessibilityState={{ checked: founding, disabled: saving }} aria-checked={founding} className="flex-row items-center justify-between gap-4" testID="founding-switch">
+        <View className="flex-1">
+          <T variant="semibold">Founding Society</T>
+          <Muted className="text-xs">Their Hub setup shows the Founding Society agreement.</Muted>
+        </View>
+        <View className={`h-7 w-12 justify-center rounded-full px-0.5 ${founding ? "bg-brand" : "bg-line"}`}>
+          <View className={`h-6 w-6 items-center justify-center rounded-full bg-white ${founding ? "self-end" : "self-start"}`}>{founding && <Icon name="checkmark" size={14} color="#DA291C" />}</View>
+        </View>
+      </Pressable>
+      {error && <T variant="semibold" className="text-sm text-danger">{error}</T>}
+      <T variant="semibold" className={`text-sm ${society.onboarded_at ? "text-ok" : "text-muted"}`} testID="society-onboarded">
+        {society.onboarded_at ? `Finished setting up its Hub on ${day(society.onboarded_at)}` : society.claimed ? "Hasn't finished setting up its Hub yet" : "Not set up yet (nobody manages it)"}
+      </T>
     </View>
   );
 }

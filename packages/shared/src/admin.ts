@@ -144,17 +144,24 @@ export async function adminSearchUsers(supabase: SupabaseClient, query: string):
 }
 
 // Admin panel → Societies: find any society at any uni by name (societies
-// first, then halls, unis and promoters) and whether anyone manages it yet.
-export type AdminSocietyRow = { id: string; slug: string; name: string; kind: Society["kind"]; university: string; logo_url: string | null; claimed: boolean };
+// first, then halls, unis and promoters), whether anyone manages it yet,
+// whether it's a Founding Society and when it finished the Hub's setup.
+export type AdminSocietyRow = { id: string; slug: string; name: string; kind: Society["kind"]; university: string; logo_url: string | null; claimed: boolean; is_founding: boolean; onboarded_at: string | null };
 
 export async function adminSearchSocieties(supabase: SupabaseClient, query: string): Promise<AdminSocietyRow[]> {
   const q = query.trim().slice(0, 80).replace(/[\\%_]/g, (c) => `\\${c}`);
-  let request = supabase.from("societies").select("id, slug, name, kind, university, logo_url, society_admins(user_id)");
-  if (q) request = request.ilike("name", `%${q}%`);
-  const { data, error } = await request.order("kind").order("name").limit(30);
+  const search = async (columns: string) => {
+    let request = supabase.from("societies").select(columns);
+    if (q) request = request.ilike("name", `%${q}%`);
+    return request.order("kind").order("name").limit(30);
+  };
+  const base = "id, slug, name, kind, university, logo_url, society_admins(user_id)";
+  // Before the Society Hub migration has run, without its two columns.
+  const first = await search(`${base}, is_founding, onboarded_at`);
+  const { data, error } = first.error ? await search(base) : first;
   if (error) throw error;
-  type Row = Omit<AdminSocietyRow, "claimed"> & { society_admins: { user_id: string }[] | null };
-  return ((data ?? []) as unknown as Row[]).map(({ society_admins, ...s }) => ({ ...s, claimed: (society_admins ?? []).length > 0 }));
+  type Row = Omit<AdminSocietyRow, "claimed" | "is_founding" | "onboarded_at"> & { society_admins: { user_id: string }[] | null; is_founding?: boolean | null; onboarded_at?: string | null };
+  return ((data ?? []) as unknown as Row[]).map(({ society_admins, is_founding, onboarded_at, ...s }) => ({ ...s, claimed: (society_admins ?? []).length > 0, is_founding: is_founding === true, onboarded_at: onboarded_at ?? null }));
 }
 
 export type AdminUserDetail = {

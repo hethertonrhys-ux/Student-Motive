@@ -50,6 +50,10 @@ export type Society = {
   source_url?: string | null;
   // Picked in the Society Hub; null for societies from before (see features.ts).
   society_type?: SocietyType | null;
+  // Marked by the Function team (the Hub then shows the Founding Society agreement).
+  is_founding?: boolean;
+  // When the committee finished the Hub's setup; null until then.
+  onboarded_at?: string | null;
 };
 
 export type Venue = {

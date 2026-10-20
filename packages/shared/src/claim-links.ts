@@ -16,9 +16,9 @@ export const isClaimToken = (s: unknown): s is string => typeof s === "string" &
 // The link to send: <site>/claim/<secret>.
 export const claimLinkUrl = (siteUrl: string, token: string) => `${siteUrl.replace(/\/+$/, "")}/claim/${token}`;
 
-// Where someone goes once they've claimed a society. Part 3 (the Society
-// Hub) will change this to the Hub's setup; it's the one place to change.
-export const afterClaimHref = (societyId: string) => `/dashboard/${societyId}?claimed=1`;
+// Where someone goes once they've claimed a society: the Society Hub's
+// setup. This is the one place to change it.
+export const afterClaimHref = (societyId: string) => `/hub/${societyId}/setup`;
 
 const possessive = (name: string) => (/['’]s$/i.test(name) ? name : /s$/i.test(name) ? `${name}'` : `${name}'s`);
 

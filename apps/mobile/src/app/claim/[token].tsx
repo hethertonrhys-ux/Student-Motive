@@ -16,7 +16,8 @@ import { useSession } from "@/providers/session";
 // A society's claim link, sent by the Function team (usually in an
 // Instagram DM). Logged out, it shows the society and asks you to log in or
 // sign up with your uni email, then brings you back here. Logged in, it
-// makes you the society's manager straight away and opens its dashboard.
+// makes you the society's manager straight away and opens the Society
+// Hub's setup.
 // Links that were used, have expired or were cancelled say so kindly.
 // A Function admin opening a ready link (e.g. checking it after sending it)
 // isn't made the manager unless they choose to be, so the link isn't used up.
@@ -41,6 +42,9 @@ export default function ClaimLinkScreen() {
         queryClient.invalidateQueries({ queryKey: ["managed", r.societyId] }),
         queryClient.invalidateQueries({ queryKey: ["membership", r.societyId] }),
         queryClient.invalidateQueries({ queryKey: ["societies-tab"] }),
+        queryClient.invalidateQueries({ queryKey: ["hub", r.societyId] }),
+        queryClient.invalidateQueries({ queryKey: ["my-hub"] }),
+        queryClient.invalidateQueries({ queryKey: ["my-hub-count"] }),
         // What this link says has changed (it's used now): any later visit asks again.
         queryClient.invalidateQueries({ queryKey: ["claim-link", token], refetchType: "none" }),
       ]);
@@ -86,7 +90,7 @@ export default function ClaimLinkScreen() {
   if (d.status === "expired") return <Closed info={d} title="This link has expired">Claim links last 7 days. Ask us for a new one: {mail}</Closed>;
   if (d.status === "used") {
     // Logged out, it may be your own link (opened on another device): logging
-    // in brings you back here, and then it opens your dashboard.
+    // in brings you back here, and then it opens your society's Hub.
     const login = !userId ? (
       <Link replace href={{ pathname: "/login", params: { next: `/claim/${token}` } }} asChild>
         <Button variant="ghost" className="mt-6 py-3.5" testID="claim-used-login">Claimed it yourself? Log in</Button>

@@ -166,9 +166,14 @@ function MembershipCard({ society, membership, loading }: { society: Society; me
     return (
       <Card className="mt-6 flex-row flex-wrap items-center justify-between gap-3">
         <T variant="semibold">You run this society.</T>
-        <Link href={`/dashboard/${society.id}` as never} asChild>
-          <Button variant="ghost" testID="open-dashboard">Open dashboard</Button>
-        </Link>
+        <View className="flex-row flex-wrap gap-2">
+          <Link href={`/hub/${society.id}` as never} asChild>
+            <Button testID="open-hub">Open Society Hub</Button>
+          </Link>
+          <Link href={`/dashboard/${society.id}` as never} asChild>
+            <Button variant="ghost" testID="open-dashboard">Open dashboard</Button>
+          </Link>
+        </View>
       </Card>
     );
   }
