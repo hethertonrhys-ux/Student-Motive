@@ -1,6 +1,7 @@
 // Shapes of the database rows the website uses.
 // Matches supabase/migrations/20261015000000_initial_schema.sql.
 
+import type { SocietyType } from "./features";
 import type { Audience, UniId } from "./universities";
 
 export type OrgKind = "society" | "hall" | "university" | "promoter";
@@ -47,6 +48,8 @@ export type Society = {
   // Imported from a students' union directory: "su_directory" and the SU page.
   source?: string | null;
   source_url?: string | null;
+  // Picked in the Society Hub; null for societies from before (see features.ts).
+  society_type?: SocietyType | null;
 };
 
 export type Venue = {

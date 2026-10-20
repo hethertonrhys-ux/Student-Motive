@@ -4,7 +4,7 @@ import { Link, useIsFocused, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Linking, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { audienceLabel, bankEditorRows, categoryLabel, type EventWithDetails, formatCost, formatEventTime, getCards, hasEnded, isLive, loadEvent, loadEventChat, loadEventHosts, loadParticipation, nowMs, type Participation, type PersonCard, reportEvent, uniShort } from "@function/shared";
+import { audienceLabel, bankEditorRows, categoryLabel, type EventWithDetails, featureSubject, formatCost, formatEventTime, getCards, hasEnded, hasFeature, isLive, loadEvent, loadEventChat, loadEventHosts, loadParticipation, nowMs, type Participation, type PersonCard, reportEvent, uniShort } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { CompleteProfileCard } from "@/components/complete-profile-card";
@@ -216,7 +216,9 @@ export default function EventScreen() {
   );
 }
 
-// The "take part" part of a society event.
+// The "take part" part of a society event. The settle-up tools (bank, your
+// own result) only show if the society uses the ledger, or this event already
+// does. A group chat that already exists always shows.
 function SocietyPart({ event, p, userId, profile, finished, tap, busy, refresh, seatConfirmed, onConfirmed, chatId, hostIds }: { event: EventWithDetails; p: Participation; userId: string; profile: { display_name: string | null; university: string }; finished: boolean; tap: Tap; busy: boolean; refresh: () => Promise<unknown>; seatConfirmed: boolean; onConfirmed: () => void; chatId: string | null; hostIds?: Set<string> }) {
   const society = event.societies;
   const me = p.people.find((x) => x.userId === userId) ?? null;
@@ -231,6 +233,8 @@ function SocietyPart({ event, p, userId, profile, finished, tap, busy, refresh, 
   const myTable = me?.tableId ? p.tables.find((t) => t.id === me.tableId) : null;
   const started = new Date(event.starts_at).getTime() <= nowMs() || Boolean(myTable?.started_at);
   const myBankRow = me && myTable ? (p.ledger.rows.find((r) => r.user_id === me.userId && r.table_id === myTable.id) ?? null) : null;
+  // Switching the ledger off mid-night doesn't take it away from an event already using it.
+  const ledgerShown = hasFeature(featureSubject(society), "ledger") || p.ledger.rows.length > 0 || p.ledger.payments.length > 0 || p.tables.some((t) => t.bank_user_id);
 
   return (
     <>
@@ -278,7 +282,8 @@ function SocietyPart({ event, p, userId, profile, finished, tap, busy, refresh, 
       {!finished && me?.status === "going" && <CompleteProfileCard prompts={p.prompts} />}
 
       {/* Tables where this player is the bank: their bank screen. */}
-      {!event.results_published &&
+      {ledgerShown &&
+        !event.results_published &&
         p.tables
           .filter((t) => t.bank_user_id === userId)
           .map((t) => {
@@ -293,9 +298,9 @@ function SocietyPart({ event, p, userId, profile, finished, tap, busy, refresh, 
           })}
 
       {/* Playing at a table with a bank (and not the bank): buy in and cash out with them. */}
-      {me?.status === "going" && !event.results_published && myTable?.bank_user_id && myTable.bank_user_id !== userId && <MyBankLine table={myTable} mine={myBankRow} people={p.people} />}
+      {ledgerShown && me?.status === "going" && !event.results_published && myTable?.bank_user_id && myTable.bank_user_id !== userId && <MyBankLine table={myTable} mine={myBankRow} people={p.people} />}
 
-      {me?.status === "going" && !event.results_published && started && (event.format !== "tables" || me.tableId) && !myTable?.bank_user_id && (
+      {ledgerShown && me?.status === "going" && !event.results_published && started && (event.format !== "tables" || me.tableId) && !myTable?.bank_user_id && (
         <SelfReport event={event} me={me} people={p.people} rows={p.ledger.rows} payments={p.ledger.payments} onChange={refresh} />
       )}
 

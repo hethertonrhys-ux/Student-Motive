@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { FeatureRow } from "./features";
 import type { MapCategory } from "./map-categories";
 import { socialToMapCategory } from "./map-categories";
 import { getCards, type PersonCard } from "./social";
@@ -111,21 +112,23 @@ export async function loadFeed(supabase: SupabaseClient, myUni: string | null, n
   return groups.filter((g) => g.items.length > 0);
 }
 
-// One society event (or student-hosted event) with its society, venue and tables.
+// One society event (or student-hosted event) with its society (and the
+// features it has chosen), venue and tables.
 export type EventWithDetails = MotiveEvent & {
-  societies: Pick<Society, "name" | "slug" | "logo_url" | "university"> | null;
+  societies: (Pick<Society, "name" | "slug" | "logo_url" | "university" | "society_type"> & { society_features?: FeatureRow[] | null }) | null;
   venues: Pick<Venue, "name" | "address" | "lat" | "lng"> | null;
   event_tables: { started_at: string | null }[] | null;
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const EVENT_SELECT = "*, societies(name, slug, logo_url, university, society_type, society_features(feature_key, enabled, config)), venues(name, address, lat, lng), event_tables(started_at)";
+// Before the society features migration has run: every society counts as one from before features.
+const EVENT_SELECT_BEFORE_FEATURES = "*, societies(name, slug, logo_url, university), venues(name, address, lat, lng), event_tables(started_at)";
+
 export async function loadEvent(supabase: SupabaseClient, id: string): Promise<EventWithDetails | null> {
   if (!UUID.test(id)) return null;
-  const { data } = await supabase
-    .from("events")
-    .select("*, societies(name, slug, logo_url, university), venues(name, address, lat, lng), event_tables(started_at)")
-    .eq("id", id)
-    .maybeSingle();
+  const first = await supabase.from("events").select(EVENT_SELECT).eq("id", id).maybeSingle();
+  const { data } = first.error ? await supabase.from("events").select(EVENT_SELECT_BEFORE_FEATURES).eq("id", id).maybeSingle() : first;
   return (data as EventWithDetails | null) ?? null;
 }

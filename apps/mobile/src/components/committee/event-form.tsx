@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
-import { type Audience, audienceLabel, AUDIENCES, CATEGORIES, checkEventSpan, DEFAULT_SEATS, type EventFormat, type EventInput, type EventTable, FORMATS, isoToLondonInput, type MotiveEvent, POKER_STAKES, type TableDraft, uniById, uniShort, type Venue } from "@function/shared";
+import { type Audience, audienceLabel, AUDIENCES, CATEGORIES, checkEventSpan, DEFAULT_SEATS, type EventFormat, type EventInput, type EventTable, featureConfig, type FeatureKey, type FeatureSubject, FORMATS, hasFeature, isoToLondonInput, type MotiveEvent, POKER_STAKES, type TableDraft, uniById, uniShort, type Venue } from "@function/shared";
 import { DateField, TimeField } from "@/components/fields/date-time";
 import { Icon } from "@/components/icon";
 import { pickPhotos, type Picked } from "@/components/photos/pick-photos";
@@ -17,6 +17,8 @@ const VENUE_GROUPS: { kind: Venue["kind"]; label: string }[] = [
   { kind: "club", label: "Clubs & bars" },
   { kind: "other", label: "Other" },
 ];
+// The feature each way of joining needs ("standard" needs none).
+const FORMAT_FEATURE: Partial<Record<EventFormat, FeatureKey>> = { entries: "signup_lists", tables: "tables" };
 const AUDIENCE_HELP: Record<Audience, (uni: string) => string> = {
   members: () => "Only your approved members can see and join it.",
   uni: (uni) => `Every ${uni} student can see it.`,
@@ -30,12 +32,24 @@ type Props = {
   tables?: EventTable[];
   // The society's uni ("LSE", "UCL"…), for who can see the event.
   uni: string;
+  // The features the society uses. Without it, everything is offered (as before features).
+  features?: FeatureSubject;
 };
 
 // The committee's event form: what, when, where, cost, how people join
 // (standard, sign-up list, tables), who can see it, description, link, image.
-export function CommitteeEventForm({ onSubmit, venues, event, tables = [], uni }: Props) {
+// Sign-up lists, tables and cost only show if the society uses them, or if
+// the event being edited already does.
+export function CommitteeEventForm({ onSubmit, venues, event, tables = [], uni, features }: Props) {
   const isEdit = Boolean(event);
+  const on = (key: FeatureKey) => !features || hasFeature(features, key);
+  const formats = FORMATS.filter((f) => {
+    const key = FORMAT_FEATURE[f.value];
+    return !key || on(key) || event?.format === f.value;
+  });
+  const showCost = on("event_cost") || event?.cost_pence != null;
+  const configSeats = Number(featureConfig(features, "tables").default_seats);
+  const defaultSeats = Number.isInteger(configSeats) && configSeats >= 2 && configSeats <= 20 ? configSeats : DEFAULT_SEATS;
   const startsCustom = Boolean(event && !event.venue_id && event.lat != null && event.lng != null);
   const starts = event ? isoToLondonInput(event.starts_at) : "";
   const ends = event ? isoToLondonInput(event.ends_at) : "";
@@ -55,7 +69,7 @@ export function CommitteeEventForm({ onSubmit, venues, event, tables = [], uni }
   const [capacity, setCapacity] = useState(event?.capacity ? String(event.capacity) : "");
   const [membersOnly, setMembersOnly] = useState(event?.members_only ?? true);
   const [audience, setAudience] = useState<Audience>(event?.audience ?? "uni");
-  const [drafts, setDrafts] = useState<TableDraft[]>(tables.length > 0 ? tables.map((t) => ({ id: t.id, name: t.name, level: t.level ?? "", seats: t.seats })) : [{ name: "Table 1", level: "", seats: DEFAULT_SEATS }]);
+  const [drafts, setDrafts] = useState<TableDraft[]>(tables.length > 0 ? tables.map((t) => ({ id: t.id, name: t.name, level: t.level ?? "", seats: t.seats })) : [{ name: "Table 1", level: "", seats: defaultSeats }]);
   const [description, setDescription] = useState(event?.description ?? "");
   const [ticketUrl, setTicketUrl] = useState(event?.ticket_url ?? "");
   const [image, setImage] = useState<Picked | null>(null);
@@ -133,27 +147,29 @@ export function CommitteeEventForm({ onSubmit, venues, event, tables = [], uni }
         )}
       </View>
 
-      <View>
-        <Label>Cost <Muted className="text-sm">(optional)</Muted></Label>
-        <View className="flex-row flex-wrap gap-2">
-          {([["none", "Don't show"], ["free", "Free"], ["paid", "Costs money"]] as const).map(([value, label]) => (
-            <Chip key={value} active={costKind === value} onPress={() => setCostKind(value)} testID={`ev-cost-${value}`}>{label}</Chip>
-          ))}
-        </View>
-        {costKind === "paid" && (
-          <View className="mt-3 flex-row items-center gap-2">
-            <T variant="semibold">£</T>
-            <Input value={costAmount} onChangeText={setCostAmount} keyboardType="decimal-pad" placeholder="6" className="w-28" accessibilityLabel="Cost in pounds" testID="ev-cost-amount" />
-            <Muted className="flex-1 text-xs">per person. Just shown on the event; no payments are taken.</Muted>
+      {showCost && (
+        <View testID="ev-cost">
+          <Label>Cost <Muted className="text-sm">(optional)</Muted></Label>
+          <View className="flex-row flex-wrap gap-2">
+            {([["none", "Don't show"], ["free", "Free"], ["paid", "Costs money"]] as const).map(([value, label]) => (
+              <Chip key={value} active={costKind === value} onPress={() => setCostKind(value)} testID={`ev-cost-${value}`}>{label}</Chip>
+            ))}
           </View>
-        )}
-      </View>
+          {costKind === "paid" && (
+            <View className="mt-3 flex-row items-center gap-2">
+              <T variant="semibold">£</T>
+              <Input value={costAmount} onChangeText={setCostAmount} keyboardType="decimal-pad" placeholder="6" className="w-28" accessibilityLabel="Cost in pounds" testID="ev-cost-amount" />
+              <Muted className="flex-1 text-xs">per person. Just shown on the event; no payments are taken.</Muted>
+            </View>
+          )}
+        </View>
+      )}
 
       {/* How do people join? */}
       <View className="gap-4 rounded-2xl border border-line p-4">
         <T variant="semibold">How do people join?</T>
         <View className="gap-2">
-          {FORMATS.map((f) => (
+          {formats.map((f) => (
             <Pressable key={f.value} onPress={() => setFormat(f.value)} accessibilityRole="radio" accessibilityState={{ checked: format === f.value }} testID={`ev-format-${f.value}`} className={`rounded-xl border p-3 ${format === f.value ? "border-brand bg-brand-soft" : "border-line bg-surface"}`}>
               <T variant="bold">{f.label}</T>
               <Muted className="text-xs">{f.help}</Muted>
@@ -190,7 +206,7 @@ export function CommitteeEventForm({ onSubmit, venues, event, tables = [], uni }
                 </Pressable>
               </View>
             ))}
-            <Button variant="ghost" className="self-start py-2" onPress={() => setDrafts((cur) => [...cur, { name: `Table ${cur.length + 1}`, level: "", seats: cur.at(-1)?.seats ?? DEFAULT_SEATS }])} testID="ev-add-table">+ Add a table</Button>
+            <Button variant="ghost" className="self-start py-2" onPress={() => setDrafts((cur) => [...cur, { name: `Table ${cur.length + 1}`, level: "", seats: cur.at(-1)?.seats ?? defaultSeats }])} testID="ev-add-table">+ Add a table</Button>
             {tables.length > 0 && <Muted className="text-xs">Removing a table moves anyone sitting there back to &ldquo;no table yet&rdquo;.</Muted>}
           </View>
         )}

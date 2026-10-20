@@ -33,3 +33,4 @@ export * from "./event-filters";
 export * from "./recommend";
 export * from "./countries";
 export * from "./event-times";
+export * from "./features";

@@ -43,6 +43,7 @@ export default function EditEventScreen() {
                 key={page.data.event.id}
                 venues={venues.data}
                 uni={society.university}
+                features={managed.data?.features}
                 event={page.data.event}
                 tables={page.data.tables}
                 onSubmit={async (input, image) => {

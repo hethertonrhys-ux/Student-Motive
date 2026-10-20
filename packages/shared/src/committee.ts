@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getEventPeople, getLedger, type LedgerPaymentRecord, type LedgerRowRecord, type Person } from "./event-people";
+import { type FeatureSubject, loadSocietyFeatures } from "./features";
 import { parsePounds } from "./ledger";
 import type { PhotoBytes } from "./profile";
 import { readCostInput } from "./social-actions";
@@ -47,17 +48,21 @@ export async function submitClaim(supabase: SupabaseClient, myId: string, input:
 
 // ---- One society ----
 
-export type ManagedSociety = { society: Society; events: MotiveEvent[]; pendingCount: number };
+export type ManagedSociety = { society: Society; events: MotiveEvent[]; pendingCount: number; features: FeatureSubject };
 
-// The society, if you run it (null otherwise).
+// The society, if you run it (null otherwise), with the features it uses.
 export async function loadManagedSociety(supabase: SupabaseClient, societyId: string): Promise<ManagedSociety | null> {
-  const [{ data: society }, { data: allowed }] = await Promise.all([supabase.from("societies").select("*").eq("id", societyId).maybeSingle<Society>(), supabase.rpc("is_society_admin", { sid: societyId })]);
+  const [{ data: society }, { data: allowed }, features] = await Promise.all([
+    supabase.from("societies").select("*").eq("id", societyId).maybeSingle<Society>(),
+    supabase.rpc("is_society_admin", { sid: societyId }),
+    loadSocietyFeatures(supabase, societyId),
+  ]);
   if (!society || allowed !== true) return null;
   const [{ data: events }, { count }] = await Promise.all([
     supabase.from("events").select("*").eq("society_id", societyId).order("starts_at", { ascending: true }),
     supabase.from("society_members").select("user_id", { count: "exact", head: true }).eq("society_id", societyId).eq("status", "pending"),
   ]);
-  return { society, events: (events ?? []) as MotiveEvent[], pendingCount: count ?? 0 };
+  return { society, events: (events ?? []) as MotiveEvent[], pendingCount: count ?? 0, features };
 }
 
 const text = (value: string | null | undefined, max: number) => (value ?? "").trim().slice(0, max) || null;

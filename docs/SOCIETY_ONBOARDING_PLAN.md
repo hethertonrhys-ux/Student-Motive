@@ -107,10 +107,12 @@ existing features are on; otherwise the registry default for its type (and
 Event admin defaults on for LSE). Coming-soon features are always off.
 
 **Where features are checked.** The event form (format choices, cost), the
-event page (group chat button), the manage-event screen (ledger tools), the
-members screen (invites) and the chat list. *Decision:* turning a feature off
-hides it from the society's tools and from new events; events already created
-with it keep working, so nobody's night is broken mid-way.
+manage-event screen and event page (ledger tools), the members screen
+(invites), and new events' group chats (with chats off, a new event gets no
+chat, so no "Open group chat" button and nothing in Chats). *Decision:*
+turning a feature off hides it from the society's tools and from new events;
+events already created with it keep working (their chat, their tables, their
+settle-up), so nobody's night is broken mid-way.
 
 **Tests.** Unit: `hasFeature` defaults, overrides, coming soon, legacy
 societies. Database: anyone can read flags; a manager can change only their

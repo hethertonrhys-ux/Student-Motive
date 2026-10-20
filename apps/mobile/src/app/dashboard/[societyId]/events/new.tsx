@@ -30,6 +30,7 @@ export default function NewEventScreen() {
             <CommitteeEventForm
               venues={venues.data}
               uni={society.university}
+              features={managed.data?.features}
               onSubmit={async (input, image) => {
                 const result = await createEvent(supabase, societyId, input, image ? { bytes: image.bytes, type: image.type } : null);
                 if ("error" in result) return { error: result.error };
