@@ -1,6 +1,7 @@
 // The same design tokens as the website (apps/web/src/app/globals.css), with
 // the brand in Function red. Colours are CSS variables (see src/global.css)
-// so light and dark mode work the same way as on the site.
+// so light and dark mode work the same way as on the site. The classes use
+// each colour's -rgb version so a fade like bg-danger/10 (10% red) works.
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ["./src/**/*.{js,jsx,ts,tsx}", "../../packages/shared/src/**/*.{ts,tsx}"],
@@ -8,17 +9,17 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        bg: "var(--bg)",
-        surface: "var(--surface)",
-        ink: "var(--ink)",
-        muted: "var(--muted)",
-        line: "var(--line)",
-        brand: "var(--brand)",
-        "brand-ink": "var(--brand-ink)",
-        "brand-soft": "var(--brand-soft)",
-        live: "var(--live)",
-        danger: "var(--danger)",
-        ok: "var(--ok)",
+        bg: "rgb(var(--bg-rgb) / <alpha-value>)",
+        surface: "rgb(var(--surface-rgb) / <alpha-value>)",
+        ink: "rgb(var(--ink-rgb) / <alpha-value>)",
+        muted: "rgb(var(--muted-rgb) / <alpha-value>)",
+        line: "rgb(var(--line-rgb) / <alpha-value>)",
+        brand: "rgb(var(--brand-rgb) / <alpha-value>)",
+        "brand-ink": "rgb(var(--brand-ink-rgb) / <alpha-value>)",
+        "brand-soft": "rgb(var(--brand-soft-rgb) / <alpha-value>)",
+        live: "rgb(var(--live-rgb) / <alpha-value>)",
+        danger: "rgb(var(--danger-rgb) / <alpha-value>)",
+        ok: "rgb(var(--ok-rgb) / <alpha-value>)",
       },
       fontFamily: {
         sans: ["Figtree_400Regular"],

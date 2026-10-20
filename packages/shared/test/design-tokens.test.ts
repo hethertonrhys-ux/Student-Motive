@@ -32,12 +32,17 @@ function variables(start: number) {
   const block = css.slice(css.indexOf("{", start) + 1, css.indexOf("}", start));
   return Object.fromEntries([...block.matchAll(/--([\w-]+):\s*([^;]+);/g)].map((m) => [m[1], m[2].trim().toLowerCase()]));
 }
-const lightVars = variables(css.indexOf(":root"));
-const darkVars = variables(css.indexOf(":root", css.indexOf("prefers-color-scheme: dark")));
+const lightAll = variables(css.indexOf(":root"));
+const darkAll = variables(css.indexOf(":root", css.indexOf("prefers-color-scheme: dark")));
+// The colours themselves, without their -rgb versions.
+const only = (vars: Record<string, string>, rgb: boolean) => Object.fromEntries(Object.entries(vars).filter(([k]) => k.endsWith("-rgb") === rgb));
+const lightVars = only(lightAll, false);
+const darkVars = only(darkAll, false);
 
 const lower = (colours: Record<string, string>) => Object.fromEntries(Object.entries(colours).map(([k, v]) => [cssName(k), v.toLowerCase()]));
 
-const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(", ");
+const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+const rgb = (hex: string) => channels(hex).join(", ");
 
 describe("design tokens", () => {
   it("reads colors.ts", () => {
@@ -53,9 +58,17 @@ describe("design tokens", () => {
     expect(darkVars).toEqual(lower(DARK));
   });
 
-  it("every colour has a Tailwind class", () => {
+  it("each colour's -rgb version is the same colour, in light and dark", () => {
+    // The classes use --x-rgb so faded versions (bg-danger/10) work.
+    for (const [all, colours] of [[lightAll, LIGHT], [darkAll, DARK]] as const) {
+      const expected = Object.fromEntries(Object.entries(colours).map(([k, v]) => [`${cssName(k)}-rgb`, channels(v).join(" ")]));
+      expect(only(all, true)).toEqual(expected);
+    }
+  });
+
+  it("every colour has a Tailwind class that can be faded", () => {
     for (const key of Object.keys(LIGHT)) {
-      expect(tailwind.theme.extend.colors[cssName(key)]).toBe(`var(--${cssName(key)})`);
+      expect(tailwind.theme.extend.colors[cssName(key)]).toBe(`rgb(var(--${cssName(key)}-rgb) / <alpha-value>)`);
     }
   });
 
