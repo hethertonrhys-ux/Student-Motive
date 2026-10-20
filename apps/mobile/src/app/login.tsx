@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter, Link } from "expo-router";
 import * as Linking from "expo-linking";
 import { useEffect, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
@@ -60,7 +60,7 @@ export default function LoginScreen() {
       options: {
         shouldCreateUser: true,
         // Used when the email contains a login link rather than a code.
-        emailRedirectTo: Platform.OS === "web" ? `${window.location.origin}/auth/callback` : Linking.createURL("/auth/callback"),
+        emailRedirectTo: Platform.OS === "web" ? `${window.location.origin}/auth/callback` : Linking.createURL("auth/callback"),
       },
     });
     setBusy(false);
@@ -148,6 +148,12 @@ export default function LoginScreen() {
                 </View>
                 {error && <T variant="semibold" className="text-sm text-danger">{error}</T>}
                 <Button onPress={sendCode} disabled={busy} testID="send-code">{busy ? "Sending…" : "Email me a login code"}</Button>
+                <View className="flex-row flex-wrap items-center gap-x-1" testID="agree">
+                  <Muted className="text-xs">By continuing you agree to Function&apos;s</Muted>
+                  <Link href="/terms" asChild><Pressable testID="agree-terms"><Muted className="text-xs underline">Terms of use</Muted></Pressable></Link>
+                  <Muted className="text-xs">and</Muted>
+                  <Link href="/privacy" asChild><Pressable testID="agree-privacy"><Muted className="text-xs underline">Privacy policy.</Muted></Pressable></Link>
+                </View>
                 <Pressable onPress={() => { setError(null); setStep("password"); }} className="self-start" testID="use-password">
                   <Muted className="text-xs">Have a password? (app review accounts only)</Muted>
                 </Pressable>

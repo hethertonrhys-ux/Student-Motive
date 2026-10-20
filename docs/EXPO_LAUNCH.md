@@ -76,24 +76,33 @@ before part 4. The old site keeps running untouched.
 you want shown in the App Store, it takes a day or two to be approved),
 Google Play Console (£20 once, play.google.com/console).
 
-From the repo on your computer (`npm install` first):
+From the repo on your computer, on the `expo-app` branch after the
+`app-store-prep` pull request is merged (`git pull`, then `npm install`):
 
 ```
 cd apps/mobile
 npx eas login
 npx eas init            # links the app to your Expo account; say yes to writing the project id into app.json
-npx eas build --profile preview --platform ios
-npx eas build --profile preview --platform android
+git add app.json && git commit -m "EAS project id" && git push
+npx eas build --profile production --platform ios
+npx eas submit --platform ios --latest
 ```
 
 - iOS: EAS asks to log in to your Apple account and sets up the
-  certificates for you. Say yes to everything it offers to create.
-- The first `eas build` for each platform asks a few questions; the
-  defaults are right.
-- When a build finishes, EAS shows a link and a QR code. iOS preview builds
-  go to **TestFlight** (App Store Connect → TestFlight → add yourself and
-  the committee as internal testers). Android preview builds are an `.apk`
-  you can install straight from the link.
+  certificates for you. Say **yes** when it offers to create a
+  distribution certificate and provisioning profile, and **yes** when it
+  asks "Set up Push Notifications?" (that creates the key notifications on
+  iPhones need). If anything asks to install `expo-updates`, say **no**.
+- A production build is what TestFlight and the App Store both take, so
+  there's no separate "preview" step. The build takes 15 to 25 minutes;
+  EAS shows a link where you can watch it.
+- `eas submit` uploads it to App Store Connect. The first time it asks for
+  an App Store Connect API key or your Apple login; follow the prompts.
+  After a few minutes it appears under **App Store Connect → TestFlight**:
+  add yourself and the committee as internal testers (they get an email
+  with the TestFlight app link). Each new build is the same two commands.
+- Android later: `npx eas build --profile production --platform android`
+  gives an `.aab` for the Play Console (part 5).
 
 **What to check on the phone** (the web tests can't cover these):
 
@@ -115,18 +124,15 @@ yet.
 `app.json` already asks iOS and Android to open `studentfunction.com`
 links (`/e/…`, `/s/…`, `/social/…`, `/u/…` and the login callback) in the app
 once it's installed. For that to work the website must publish two small
-files that name your app. Create them in `apps/mobile/public/.well-known/`
-once you know the two ids:
+files that name your app, in `apps/mobile/public/.well-known/`.
 
-`apple-app-site-association` (no file extension):
+The Apple one, `apple-app-site-association`, is already there with your
+Team ID (`FVT2MCM7C9`), and `vercel.json` serves it as JSON. Apple reads it
+from `https://studentfunction.com/.well-known/apple-app-site-association`,
+so it only starts working once part 4 (the domain switch) is done.
 
-```json
-{ "applinks": { "apps": [], "details": [ { "appID": "TEAMID.com.studentfunction.app", "paths": [ "/e/*", "/s/*", "/social/*", "/u/*", "/auth/callback" ] } ] } }
-```
-
-`TEAMID` is your Apple Team ID (developer.apple.com → Membership details).
-
-`assetlinks.json`:
+The Android one, `assetlinks.json`, still needs the app's signing
+fingerprint, which exists after the first Android build:
 
 ```json
 [ { "relation": [ "delegate_permission/common.handle_all_urls" ], "target": { "namespace": "android_app", "package_name": "com.studentfunction.app", "sha256_cert_fingerprints": [ "AA:BB:…" ] } } ]
@@ -135,14 +141,7 @@ once you know the two ids:
 The fingerprint comes from `npx eas credentials --platform android`
 (choose production → Keystore → it prints "SHA256 Fingerprint").
 
-Add this to `apps/mobile/vercel.json` under `"headers"` so the Apple file
-is served as JSON:
-
-```json
-{ "source": "/.well-known/apple-app-site-association", "headers": [ { "key": "Content-Type", "value": "application/json" } ] }
-```
-
-Until these files exist the links still work; they just open in the
+Until these files are live the links still work; they just open in the
 browser instead of the app.
 
 ---
@@ -189,15 +188,18 @@ Apple and Google reviewers must be able to log in. They can't receive your
 email codes, so the app has a password path for review accounts only
 ("Have a password? (app review accounts only)" under the email box).
 
-1. Supabase → Authentication → Users → **Add user** → Create new user:
-   email `review@studentfunction.com` (any address you control), a long
-   password, and tick **Auto Confirm User**.
-2. Make that email allowed to use Function: the app's Admin page → "Who can
-   join" → add `review@studentfunction.com`. (Or SQL:
+1. First allow the email, or the next step fails with "Database error
+   creating new user": the app's Admin panel → "Who can join" → add
+   `review@studentfunction.com` (any address you control). (Or SQL:
    `insert into allowed_emails (email) values ('review@studentfunction.com');`)
-3. Log in with it once yourself (email + password in the app), finish the
-   welcome screen, join a society and an event so the reviewer sees a
-   populated app.
+2. Supabase → Authentication → Users → **Add user** → Create new user:
+   that email, a long password, and tick **Auto Confirm User**.
+3. Log in with it once yourself (email + "Have a password?" in the app),
+   finish the welcome screen (pick a university and graduation year), join
+   a society and **approve that membership** from the society's dashboard →
+   Members (otherwise it sits as "pending" and the reviewer sees a closed
+   app), then join an upcoming event and a Social plan so the account
+   looks lived-in.
 4. Put the email and password in the review notes on both stores.
    Change the password after the apps are approved, or delete the user.
 
@@ -218,32 +220,54 @@ Each production build bumps the build number by itself. `version` in
 - **My Apps → + → New App:** iOS, name **Function**, primary language
   English (UK), bundle ID `com.studentfunction.app`, SKU `function-ios`.
 - **App Information:** category **Social Networking**, secondary
-  **Lifestyle**. Content rights: no third-party content. Age rating: answer
-  the questionnaire honestly; "Unrestricted Web Access" is No. Expect 17+
-  or 12+ depending on your answers about user-generated content; Function
-  has messaging and photos, so say yes to those.
-- **Privacy Policy URL:** `https://studentfunction.com/privacy`.
-  **Support URL:** `https://studentfunction.com/support`.
-- **App Privacy (the "nutrition label"):** Function collects, linked to the
-  user, for app functionality only, not for tracking:
-  - Contact info: email address
-  - User content: photos, messages, other user content (profile, prompts)
-  - Identifiers: user ID
-  - Usage data: product interaction (the sign-up funnel events)
-  - Location: precise location is used on the device only and never sent
-    to you, so answer **not collected** for location.
-- **Version page:** screenshots (6.7" and 6.5" iPhone; take them from a
-  TestFlight build: map, an event, societies, social, a profile), the
-  description below, keywords, support URL, marketing URL
-  (`https://studentfunction.com`).
+  **Lifestyle**. Content rights: the app does contain third-party content
+  (the map data, © OpenStreetMap contributors, under an open licence), so
+  answer yes and confirm you have the rights. Age rating: answer the
+  questionnaire honestly; "Unrestricted Web Access" is No; say yes to
+  user-generated content and messaging, no to gambling (nothing is
+  wagered through the app), then set the rating to **18+** to match the
+  Terms (Function is for university students).
+- **Privacy Policy URL** and **Support URL:** until part 4 is done,
+  `studentfunction.com` is still the old website, whose privacy page
+  carries a "Draft" banner, so use `https://app.studentfunction.com/privacy`
+  and `https://app.studentfunction.com/support` for now and change them to
+  `studentfunction.com` after the switch. Open whichever you enter in a
+  private window first and check it has no "Draft" text.
+- **App Privacy (the "nutrition label"):** everything is collected for app
+  functionality, linked to the user, and **not** used for tracking:
+  - Contact info: name, email address
+  - User content: photos or videos; emails or text messages (chats); other
+    user content (bio, course, prompts, Two truths, events you host and
+    their addresses, RSVPs, society memberships, reports, poker results)
+  - Identifiers: user ID; device ID (the push-notification token)
+  - Usage data: product interaction (the sign-up funnel). Search history
+    (the "all London unis" searches), for analytics.
+  - Location: precise location, **not linked** to the user, app
+    functionality only (it's sent to the routing service when someone asks
+    for walking directions; "near me" never leaves the phone).
+  - Financial info: answer **Other financial info**, linked, app
+    functionality (the poker ledger records what players owe each other;
+    no payments go through the app). Everything else: not collected.
+- **Version page:** screenshots from the TestFlight build on an iPhone 16
+  or 17 Pro Max (6.9", 1320 × 2868) and an iPhone 16 or 17 (6.3",
+  1206 × 2622): map, an event, societies, social, a profile. App Store
+  Connect makes the other sizes from those. Then the description below,
+  keywords, support URL, marketing URL (`https://studentfunction.com`).
 - **App Review Information:** sign-in required: yes; the review email and
   password; notes: "Function is for students at London universities.
-  Students log in with a code emailed to their university address. The
-  review account uses a password instead. Account deletion is under Me →
-  Edit profile → Delete my account."
+  Students log in with a code emailed to their university address; the
+  review account uses a password instead (tap 'Have a password?' under the
+  email box). Account deletion is under Me → Edit profile → Delete my
+  account. The LSE Poker Society feature lets a student society seat
+  players at its own games and record results and who has settled up with
+  whom afterwards; no money is wagered, paid or transferred through the
+  app." Keep poker screens out of the screenshots.
 - **Export compliance:** `app.json` already says the app uses no
-  non-exempt encryption (it only uses standard HTTPS), so the question is
-  skipped.
+  non-exempt encryption (only standard HTTPS and the usual encryption that
+  secures the login session), so the question is skipped.
+- **Email:** make sure `management@studentfunction.com` and
+  `help@studentfunction.com` actually receive mail (they are on the privacy
+  and support pages, and App Review may write to them).
 
 ### Google Play Console (play.google.com/console)
 
@@ -348,7 +372,6 @@ or a one-off command; none changes existing data.
 - **Updates:** small fixes can go out without the stores through EAS Update
   later; it isn't set up yet (needs `expo-updates`). For now, each release
   is `eas build --profile production` and `eas submit`.
-- **Push notifications** aren't built (see `EXPO_PLAN.md`, phase 10).
 - **Watch for:** the Supabase email rate limit (the free plan sends few
   auth emails per hour; set up a custom SMTP provider in Supabase →
   Authentication → SMTP before a big launch day).

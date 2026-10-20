@@ -99,10 +99,14 @@ export function usePushLifecycle(userId: string | null) {
       })();
     }, 5000);
     if (Platform.OS === "web") return () => clearTimeout(timer);
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const url = response.notification.request.content.data?.url;
+    const open = (response: Notifications.NotificationResponse | null) => {
+      const url = response?.notification.request.content.data?.url;
       if (typeof url === "string" && url.startsWith("/")) router.push(url as never);
-    });
+    };
+    const sub = Notifications.addNotificationResponseReceivedListener(open);
+    // A tap that launched the app happened before this listener existed.
+    open(Notifications.getLastNotificationResponse());
+    Notifications.clearLastNotificationResponse();
     return () => {
       clearTimeout(timer);
       sub.remove();
