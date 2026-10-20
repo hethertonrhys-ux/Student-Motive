@@ -29,8 +29,9 @@ export default function TermsPage() {
 
       <H2>Reporting and removal</H2>
       <P>
-        Anyone can report content. We review reports and may hide content or remove access for anyone who breaks
-        these terms. Objectionable content is reviewed within 24 hours.
+        Anyone can report content, and you can block anyone. We have no tolerance for objectionable content or
+        abusive users: content that breaks these terms is removed, and the account behind it can be banned.
+        Reports are reviewed within 24 hours.
       </P>
 
       <H2>Liability</H2>

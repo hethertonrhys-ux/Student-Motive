@@ -1,0 +1,19 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["FVT2MCM7C9.com.studentfunction.app"],
+        "appID": "FVT2MCM7C9.com.studentfunction.app",
+        "paths": ["/e/*", "/s/*", "/social/*", "/u/*", "/auth/callback"],
+        "components": [
+          { "/": "/e/*" },
+          { "/": "/s/*" },
+          { "/": "/social/*" },
+          { "/": "/u/*" },
+          { "/": "/auth/callback" }
+        ]
+      }
+    ]
+  }
+}

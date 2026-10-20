@@ -12,15 +12,19 @@ export function PushPromptCard({ userId }: { userId: string }) {
   if (state === "done") return null;
   async function turnOn() {
     setState("busy");
-    const status = await enablePush(userId);
-    setState(status === "granted" ? "done" : "denied");
-    if (status === "granted") dismiss();
+    try {
+      const status = await enablePush(userId);
+      setState(status === "granted" ? "done" : "denied");
+      if (status === "granted") dismiss();
+    } catch {
+      setState("denied");
+    }
   }
   return (
     <View className="mt-4 gap-2 rounded-2xl border border-line bg-brand-soft px-4 py-3" testID="push-prompt">
       <T variant="semibold">Want a nudge when it&apos;s starting?</T>
       <Muted className="text-sm">Turn on notifications for event reminders, messages and friend requests. You can change what you get at any time in Me → Notifications.</Muted>
-      {state === "denied" && <Muted className="text-sm">Notifications are off for Function in your phone&apos;s settings. Turn them on there if you change your mind.</Muted>}
+      {state === "denied" && <Muted className="text-sm">Couldn&apos;t turn notifications on here. If they&apos;re off for Function in your phone&apos;s settings, turn them on there; otherwise try again later from Me → Notification settings.</Muted>}
       <View className="flex-row gap-2">
         <Button className="py-2" onPress={() => void turnOn()} disabled={state === "busy"} testID="push-enable">{state === "busy" ? "Turning on…" : "Turn on"}</Button>
         <Button variant="ghost" className="py-2" onPress={dismiss} testID="push-later">Not now</Button>

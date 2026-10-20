@@ -19,6 +19,7 @@ export default function NotificationSettingsScreen() {
   const queryClient = useQueryClient();
   const settings = useQuery({ queryKey: ["notification-settings", myId], queryFn: () => loadNotificationSettings(supabase, myId!), enabled: !!myId });
   const [status, setStatus] = useState<PushStatus | null>(null);
+  const [pushError, setPushError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     void getPushStatus().then(setStatus);
@@ -58,9 +59,10 @@ export default function NotificationSettingsScreen() {
               {status === "undetermined" && (
                 <View className="flex-row flex-wrap items-center justify-between gap-3">
                   <Muted className="flex-1 text-sm">You haven&apos;t turned notifications on here yet.</Muted>
-                  <Button className="py-2" onPress={() => void enablePush(myId).then(setStatus)} testID="push-enable">Turn on</Button>
+                  <Button className="py-2" onPress={() => void enablePush(myId).then(setStatus).catch(() => setPushError("Couldn't turn notifications on here right now. Try again later."))} testID="push-enable">Turn on</Button>
                 </View>
               )}
+              {pushError && <T variant="semibold" className="text-sm text-danger">{pushError}</T>}
             </Card>
             <Card className="mt-6 gap-1" testID="notification-kinds">
               {NOTIFICATION_KINDS.map((k, i) => {

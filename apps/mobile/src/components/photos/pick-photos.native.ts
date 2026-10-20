@@ -1,5 +1,6 @@
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
+import { Platform } from "react-native";
 import type { Picked, PickOptions } from "./pick-photos";
 
 export const CAN_RECROP = false;
@@ -40,8 +41,11 @@ async function shrink(uri: string, width: number, height: number): Promise<Array
 // The phone's photo library. One photo: the phone's own cropper, to the
 // right shape. Several: each is cropped to the shape, centred.
 export async function pickPhotos({ count, aspect, output = 1080, keepOriginal = false }: PickOptions): Promise<Picked[]> {
-  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted) throw new Error("Function needs access to your photos. Allow it in your phone's settings.");
+  // iOS shows its own picker without needing photo-library access; Android needs the permission.
+  if (Platform.OS !== "ios") {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) throw new Error("Function needs access to your photos. Allow it in your phone's settings.");
+  }
   const ratio: [number, number] = aspect === 1 ? [1, 1] : [4, 5];
   const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsMultipleSelection: count > 1, selectionLimit: count, allowsEditing: count === 1, aspect: ratio, quality: 1, exif: false });
   if (result.canceled) return [];

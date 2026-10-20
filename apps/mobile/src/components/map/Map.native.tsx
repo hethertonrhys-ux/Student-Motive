@@ -124,8 +124,8 @@ export function LiveMap({ events, now, look, home, me, walk, onSelect, onReady, 
             ...Object.fromEntries(CATEGORY_ORDER.map((c) => [c, ["+", ["case", ["==", ["get", "category"], c], 1, 0]]])),
           }}
         >
-          {/* Invisible: the map works out the groups, and the pins below follow. */}
-          <Layer id="events-hidden" type="circle" style={{ circleRadius: 0, circleOpacity: 0 }} />
+          {/* As good as invisible (the native map ignores a layer it doesn't draw at all): the map works out the groups, and the pins below follow. */}
+          <Layer id="events-hidden" type="circle" style={{ circleRadius: 1, circleOpacity: 0.01 }} />
         </GeoJSONSource>
 
         {/* The soft "busy area" glow when zoomed out. */}
