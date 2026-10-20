@@ -21,9 +21,9 @@ This pull request is waiting for you. It goes live only when you:
    - They change nothing for the three live societies.
    - The current app and website keep working with them.
 3. **Test the new features on your phone, before merging.** Open the Vercel preview link that appears on this pull request, then use the checklist in section 4.
-4. **Merge** when you're happy. That updates app.studentfunction.com.
-   - Phones get the new screens only with the next App Store build.
-5. **Read section 5.** It lists the things only you can do, such as adding the LSESU templates.
+4. **Move studentfunction.com to the new app** (section 5). Claim links and "open in app" links use that address, and it still shows the old website.
+5. **Merge** when you're happy. That updates the website. Then build the App Store version, which now includes everything here.
+6. **Read section 5.** It lists the things only you can do, such as adding the LSESU templates.
 
 ---
 
@@ -264,7 +264,8 @@ The Hub is built for phones first. On screens wider than 1024px, it shows a side
 
 - **Template filling** waits for the LSESU templates, as you asked (section 5).
 - **No "Unpublish" button.** Unpublishing would hide a live event from everyone going to it. To call an event off, use **Edit → Mark as cancelled**, as now.
-- **The new screens aren't in the current App Store build.** The Hub and claim links work on the website now, and on phones after the next build. That's why some notification links open the society dashboard for now (see decisions).
+- **The App Store version gets these screens with the next build.** That build should be made after this pull request is merged. The phone build on TestFlight now has no Hub, so a Hub notification or link opens "not found" there until it's updated.
+- **Claim links need studentfunction.com moved to the new app.** Claim links are made with `https://studentfunction.com/claim/…`, but that address still shows the old website, which has no claim page (section 5).
 - **The "Share to your story" card** was only tested on the website, where it can be downloaded as an image. On phones it asks the committee to screenshot it. Neither has been tried on a real phone yet.
 - **One small back-button quirk.** If you open setup straight from a claim link and tap **Finish later**, pressing back from the Hub home goes back into the setup, not to the page before it.
 - **The old Next.js site** (`apps/web`, the purple-logo one still on studentfunction.com) was not changed. It doesn't know about drafts, but the database hides drafts from anyone who isn't on the committee.
@@ -350,10 +351,13 @@ These are the choices I made when something wasn't specified. Each one is easy t
 - **When the late warning shows.** The red warning only shows until "Form submitted" is ticked.
 
 ### Push notifications
-- **Notification links open the society dashboard for now.** This covers being added as a manager, a request going Live, the Founding nudge and checklist reminders.
-  - The current App Store build has no Hub screens, so a Hub link would open "not found".
-  - After the next App Store build, these can point at the Hub (section 5).
-- **Claim links and Hub links open in the browser on phones.** They aren't yet in the app's universal links, for the same reason.
+- **Which screen each notification opens.** Since the App Store build will include the Hub (your decision):
+  - "You're now a manager" opens the society's Hub.
+  - A request going Live opens the Hub's Requests page.
+  - The Founding nudge opens the Hub.
+  - Checklist reminders open the event's manage screen, where the Event admin card is.
+- **Claim and Hub links open in the app** on iPhone, when it's installed. That needs studentfunction.com to show the new app (section 5).
+- **Android.** Android does the same once its app is set up for links. That needs the signing fingerprint, which is listed in `docs/EXPO_LAUNCH.md`.
 
 ---
 
@@ -382,6 +386,7 @@ These files expect every earlier one to have been run already, up to `2026111500
 | 6 | [`20261121000000_event_admin.sql`](https://github.com/hethertonrhys-ux/Student-Motive/blob/society-onboarding/supabase/migrations/20261121000000_event_admin.sql) | Part 5: event admin answers, drafts and the "SU approved" gate. |
 | 7 | [`20261122000000_event_admin_documents.sql`](https://github.com/hethertonrhys-ux/Student-Motive/blob/society-onboarding/supabase/migrations/20261122000000_event_admin_documents.sql) | Part 5: the private storage for the forms, and the checklist reminders. |
 | 8 | [`RUN_ONCE_hub_cron.sql`](https://github.com/hethertonrhys-ux/Student-Motive/blob/society-onboarding/supabase/RUN_ONCE_hub_cron.sql) | The daily 8:05am timer that sends the Founding nudges and checklist reminders. Run it once, after file 7. It relies on the push timer you set up before. |
+| 9 | [`20261123000000_hub_push_links.sql`](https://github.com/hethertonrhys-ux/Student-Motive/blob/society-onboarding/supabase/migrations/20261123000000_hub_push_links.sql) | **Added after you ran 1 to 8.** Makes the Hub notifications open the Hub. Run it before the App Store version goes live. It only changes where three notifications open, and it's safe to run twice. |
 
 **Notes:**
 - **Timing.**
@@ -405,6 +410,8 @@ These files expect every earlier one to have been run already, up to `2026111500
 **Setting up a test society:**
 1. Pick an unclaimed society in Admin → Societies, or ask me to add a "Function Test Society".
 2. Make yourself a claim link and open it.
+   - Until studentfunction.com is moved to the new app, change the start of the link from `https://studentfunction.com` to the preview address before opening it.
+   - Keep the `/claim/…` part as it is.
 
 **Check the live societies don't change.** After every part, open LSE Poker Society's page and dashboard. They should look and behave exactly as before.
 
@@ -508,10 +515,17 @@ Use an LSE test society with Event admin on. Picking a type in its setup ticks E
 7. **Committee emails.** Committees no longer see members' email addresses (your rule). If LSE Poker's committee relies on seeing them, let me know.
 8. **Claim page help address:** help@ or management@?
 
-### After the next App Store build (with this branch merged)
-9. **Point notification links at the Hub.** Notifications open the society dashboard for now. Once the new build is live, ask me to switch them to the Hub. It's a small migration.
-10. **Open claim and Hub links in the app.** Ask me to add `/claim` and `/hub` to the app's universal links, so they open in the app rather than the browser.
+### Before the App Store release
+9. **Run [`20261123000000_hub_push_links.sql`](https://github.com/hethertonrhys-ux/Student-Motive/blob/society-onboarding/supabase/migrations/20261123000000_hub_push_links.sql)** the same way as the others. It makes the Hub notifications open the Hub.
+10. **Move studentfunction.com to the new app.**
+    - Why it's needed:
+      - studentfunction.com still shows the old purple-logo site from `apps/web`.
+      - The app makes claim links, event share links and story links with that address.
+      - The iPhone app only opens links in the app when that address serves the new app's link file.
+      - So until it moves, claim links open the old site's "page not found".
+    - It's a 5-minute change in Vercel (the domain stays in the same Vercel team, so GoDaddy doesn't change). I'll walk you through it.
+    - The new app already has the landing page, uni pages, privacy, terms and support.
+11. **Build the App Store version after merging**, so it includes everything here.
 
 ### Housekeeping
-11. **Fix studentfunction.com.** It still shows the old purple-logo site from `apps/web`. Point it at the new app (the domain switch we talked about).
 12. **The failing "student-motive" check.** Vercel's old "student-motive" project shows a failing check on pull requests. That's the old website, and it was already failing before this branch. The "function-app" check is the one that matters.

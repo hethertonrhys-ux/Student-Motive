@@ -102,7 +102,8 @@ export function HubLogin({ next }: { next: string }) {
     <Card className="gap-4 p-6" testID="hub-login">
       <Heading>Society Hub</Heading>
       <T className="text-base">Log in to run your society on Function.</T>
-      <Link href={{ pathname: "/login", params: { next } }} asChild>
+      {/* Replace, not push: this page mustn't stay underneath login. */}
+      <Link replace href={{ pathname: "/login", params: { next } }} asChild>
         <BigButton testID="hub-login-button">Log in</BigButton>
       </Link>
     </Card>

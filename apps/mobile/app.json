@@ -50,6 +50,16 @@
               "scheme": "https",
               "host": "studentfunction.com",
               "pathPrefix": "/u/"
+            },
+            {
+              "scheme": "https",
+              "host": "studentfunction.com",
+              "pathPrefix": "/claim/"
+            },
+            {
+              "scheme": "https",
+              "host": "studentfunction.com",
+              "pathPrefix": "/hub"
             }
           ],
           "category": [

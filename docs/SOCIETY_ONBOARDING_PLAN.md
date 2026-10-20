@@ -57,6 +57,8 @@ and gets the right SU paperwork for every new event without thinking about it.
 5. `20261121000000_event_admin.sql` (Part 5a: rules, drafts, the approval gate)
 6. `20261122000000_event_admin_documents.sql` (Part 5b: documents storage, checklist reminders)
 7. `RUN_ONCE_hub_cron.sql`: one daily timer for the Hub reminders (Parts 4, 5)
+8. `20261123000000_hub_push_links.sql`: the Society Hub pushes open the Hub
+   (the App Store build now includes it; see the decisions in Parts 2 to 4)
 
 **Existing permission problems found (fixed in migration 0).**
 - Any logged-in student could edit or delete other people's profiles through
@@ -143,9 +145,13 @@ in Part 3). New page `/claim/<secret>`: logged out it shows the society and
 once and opens the Hub's setup. Used or expired links get a friendly message.
 The existing "Claim this page" request flow stays as it is.
 
-*Decision:* the link isn't added to the app's universal links yet (an app
-build without this screen would open to "not found"), so it opens in the
-browser, which works on phones.
+*Decision:* claim links (`/claim/…`) and the Hub (`/hub`, `/hub/…`) are
+in the app's universal links (`apple-app-site-association` and the Android
+intent filters in `app.json`), because the next App Store build includes
+these screens. With the app installed they open in the app, logged in or
+not (logged out, you log in and come back to the link); without it they
+open in the browser, which works on phones. They were left out at first,
+when no app build had these screens.
 
 ## Part 3: the Society Hub and onboarding wizard
 
@@ -204,9 +210,12 @@ needs no new app packages and works in the current app build.
 - Existing societies aren't marked as set up: their committees see "Finish
   setting up" in the Hub. Their features don't change (every feature already
   has an explicit choice from Part 1).
-- Hub links open in the browser until an app build with the Hub is out,
-  like claim links. Until then the "added as a manager" push opens the
-  society's dashboard, which every app build has.
+- Hub links open in the app (they're universal links, like claim links),
+  and the "added as a manager" push opens the society's Hub and says "Open
+  the Society Hub to see it." (`20261123000000_hub_push_links.sql`). At
+  first it opened the society's dashboard, because no app build had the Hub
+  yet; an older build without the Hub (only TestFlight testers have one)
+  opens "not found" from it now.
 - Nobody can be made a manager by someone they've blocked or who has
   blocked them ("You can't add this person", as for friend requests).
 - Adding by email only invites emails that can sign up (a London uni email,
@@ -240,9 +249,11 @@ needs no new app packages and works in the current app build.
   managers, then "Remove me" (not allowed for the last manager).
 
 *Decisions made while building it:*
-- The "request is live" push and the weekly Founding nudge open the
-  society's dashboard, like the "added as a manager" push, until an app build
-  with the Hub is out (the builds in the stores have no Hub screens).
+- The "request is live" push opens the Hub's Requests page, and the
+  weekly Founding nudge opens the society's Hub
+  (`20261123000000_hub_push_links.sql`, now the App Store build includes
+  the Hub). At first both opened the society's dashboard, like the "added
+  as a manager" push.
 - Only the society's own managers send requests; a Function admin looking
   at a society's Hub sees its requests but not the form. A request can't be
   edited once sent, and its dates, society and sender are set by the server.

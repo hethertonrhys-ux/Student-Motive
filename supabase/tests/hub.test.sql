@@ -115,8 +115,11 @@ reset role;
 select pg_temp.expect(exists (select 1 from public.society_admins where society_id = '40000000-0000-0000-0000-000000000001' and user_id = '00000000-0000-0000-0000-000000000002'), 'Sam added Bea as a manager');
 select pg_temp.expect((select is_admin from public.profiles where id = '00000000-0000-0000-0000-000000000002') = false, 'Bea is still not a Function admin');
 select pg_temp.expect((select count(*) from public.push_queue where user_id = '00000000-0000-0000-0000-000000000002' and kind = 'hub'
-  and title = 'You''re now a manager of Hub H Society' and body = 'Open Function to see it.'
-  and url = '/dashboard/40000000-0000-0000-0000-000000000001') = 1, 'Bea gets one Society Hub push, opening the society''s dashboard');
+  and title = 'You''re now a manager of Hub H Society' and body = 'Open the Society Hub to see it.'
+  and url = '/hub/40000000-0000-0000-0000-000000000001') = 1, 'Bea gets one Society Hub push, opening the society''s Hub');
+select pg_temp.expect((select body from public.push_queue where dedupe_key = 'manager-added:40000000-0000-0000-0000-000000000001:00000000-0000-0000-0000-000000000002')
+  = 'Open the Society Hub to see it.', 'the push says "Open the Society Hub to see it."');
+select pg_temp.expect(not exists (select 1 from public.push_queue where body = 'Open Function to see it.'), 'the old wording is no longer used');
 
 -- Blocks: nobody is made a manager by someone they've blocked (or who has
 -- blocked them). Cas blocks Sam; Sam manages Hub B.

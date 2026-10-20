@@ -146,8 +146,8 @@ select pg_temp.act_as('00000000-0000-0000-0000-0000000000a0');
 update public.feature_requests set status = 'live' where id = '51000000-0000-0000-0000-000000000001';
 select pg_temp.as_server();
 select pg_temp.expect((select count(*) from public.push_queue where kind = 'hub' and title = 'Your feature request is live'
-  and body = 'Check people in at the door with a QR code' and url = '/dashboard/50000000-0000-0000-0000-000000000001'
-  and user_id in ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000e1')) = 2, 'Sam and Eve each get a push opening the society''s dashboard');
+  and body = 'Check people in at the door with a QR code' and url = '/hub/50000000-0000-0000-0000-000000000001/requests'
+  and user_id in ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000e1')) = 2, 'Sam and Eve each get a push opening the Hub''s Requests page');
 select pg_temp.expect((select count(*) from public.push_queue where user_id = '00000000-0000-0000-0000-0000000000f1') = 0, 'Fay, with no phone set up, gets no push row');
 select pg_temp.expect((select count(*) from public.push_queue where user_id = '00000000-0000-0000-0000-000000000003') = 0, 'another society''s manager is not told');
 select pg_temp.expect((select count(*) from public.push_queue where dedupe_key = 'request-live:51000000-0000-0000-0000-000000000001:00000000-0000-0000-0000-000000000001') = 1, 'the dedupe key names the request and the person');
@@ -402,7 +402,7 @@ update public.events set created_at = now() - interval '2 days' where id = '5200
 select pg_temp.expect(public.queue_hub_reminders() = 1, 'one nudge queued (Sam, F''s only manager)');
 select pg_temp.expect((select count(*) from public.push_queue where user_id = '00000000-0000-0000-0000-000000000001' and kind = 'hub'
   and title = 'Time to post your next event?' and body = '3 of 3 events posted. Post your next one to keep your Founding badge.'
-  and url = '/dashboard/50000000-0000-0000-0000-000000000003'
+  and url = '/hub/50000000-0000-0000-0000-000000000003'
   and dedupe_key = 'founding-nudge:50000000-0000-0000-0000-000000000003:00000000-0000-0000-0000-000000000001:' || floor(extract(epoch from now()) / 604800)::bigint) = 1, 'Sam is nudged about F, with its progress (5 events shown as 3 of 3)');
 select pg_temp.expect((select count(*) from public.push_queue where user_id = '00000000-0000-0000-0000-0000000000e1') = 0, 'H (posted 2 days ago) and G (not agreed) get no nudge');
 select pg_temp.expect(public.queue_hub_reminders() = 0, 'running it again queues nothing');
@@ -433,7 +433,7 @@ update public.founding_agreements set agreed_at = now() - interval '10 days' whe
 update public.events set created_at = now() - interval '8 days' where id = '52000000-0000-0000-0000-000000000007';
 insert into public.society_admins (society_id, user_id) values ('50000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000002');
 select pg_temp.expect(public.queue_hub_reminders() = 2, 'F''s and H''s managers with phones are nudged');
-select pg_temp.expect((select count(*) from public.push_queue where user_id = '00000000-0000-0000-0000-0000000000e1' and url = '/dashboard/50000000-0000-0000-0000-000000000005') = 1, 'Eve is nudged about H');
+select pg_temp.expect((select count(*) from public.push_queue where user_id = '00000000-0000-0000-0000-0000000000e1' and url = '/hub/50000000-0000-0000-0000-000000000005') = 1, 'Eve is nudged about H, opening its Hub');
 -- Pushes switched off: none.
 delete from public.push_queue;
 insert into public.notification_settings (user_id, hub) values ('00000000-0000-0000-0000-0000000000e1', false)

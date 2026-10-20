@@ -140,7 +140,8 @@ yet.
 ### Links that open the app
 
 `app.json` already asks iOS and Android to open `studentfunction.com`
-links (`/e/…`, `/s/…`, `/social/…`, `/u/…`) in the app
+links (`/e/…`, `/s/…`, `/social/…`, `/u/…`, and society claim links
+`/claim/…` and the Society Hub `/hub`, `/hub/…`) in the app
 once it's installed. For that to work the website must publish two small
 files that name your app, in `apps/mobile/public/.well-known/`.
 
@@ -161,6 +162,12 @@ The fingerprint comes from `eas credentials --platform android`
 
 Until these files are live the links still work; they just open in the
 browser instead of the app.
+
+Claim and Hub links were added for the App Store build that includes the
+Society Hub. On Android they work from that build on. On iPhones the list
+comes from the website, so once the website is deployed an older build
+without the Hub (only TestFlight testers have one) opens those links to
+"not found" until it's updated.
 
 ---
 
