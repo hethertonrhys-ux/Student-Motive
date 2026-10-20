@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Pressable, Text, TextInput, View, type PressableProps, type TextInputProps, type TextProps, type ViewProps } from "react-native";
+import { Pressable, ScrollView, Text, TextInput, View, type PressableProps, type ScrollViewProps, type TextInputProps, type TextProps, type ViewProps } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { usePlaceholderColor } from "@/lib/theme";
 
 // The website's shared styles (.btn, .btn-ghost, .card, .input, .label in
@@ -69,4 +70,39 @@ export function Button({
 
 export function Muted({ className = "", ...props }: TextProps & { className?: string }) {
   return <T className={`text-muted ${className}`} {...props} />;
+}
+
+// A screen: the page background, kept clear of the notch and home
+// indicator, with the content in a centred column that scrolls. "wide" is
+// the landing pages' wider column. The ScrollView's own props (refreshControl,
+// keyboardShouldPersistTaps...) pass straight through.
+export function Screen({ children, wide = false, className = "", ...props }: ScrollViewProps & { children: ReactNode; wide?: boolean; className?: string }) {
+  return (
+    <SafeAreaView className="flex-1 bg-bg">
+      <ScrollView contentContainerClassName={`mx-auto w-full px-4 py-8 ${wide ? "max-w-5xl" : "max-w-2xl"} ${className}`} {...props}>
+        {children}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// A section's title inside a screen ("Events coming up", "My 5").
+export function SectionTitle({ className = "", ...props }: TextProps & { className?: string }) {
+  return <T variant="display" className={`text-xl ${className}`} {...props} />;
+}
+
+// A small rounded label: "brand" (soft red, e.g. "Recommended"), "live"
+// (the LIVE badge) or "quiet" (a grey outline).
+type PillTone = "brand" | "live" | "quiet";
+const PILL: Record<PillTone, { box: string; text: string }> = {
+  brand: { box: "bg-brand-soft", text: "text-brand" },
+  live: { box: "bg-live", text: "text-white" },
+  quiet: { box: "border border-line bg-surface", text: "text-muted" },
+};
+export function Pill({ children, tone = "brand", className = "", ...props }: ViewProps & { children: ReactNode; tone?: PillTone; className?: string }) {
+  return (
+    <View className={`flex-row items-center gap-1 self-start rounded-full px-2.5 py-0.5 ${PILL[tone].box} ${className}`} {...props}>
+      {typeof children === "string" ? <T variant="bold" className={`text-xs ${PILL[tone].text}`}>{children}</T> : children}
+    </View>
+  );
 }
