@@ -371,6 +371,52 @@ before each checklist deadline.
   admin on can't post from an old app build (the database asks for "SU
   approved" first). No society on Function today has Event admin on.
 
+*Decisions made while building Part 5b (the Event admin card, checklist,
+reminders, Security email and the documents function):*
+- LSESU's templates aren't in the repo yet, so nothing fills them in. The
+  app says "Risk assessment and budget: coming soon" and shows, as a
+  preview, the hazards and the budget lines Function will use to prepare
+  the drafts. The server function `event-documents` checks who's asking and
+  answers "Templates not added yet" (a marked TODO says what it will do
+  once the templates are in `docs/lsesu-templates/`). The app doesn't call
+  it yet; `requestEventDocument()` in the shared code is ready for when it
+  does.
+- Ticking a checklist item goes through one database function
+  (`set_event_checklist_item`), which records when and who on the server.
+  It's the only way to change the checklist from the app: a direct write
+  to `event_admin` keeps the checklist as it was (a new row starts with
+  nothing ticked). Ticking an item that's already ticked keeps the first
+  tick. "SU
+  approved" stays `su_approved_at` (the approval gate reads it), and the
+  reminders treat it as ticked once that's set.
+- The late warning shows until "Form submitted" is ticked (and not for an
+  event that has already happened). "<n> working days left" counts today
+  and the submit-by day itself; on the day it says "today's the last day".
+  Once "Form submitted" is ticked it says "submitted" instead.
+- Items an event doesn't need are listed in one line under the checklist
+  ("Not needed for this event: …") rather than as tick rows.
+- Reminders go to each of the society's managers (not Function admins)
+  from 2 days before a deadline to the deadline itself, at most once a day
+  per item, only for upcoming events that aren't cancelled or hidden, and
+  only while the society still has Event admin on. A deadline that isn't a
+  real date is skipped. They open the event's manage screen.
+- The Security email leaves the To empty (we don't know each building's
+  Security reception address) and starts "Add your building's Security
+  reception email above." It lists people going whose uni isn't the
+  society's (or isn't known), by their full name if they've given one
+  (Security checks names against ID), never their email. If anyone going
+  can't be looked up, the button stays off and says so, rather than
+  leaving them out. Drafting it doesn't tick "Security guest list sent":
+  the committee ticks it once they've sent it.
+- There's no "Unpublish" in the card: taking a published event back to a
+  draft would hide it from everyone who's going. Cancelling the event (in
+  Edit) stays the way to call it off.
+- A draft's hosts (`event_hosts`) are only shown to the people who can see
+  the draft (its committee, the student hosting it, Function admins).
+- The draft banner on the event page now links to the Event admin card
+  ("Event admin and checklist →"); for a society without Event admin it
+  still links to the edit screen.
+
 ---
 
 ## How each part is checked before it's committed

@@ -61,7 +61,7 @@ function parseWhole(text: string): number | null | undefined {
 }
 const poundsText = (pence: number) => (pence % 100 === 0 ? String(pence / 100) : (pence / 100).toFixed(2));
 // "10 working days' notice", "1 month's notice".
-const noticePhrase = (label: string) => `${label}${label.endsWith("s") ? "'" : "'s"} notice`;
+export const noticePhrase = (label: string) => `${label}${label.endsWith("s") ? "'" : "'s"} notice`;
 
 // The section's state, kept by the event form (it changes the ticket link
 // field and the submit button too).

@@ -12,6 +12,7 @@ import { bankHolidaysKnown, londonDate, subtractCalendarMonths, subtractWorkingD
 export * from "./bank-holidays";
 export * from "./hazards";
 export * from "./lse";
+export * from "./security-email";
 export * from "./types";
 export * from "./working-days";
 

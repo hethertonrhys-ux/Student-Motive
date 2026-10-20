@@ -288,14 +288,27 @@ export type EventAdminRow = {
   native_url: string | null;
   form: EventAdminForm | null;
   submit_by: string | null;
-  // Ticked checklist items (the committee's own ticks).
-  checklist: Partial<Record<ChecklistKey, boolean | string>> | null;
+  // Ticked checklist items (the committee's own ticks), with when and who
+  // (set by the server: set_event_checklist_item). "SU approved" is
+  // su_approved_at instead.
+  checklist: Partial<Record<ChecklistKey, ChecklistTick>> | null;
   // When each checklist item this event needs is due ('YYYY-MM-DD').
   deadlines: Partial<Record<ChecklistKey, string>> | null;
   su_approved_at: string | null;
   su_approved_by: string | null;
   updated_at: string;
 };
+
+export type ChecklistTick = { done_at: string; done_by: string | null };
+
+// When a checklist item was ticked, or null if it isn't (or what's stored
+// isn't a real time). "SU approved" is ticked when su_approved_at is set.
+export function checklistDoneAt(row: Pick<EventAdminRow, "checklist" | "su_approved_at"> | null | undefined, key: ChecklistKey): string | null {
+  if (!row) return null;
+  if (key === "su_approved") return row.su_approved_at ?? null;
+  const tick = row.checklist?.[key];
+  return tick && typeof tick === "object" && typeof tick.done_at === "string" && tick.done_at && !Number.isNaN(Date.parse(tick.done_at)) ? tick.done_at : null;
+}
 
 export function answersFromRow(row: EventAdminRow): EventAdminAnswers {
   return cleanAnswers({
@@ -360,6 +373,15 @@ export async function saveEventAdmin(supabase: SupabaseClient, eventId: string, 
 export async function setSuApproved(supabase: SupabaseClient, eventId: string, approved: boolean): Promise<Result> {
   const { error } = await supabase.from("event_admin").upsert({ event_id: eventId, su_approved_at: approved ? new Date().toISOString() : null }, { onConflict: "event_id" });
   return error ? { error: "Couldn't save that. Please try again." } : {};
+}
+
+// Ticks (or unticks) a checklist item. The server records when and who.
+// "SU approved" goes through setSuApproved (the approval gate reads it).
+export async function setChecklistItem(supabase: SupabaseClient, eventId: string, key: ChecklistKey, done: boolean): Promise<Result> {
+  if (key === "su_approved") return setSuApproved(supabase, eventId, done);
+  const { error } = await supabase.rpc("set_event_checklist_item", { eid: eventId, item: key, done });
+  if (!error) return {};
+  return { error: error.message?.includes("Add the event admin answers first") ? "Add the event admin answers first." : "Couldn't save that. Please try again." };
 }
 
 // Publishes a draft. For an LSE society with Event admin on, the database

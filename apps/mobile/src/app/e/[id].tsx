@@ -198,7 +198,7 @@ export default function EventScreen() {
       {ev.description && <T className="mt-6 text-lg leading-7">{ev.description}</T>}
 
       <View className="mt-8 flex-row flex-wrap gap-3">
-        {ev.ticket_url && <Button onPress={() => Linking.openURL(ev.ticket_url!)}>Tickets / sign up</Button>}
+        {ev.ticket_url && <Button onPress={() => Linking.openURL(ev.ticket_url!)} testID="ticket-link">Tickets / sign up</Button>}
         {!ev.is_draft && <ShareButton url={`${SITE_URL}/e/${ev.id}`} title={ev.title} />}
       </View>
       {userId && ev.host_user_id !== userId && !chat.data?.hostIds.has(userId) && (
@@ -222,7 +222,9 @@ export default function EventScreen() {
 
 // A draft: only the committee sees it. For an LSE society with Event admin
 // on, "SU approved" has to be ticked before it can be published (the
-// database checks this too); otherwise it can be published straight away.
+// database checks this too), and the banner links to the event's Event
+// admin card (the manage screen); otherwise it can be published straight
+// away, and the link goes to the edit screen.
 function DraftBanner({ event, onPublished }: { event: EventWithDetails; onPublished: () => Promise<unknown> }) {
   const queryClient = useQueryClient();
   const society = event.societies;
@@ -276,9 +278,9 @@ function DraftBanner({ event, onPublished }: { event: EventWithDetails; onPublis
       <View className="flex-row flex-wrap items-center gap-4">
         <Button onPress={() => void run(() => publishEvent(supabase, event.id), published)} disabled={busy || (gated && !approved)} testID="draft-publish">{busy ? "Saving…" : "Publish"}</Button>
         {event.society_id && (
-          <Link href={`/dashboard/${event.society_id}/events/${event.id}/edit` as never} asChild>
+          <Link href={(gated ? `/dashboard/${event.society_id}/events/${event.id}` : `/dashboard/${event.society_id}/events/${event.id}/edit`) as never} asChild>
             <Pressable testID="draft-admin-link">
-              <T variant="semibold" className="text-sm text-brand">{gated ? "Event admin answers →" : "Edit event →"}</T>
+              <T variant="semibold" className="text-sm text-brand">{gated ? "Event admin and checklist →" : "Edit event →"}</T>
             </Pressable>
           </Link>
         )}
