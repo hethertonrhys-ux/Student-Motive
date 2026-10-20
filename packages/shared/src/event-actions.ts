@@ -10,6 +10,15 @@ import type { EventFormat, EventTable } from "./types";
 
 export type Result = { error?: string };
 
+// "Report this event": anyone logged in can flag a society or student-hosted
+// event; the Function team sees it in the Admin panel.
+export async function reportEvent(supabase: SupabaseClient, id: string, reason: string): Promise<Result> {
+  const clean = reason.trim().slice(0, 200);
+  if (!clean) return { error: "Say why you're reporting it." };
+  const { error } = await supabase.from("reports").insert({ event_id: id, reason: clean });
+  return error ? { error: "Couldn't send the report. Please try again." } : {};
+}
+
 function friendly(message: string | undefined): string {
   if (!message) return "Something went wrong. Please try again.";
   if (/log in/i.test(message)) return "Log in first.";

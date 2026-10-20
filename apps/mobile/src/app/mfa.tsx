@@ -5,6 +5,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "rea
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button, Card, Heading, Input, Label, Muted, T } from "@/components/ui";
 import { mfaErrorText, verifiedFactors } from "@/lib/mfa";
+import { disablePushOnThisDevice } from "@/lib/push";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
@@ -52,6 +53,7 @@ export default function MfaScreen() {
   }
 
   async function logOut() {
+    await disablePushOnThisDevice();
     await supabase.auth.signOut();
     router.replace("/");
   }

@@ -12,10 +12,7 @@
       "bundleIdentifier": "com.studentfunction.app",
       "supportsTablet": false,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": [
-          "remote-notification"
-        ]
+        "ITSAppUsesNonExemptEncryption": false
       },
       "associatedDomains": [
         "applinks:studentfunction.com"
@@ -53,11 +50,6 @@
               "scheme": "https",
               "host": "studentfunction.com",
               "pathPrefix": "/u/"
-            },
-            {
-              "scheme": "https",
-              "host": "studentfunction.com",
-              "pathPrefix": "/auth/callback"
             }
           ],
           "category": [

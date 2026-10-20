@@ -19,7 +19,7 @@ export const possessive = (name: string) => (name.endsWith("'s") ? name : `${nam
 // the website's landing page.
 export function Landing({ uni }: { uni?: University }) {
   const steps = [
-    { title: uni ? `Log in with your ${uni.short} email` : "Log in with your uni email", body: "No passwords. We email you a code." },
+    { title: uni ? `Log in with your ${uni.short} email` : "Log in with your uni email", body: "No password needed. We email you a code." },
     { title: "Claim your society's page", body: "We check you're on the committee, usually within a day." },
     { title: "Post an event in a minute", body: "It goes straight onto the live map for students across London." },
   ];

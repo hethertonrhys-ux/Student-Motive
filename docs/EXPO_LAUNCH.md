@@ -126,7 +126,9 @@ eas submit --platform ios --latest
   tapping a pin, "Near me" asking for location once, walking directions.
 - Photos: profile picture and "My 5" from the photo library, with the
   phone's own cropper.
-- A login link from the email opens the app (not Safari) and logs you in.
+- A login link from the email opens the app (not Safari) and logs you in,
+  when you asked for the code in the app. (A login started on the website
+  finishes in the browser, as it should.)
 - Sharing an event opens the phone's share sheet.
 - The committee screens for a real event.
 - Dark mode.
@@ -138,7 +140,7 @@ yet.
 ### Links that open the app
 
 `app.json` already asks iOS and Android to open `studentfunction.com`
-links (`/e/…`, `/s/…`, `/social/…`, `/u/…` and the login callback) in the app
+links (`/e/…`, `/s/…`, `/social/…`, `/u/…`) in the app
 once it's installed. For that to work the website must publish two small
 files that name your app, in `apps/mobile/public/.well-known/`.
 
@@ -201,7 +203,8 @@ Do this on a quiet day, after the staging week.
 ### The review account
 
 Apple and Google reviewers must be able to log in. They can't receive your
-email codes, so the app has a password path for review accounts only
+email codes, so they use the password login (any student can set a password
+under Password & security; the review account uses it)
 ("Have a password? (app review accounts only)" under the email box).
 
 1. First allow the email, or the next step fails with "Database error
@@ -331,7 +334,7 @@ For societies: post once and reach every student, not just your members.
 See who's coming. Run sign-ups, tables and results from your phone. Free,
 always.
 
-Log in with your university email. No passwords.
+Log in with your university email. No password needed.
 
 **Keywords (Apple, 100 characters):**
 student,societies,university,London,LSE,UCL,KCL,Imperial,events,socials,map,freshers
@@ -371,7 +374,7 @@ or a one-off command; none changes existing data.
    npx supabase secrets set PUSH_SECRET=<a long random string> VAPID_PUBLIC_KEY=<public key> VAPID_PRIVATE_KEY=<private key> VAPID_SUBJECT=mailto:help@studentfunction.com SITE_URL=https://studentfunction.com
    npx supabase functions deploy send-push --no-verify-jwt
    ```
-4. Open `supabase/RUN_ONCE_push_cron.sql`, replace `<PROJECT_REF>` and
+4. Open `supabase/RUN_ONCE_push_cron.sql`, replace
    `<PUSH_SECRET>`, and run it in the SQL Editor (Database → Extensions
    must have `pg_cron` and `pg_net` on; the file turns them on too).
 5. In Vercel (the function-app project) add the environment variable

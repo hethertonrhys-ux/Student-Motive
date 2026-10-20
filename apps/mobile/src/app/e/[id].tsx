@@ -4,11 +4,12 @@ import { Link, useIsFocused, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Linking, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { audienceLabel, bankEditorRows, categoryLabel, type EventWithDetails, formatCost, formatEventTime, getCards, hasEnded, isLive, loadEvent, loadEventChat, loadEventHosts, loadParticipation, nowMs, type Participation, type PersonCard, uniShort } from "@function/shared";
+import { audienceLabel, bankEditorRows, categoryLabel, type EventWithDetails, formatCost, formatEventTime, getCards, hasEnded, isLive, loadEvent, loadEventChat, loadEventHosts, loadParticipation, nowMs, type Participation, type PersonCard, reportEvent, uniShort } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { CompleteProfileCard } from "@/components/complete-profile-card";
 import { PushPromptCard } from "@/components/push-prompt";
+import { ReportLink } from "@/components/report-link";
 import { BankLedger, MyBankLine } from "@/components/event/bank-ledger";
 import { MyResults } from "@/components/event/my-results";
 import { EntryPanel, GoingPanel, HostedJoinCard, NameForm, PeopleSection, PersonRow, WhosComing, type HostedStatus, type Tap } from "@/components/event/panels";
@@ -196,6 +197,11 @@ export default function EventScreen() {
         {ev.ticket_url && <Button onPress={() => Linking.openURL(ev.ticket_url!)}>Tickets / sign up</Button>}
         <ShareButton url={`${SITE_URL}/e/${ev.id}`} title={ev.title} />
       </View>
+      {userId && ev.host_user_id !== userId && !chat.data?.hostIds.has(userId) && (
+        <View className="mt-4">
+          <ReportLink send={(reason) => reportEvent(supabase, ev.id, reason)} />
+        </View>
+      )}
 
       <Card className="mt-10 bg-brand-soft">
         <T variant="display-bold" className="text-lg">See what&apos;s on in London tonight</T>

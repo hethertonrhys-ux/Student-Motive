@@ -102,7 +102,8 @@ async function run() {
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify(batch),
       });
-      const out = (await res.json()) as { data?: { status: string; details?: { error?: string } }[] };
+      const out = (await res.json()) as { data?: { status: string; details?: { error?: string } }[]; errors?: { code?: string; message?: string }[] };
+      if (!res.ok || out.errors?.length) errors.push(`expo ${res.status}: ${(out.errors ?? []).map((e) => e.message ?? e.code).join("; ") || "request failed"}`);
       out.data?.forEach((ticket, j) => {
         if (ticket.status === "error") {
           errors.push(ticket.details?.error ?? "expo error");

@@ -291,8 +291,8 @@ account-details screen but fail to save.)
 2. `npx supabase login`, `npx supabase link --project-ref xrpbmcoptyrpgkdowfdt`
 3. `npx supabase secrets set PUSH_SECRET=<long random string> VAPID_PUBLIC_KEY=<public> VAPID_PRIVATE_KEY=<private> VAPID_SUBJECT=mailto:help@studentfunction.com SITE_URL=https://studentfunction.com`
 4. `npx supabase functions deploy send-push --no-verify-jwt`
-5. Edit `supabase/RUN_ONCE_push_cron.sql` (replace `<PROJECT_REF>` and
-   `<PUSH_SECRET>`) and run it in the SQL Editor.
+5. Edit `supabase/RUN_ONCE_push_cron.sql` (replace `<PUSH_SECRET>`) and
+   run it in the SQL Editor.
 6. Vercel (function-app project) → Environment Variables: add
    `EXPO_PUBLIC_VAPID_PUBLIC_KEY` = the public key, and
    `EXPO_PUBLIC_SUPPORT_EMAIL` = `help@studentfunction.com`; redeploy.
