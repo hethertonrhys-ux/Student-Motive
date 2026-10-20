@@ -4,13 +4,17 @@ import { Avatar } from "@/components/avatar";
 import { EventCard } from "@/components/event-card";
 import { Icon } from "@/components/icon";
 import { Button, Card, Heading, Input, Label, Muted, Pill, Screen, SectionTitle, T } from "@/components/ui";
+import { useProfile } from "@/lib/profile";
 import { LIGHT, useTheme } from "@/lib/theme";
+import { useSession } from "@/providers/session";
+import NotFound from "./+not-found";
 
 export const generateMetadata = () => ({ title: "Design · Function", robots: "noindex" });
 
 // The style guide: every colour, font and shared component on one page, in
 // whichever mode the phone or browser is in. Not linked from anywhere; open
 // /design to check a design change in one place before it reaches screens.
+// Function admins only: everyone else gets the usual "not found" page.
 // Sample content only: nothing here reads or changes data.
 
 // The class for each colour, so the swatches use the same classes as the screens.
@@ -65,6 +69,11 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function DesignPage() {
   const { dark, colors } = useTheme();
+  const { loading: sessionLoading } = useSession();
+  const { profile, loading: profileLoading } = useProfile();
+  // Blank while we find out who's logged in (and in the pre-rendered web page).
+  if (sessionLoading || profileLoading) return <View className="flex-1 bg-bg" />;
+  if (!profile?.is_admin) return <NotFound />;
   return (
     <Screen testID="design-page">
       <Heading>Design</Heading>
