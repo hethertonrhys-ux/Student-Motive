@@ -1,9 +1,44 @@
 {
-  "cli": { "version": ">= 16.0.0", "appVersionSource": "remote" },
-  "build": {
-    "development": { "developmentClient": true, "distribution": "internal" },
-    "preview": { "distribution": "internal", "channel": "preview" },
-    "production": { "autoIncrement": true, "channel": "production" }
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
   },
-  "submit": { "production": {} }
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://xrpbmcoptyrpgkdowfdt.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_hjMuaTI3n4A4YQwscZIazQ_6W9hwukK",
+        "EXPO_PUBLIC_SITE_URL": "https://studentfunction.com",
+        "EXPO_PUBLIC_SUPPORT_EMAIL": "help@studentfunction.com",
+        "EXPO_PUBLIC_CONTACT_EMAIL": "management@studentfunction.com"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://xrpbmcoptyrpgkdowfdt.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_hjMuaTI3n4A4YQwscZIazQ_6W9hwukK",
+        "EXPO_PUBLIC_SITE_URL": "https://studentfunction.com",
+        "EXPO_PUBLIC_SUPPORT_EMAIL": "help@studentfunction.com",
+        "EXPO_PUBLIC_CONTACT_EMAIL": "management@studentfunction.com"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://xrpbmcoptyrpgkdowfdt.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_hjMuaTI3n4A4YQwscZIazQ_6W9hwukK",
+        "EXPO_PUBLIC_SITE_URL": "https://studentfunction.com",
+        "EXPO_PUBLIC_SUPPORT_EMAIL": "help@studentfunction.com",
+        "EXPO_PUBLIC_CONTACT_EMAIL": "management@studentfunction.com"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
 }
