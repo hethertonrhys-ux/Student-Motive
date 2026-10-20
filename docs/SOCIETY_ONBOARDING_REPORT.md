@@ -395,7 +395,7 @@ These files expect every earlier one to have been run already, up to `2026111500
 ## 4. Phone test checklist
 
 **Where to test.** Use the Vercel preview link on this pull request, after running the database files in section 3.
-- It's the **Visit Preview** link in the Vercel bot's comment, for **function-app**.
+- The link is https://function-app-git-society-onboarding-motive16.vercel.app (also the **Visit Preview** link for **function-app** in the Vercel bot's comment). Vercel may ask you to log in to Vercel first.
 - The preview uses the live database, so use a test society rather than a real one.
 - If the preview shows an error about Supabase settings:
   1. Go to Vercel → function-app → Settings → Environment Variables.
