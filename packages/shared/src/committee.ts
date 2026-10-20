@@ -262,7 +262,9 @@ export async function loadEventForEdit(supabase: SupabaseClient, societyId: stri
 
 // ---- Managing an event: who's coming, results, settling up ----
 
-export type MemberListRow = { user_id: string | null; name: string | null; email: string; status: "pending" | "approved" | "invited"; created_at: string };
+// Members show by name only; `email` is set for invites (typed in by the
+// committee) and, for Function admins, for members too.
+export type MemberListRow = { user_id: string | null; name: string | null; email: string | null; status: "pending" | "approved" | "invited"; created_at: string };
 
 export type ManageEvent = {
   event: MotiveEvent;
@@ -363,7 +365,7 @@ export const setTableStarted = async (supabase: SupabaseClient, eventId: string,
 
 export async function loadMembers(supabase: SupabaseClient, societyId: string): Promise<MemberListRow[]> {
   const { data } = await supabase.rpc("society_member_list", { sid: societyId });
-  return ((data ?? []) as MemberListRow[]).sort((a, b) => (a.name ?? a.email).localeCompare(b.name ?? b.email));
+  return ((data ?? []) as MemberListRow[]).sort((a, b) => (a.name ?? a.email ?? "").localeCompare(b.name ?? b.email ?? ""));
 }
 
 export type InviteResult = { error?: string; added?: number; skipped?: string[]; uni?: string };

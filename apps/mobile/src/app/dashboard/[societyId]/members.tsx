@@ -59,7 +59,7 @@ export default function MembersScreen() {
                     <Card key={m.user_id} className="flex-row flex-wrap items-center justify-between gap-3 py-3" testID={`waiting-${m.user_id}`}>
                       <View className="flex-1">
                         <T variant="semibold">{m.name}</T>
-                        <Muted className="text-sm">{m.email}</Muted>
+                        {!!m.email && <Muted className="text-sm">{m.email}</Muted>}
                       </View>
                       <View className="flex-row gap-2">
                         <Button className="py-2" onPress={() => void approveMember(supabase, societyId, m.user_id!).then(refresh)} testID="approve-member">Approve</Button>
@@ -88,9 +88,9 @@ export default function MembersScreen() {
                   {approved.map((m, i) => (
                     <View key={m.user_id} className={`flex-row items-center justify-between gap-3 px-4 py-2.5 ${i > 0 ? "border-t border-line" : ""}`} testID={`member-${m.user_id}`}>
                       <View className="min-w-0 flex-1">
-                        <T variant="semibold">{m.name} <Muted className="text-sm">{m.email}</Muted></T>
+                        <T variant="semibold">{m.name}{m.email ? <Muted className="text-sm"> {m.email}</Muted> : null}</T>
                       </View>
-                      <LinkButton onPress={() => void removeMember(supabase, societyId, m.user_id!).then(refresh)} confirmText={`Remove ${m.name ?? m.email} from the society?`} danger testID="remove-member">Remove</LinkButton>
+                      <LinkButton onPress={() => void removeMember(supabase, societyId, m.user_id!).then(refresh)} confirmText={`Remove ${m.name ?? m.email ?? "this member"} from the society?`} danger testID="remove-member">Remove</LinkButton>
                     </View>
                   ))}
                 </View>
@@ -102,9 +102,9 @@ export default function MembersScreen() {
                 <Muted className="mt-1 text-sm">They&apos;ll become members automatically when they log in and join.</Muted>
                 <View className="mt-3 overflow-hidden rounded-2xl border border-line bg-surface">
                   {invited.map((m, i) => (
-                    <View key={m.email} className={`flex-row items-center justify-between gap-3 px-4 py-2.5 ${i > 0 ? "border-t border-line" : ""}`}>
+                    <View key={m.email ?? i} className={`flex-row items-center justify-between gap-3 px-4 py-2.5 ${i > 0 ? "border-t border-line" : ""}`}>
                       <T className="flex-1 text-sm">{m.email}</T>
-                      <LinkButton onPress={() => void removeInvite(supabase, societyId, m.email).then(refresh)} danger testID="remove-invite">Remove</LinkButton>
+                      <LinkButton onPress={() => void removeInvite(supabase, societyId, m.email ?? "").then(refresh)} danger testID="remove-invite">Remove</LinkButton>
                     </View>
                   ))}
                 </View>

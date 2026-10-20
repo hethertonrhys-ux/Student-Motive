@@ -12,12 +12,27 @@ insert into auth.users (id, email) values
 on conflict (id) do nothing;
 update public.profiles set is_admin = true where id = '00000000-0000-0000-0000-0000000000a0';
 
--- Act as someone (or nobody): set_config's third argument false keeps it for the session.
-create or replace function pg_temp.act_as(uid text) returns void language sql as $$
-  select set_config('request.jwt.claim.sub', coalesce(uid, ''), false);
-  select set_config('role', case when uid is null then 'anon' else 'authenticated' end, false);
-$$;
-create or replace function pg_temp.act_as_superuser() returns void language sql as $$
-  select set_config('role', 'postgres', false);
-  select set_config('request.jwt.claim.sub', '', false);
-$$;
+-- Act as someone (a uuid) or nobody (null). Works from any role, so tests can
+-- switch people freely. `reset role;` goes back to the all-powerful test user
+-- for setting up data.
+create or replace function pg_temp.act_as(uid text) returns void language plpgsql as $$
+begin
+  perform set_config('role', 'none', false);
+  perform set_config('request.jwt.claim.sub', coalesce(uid, ''), false);
+  perform set_config('role', case when uid is null then 'anon' else 'authenticated' end, false);
+end $$;
+
+-- Fail the test with a message unless the condition holds.
+create or replace function pg_temp.expect(ok boolean, what text) returns void language plpgsql as $$
+begin
+  if ok is not true then raise exception 'FAILED: %', what; end if;
+end $$;
+
+-- True when running the statement raises an error (e.g. permission denied).
+create or replace function pg_temp.fails(statement text) returns boolean language plpgsql as $$
+begin
+  execute statement;
+  return false;
+exception when others then
+  return true;
+end $$;
