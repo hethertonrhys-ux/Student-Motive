@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 // fonts, saved settings) waits for this to avoid a mismatch on load.
 export function useMounted() {
   const [mounted, setMounted] = useState(false);
+  // Intentional: the first render must match the pre-rendered web page.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
   return mounted;
 }

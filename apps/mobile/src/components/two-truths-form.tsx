@@ -37,6 +37,7 @@ export function TwoTruthsForm({
   const ready = s.every((t) => t.trim()) && lie !== null;
   const changed = !initial || s[0] !== initial.s1 || s[1] !== initial.s2 || s[2] !== initial.s3 || lie !== initial.lie;
   const latest = useRef({ s, lie, ready });
+  // eslint-disable-next-line react-hooks/refs -- save() can run after a re-render and must see the latest answers
   latest.current = { s, lie, ready };
 
   // Saves the statements and puts the game on your profile (first, on the welcome step).

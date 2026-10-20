@@ -5,7 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { createEvent, getVenues, loadManagedSociety } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { CommitteeEventForm } from "@/components/committee/event-form";
-import { Card, Heading, Muted, T } from "@/components/ui";
+import { Card, Heading, Muted } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 

@@ -1,5 +1,6 @@
-# Typechecks the website, the app and the shared package on every push and
-# pull request. Free for a public repository.
+# Typechecks the website, the app and the shared package, runs the shared
+# package's unit tests and lints the app, on every push and pull request.
+# Free for a public repository.
 name: Checks
 on:
   push:
@@ -16,6 +17,9 @@ jobs:
           cache: npm
       - run: npm ci --no-audit --no-fund
       - run: npm run typecheck --workspace packages/shared
-      - run: npm run typecheck --workspace apps/web
+      - run: npm run test --workspace packages/shared
       - run: npm run typecheck --workspace apps/mobile
+      - run: npx eslint . --max-warnings 50
+        working-directory: apps/mobile
+      - run: npm run typecheck --workspace apps/web
       - run: npm run lint --workspace apps/web

@@ -65,6 +65,8 @@ export default function MapScreen() {
   useRefetchOnFocus(data);
   useEffect(() => {
     if (!focused) return;
+    // Refresh the clock when the tab comes back into view (intentional; React Compiler skips this effect).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNow(Date.now());
     const tick = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(tick);

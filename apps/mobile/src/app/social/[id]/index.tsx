@@ -14,7 +14,7 @@ import { ShareButton } from "@/components/share-button";
 import { Attendees } from "@/components/social/attendees";
 import { Pill } from "@/components/social/event-card";
 import { JoinPanel } from "@/components/social/join-panel";
-import { Button, Card, Heading, Input, Muted, T } from "@/components/ui";
+import { Button, Card, Heading, Muted, T } from "@/components/ui";
 import { SITE_URL } from "@/lib/site";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
