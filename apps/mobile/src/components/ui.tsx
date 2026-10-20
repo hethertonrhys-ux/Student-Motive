@@ -1,14 +1,16 @@
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { Pressable, ScrollView, Text, TextInput, View, type PressableProps, type ScrollViewProps, type TextInputProps, type TextProps, type ViewProps } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { usePlaceholderColor } from "@/lib/theme";
+import { Icon } from "@/components/icon";
+import { LIGHT, usePlaceholderColor } from "@/lib/theme";
 
 // The website's shared styles (.btn, .btn-ghost, .card, .input, .label in
 // globals.css) as components, with the same names and the same classes, so
 // screens read the same here as there.
 
+// Cards sit on a soft shadow as well as the thin border, so they lift off the page.
 export function Card({ className = "", ...props }: ViewProps & { className?: string }) {
-  return <View className={`rounded-2xl border border-line bg-surface p-5 ${className}`} {...props} />;
+  return <View className={`rounded-2xl border border-line bg-surface p-5 shadow-soft ${className}`} {...props} />;
 }
 
 // Body text in the site's font. Variants pick the weight (each weight is its own font file).
@@ -39,13 +41,14 @@ export function Input({ className = "", ...props }: TextInputProps & { className
   return (
     <TextInput
       placeholderTextColor={placeholder}
-      className={`w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 font-sans text-base text-ink web:outline-none web:focus:border-brand ${className}`}
+      className={`min-h-11 w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 font-sans text-base text-ink web:outline-none web:focus:border-brand ${className}`}
       {...props}
     />
   );
 }
 
 // A button in the brand colour, or a quiet one with a border ("ghost").
+// Every button is at least 44px tall (an easy tap), whatever its padding.
 export function Button({
   children,
   variant = "primary",
@@ -54,13 +57,14 @@ export function Button({
   ...props
 }: Omit<PressableProps, "children"> & { children: ReactNode; variant?: "primary" | "ghost"; className?: string }) {
   const box = variant === "primary" ? "bg-brand" : "border border-line bg-surface";
+  const lift = disabled ? "" : "shadow-soft";
   const text = variant === "primary" ? "text-brand-ink" : "text-ink";
   return (
     <Pressable
       role="button"
       aria-disabled={!!disabled}
       disabled={disabled}
-      className={`flex-row items-center justify-center gap-2 rounded-xl px-4 py-2.5 ${box} ${disabled ? "opacity-50" : "active:opacity-90"} ${className}`}
+      className={`min-h-11 flex-row items-center justify-center gap-2 rounded-xl px-4 py-2.5 ${box} ${lift} ${disabled ? "opacity-50" : "active:opacity-90"} ${className}`}
       {...props}
     >
       {typeof children === "string" ? <T variant="semibold" className={`text-base ${text}`}>{children}</T> : children}
@@ -103,6 +107,23 @@ export function Pill({ children, tone = "brand", className = "", ...props }: Vie
   return (
     <View className={`flex-row items-center gap-1 self-start rounded-full px-2.5 py-0.5 ${PILL[tone].box} ${className}`} {...props}>
       {typeof children === "string" ? <T variant="bold" className={`text-xs ${PILL[tone].text}`}>{children}</T> : children}
+    </View>
+  );
+}
+
+// One detail in an event's details card: an icon in a soft red circle, a
+// small grey label ("When") and the value under it.
+type IconName = ComponentProps<typeof Icon>["name"];
+export function DetailRow({ icon, label, children, className = "", ...props }: ViewProps & { icon: IconName; label: string; children: ReactNode; className?: string }) {
+  return (
+    <View className={`flex-row gap-3 ${className}`} {...props}>
+      <View className="size-9 items-center justify-center rounded-full bg-brand-soft">
+        <Icon name={icon} size={18} color={LIGHT.brand} />
+      </View>
+      <View className="flex-1 justify-center">
+        <Muted className="text-sm">{label}</Muted>
+        {typeof children === "string" ? <T variant="semibold">{children}</T> : children}
+      </View>
     </View>
   );
 }
