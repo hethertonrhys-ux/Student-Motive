@@ -28,9 +28,12 @@ export async function saveNotificationSettings(supabase: SupabaseClient, myId: s
   return error ? { error: "Couldn't save. Please try again." } : {};
 }
 
-// Remember a phone or browser that has allowed notifications.
-export async function savePushToken(supabase: SupabaseClient, myId: string, token: string, platform: "ios" | "android" | "web", subscription: unknown = null): Promise<{ error?: string }> {
-  const { error } = await supabase.from("push_tokens").upsert({ user_id: myId, token, platform, subscription, last_seen_at: new Date().toISOString() }, { onConflict: "token" });
+// Remember a phone or browser that has allowed notifications. The device
+// is claimed for whoever is logged in now, even if someone else used it
+// before (see the push_token_handover migration). `myId` is kept so callers
+// don't change; the database uses the logged-in user.
+export async function savePushToken(supabase: SupabaseClient, _myId: string, token: string, platform: "ios" | "android" | "web", subscription: unknown = null): Promise<{ error?: string }> {
+  const { error } = await supabase.rpc("claim_push_token", { p_token: token, p_platform: platform, p_subscription: subscription });
   return error ? { error: error.message } : {};
 }
 
