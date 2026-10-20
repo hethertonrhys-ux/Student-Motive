@@ -226,6 +226,20 @@ The Hub is built for phones first. On screens wider than 1024px, it shows a side
 - Until then, the app says **"Risk assessment and budget: coming soon"**.
 - The server function `event-documents` exists, checks who's asking, and replies "Templates not added yet". A clearly marked to-do in it says exactly what to do with the templates.
 
+### Added later: over-the-air updates for the phone app
+
+- Most changes now reach installed phone apps with one command, without a new build or an Apple review.
+- From `apps/mobile`, run `npm run send-update -- "what changed"`.
+- Phones show **"A new version of Function is ready."** with a **Restart** button.
+- An update goes to everyone on production builds: TestFlight testers and App Store users alike. Check changes on the website first.
+- A new build is still needed for:
+  - new phone permissions;
+  - a new app icon or splash screen;
+  - new built-in (native) libraries.
+
+  Before that build, bump `version` in `app.json`.
+- The full guide is in `docs/EXPO_LAUNCH.md`, part 3b. The phone build already on TestFlight (build 1) has no updater, so it needs one new build first.
+
 ### Tests
 
 - **Unit tests for the shared code** cover:
@@ -525,7 +539,11 @@ Use an LSE test society with Event admin on. Picking a type in its setup ticks E
       - So until it moves, claim links open the old site's "page not found".
     - It's a 5-minute change in Vercel (the domain stays in the same Vercel team, so GoDaddy doesn't change). I'll walk you through it.
     - The new app already has the landing page, uni pages, privacy, terms and support.
-11. **Build the App Store version after merging**, so it includes everything here.
+11. **Build the App Store version after merging**, so it includes everything here. From `apps/mobile` in PowerShell:
+    ```
+    eas build --profile production --platform ios --auto-submit
+    ```
+    It goes to TestFlight first. From then on, most changes can be sent with `npm run send-update -- "what changed"` instead of a new build.
 
 ### Housekeeping
 12. **The failing "student-motive" check.** Vercel's old "student-motive" project shows a failing check on pull requests. That's the old website, and it was already failing before this branch. The "function-app" check is the one that matters.

@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { Platform } from "react-native";
 import { AccountGate } from "@/components/account-gate";
 import { PushLifecycle } from "@/components/push-lifecycle";
+import { UpdateBanner } from "@/components/update-banner";
 import { SessionProvider } from "@/providers/session";
 
 SplashScreen.preventAutoHideAsync();
@@ -51,6 +52,8 @@ export default function RootLayout() {
           <Stack.Screen name="index" />
           <Stack.Screen name="(tabs)" />
         </Stack>
+        {/* Phones only: "A new version of Function is ready", after an over-the-air update has downloaded. */}
+        <UpdateBanner />
       </SessionProvider>
     </QueryClientProvider>
   );

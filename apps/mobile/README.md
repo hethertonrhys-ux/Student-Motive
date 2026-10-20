@@ -38,6 +38,13 @@ internal testing) and `production`. Builds need an Expo account
 on Vercel, the domain switch, the first phone builds, and the App Store and
 Google Play listings.
 
+Over-the-air updates (most changes, no new build): from `apps/mobile`,
+`npm run send-update -- "what changed"` (part 3b of the guide). Don't run
+plain `eas update`: it bundles without the `EXPO_PUBLIC_*` settings from
+`eas.json`, and the app would stop at launch on every phone that got it.
+Bump `version` in `app.json` before any build that changes something
+native; an update only reaches builds with the same version.
+
 ## The web build
 
 `npx expo export --platform web` writes a static site to `dist/`. `vercel.json`
