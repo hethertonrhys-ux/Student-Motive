@@ -20,6 +20,8 @@ import { extname, join, resolve } from "node:path";
 // Playwright from this project if it's there, otherwise the global install.
 async function loadPlaywright() {
   try {
+    // Not an app dependency (see above), so the linter can't find it; that's expected.
+    // eslint-disable-next-line import/no-unresolved
     return await import("playwright");
   } catch {
     const root = execSync("npm root -g", { encoding: "utf8" }).trim();
