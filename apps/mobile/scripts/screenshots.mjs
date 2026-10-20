@@ -6,6 +6,8 @@
 //   FULL=1 node scripts/screenshots.mjs ...                   (whole page, not one screen)
 //
 // Each path gives <name>-light.png and <name>-dark.png in the output folder.
+// /design (the style guide) is admin-only in a normal build; export with
+// --dev to screenshot it without logging in.
 // It needs Playwright and a Chromium (`npm install -g playwright` and
 // `npx playwright install chromium`, or CHROMIUM=<path to chrome>); they
 // aren't app dependencies, so the app's install stays the same.
