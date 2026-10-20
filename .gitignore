@@ -19,3 +19,6 @@ Thumbs.db
 
 # Society import: downloaded pages, logos and the review CSV
 web/scripts/society-import/out/
+
+# Design screenshots and concept images (local only)
+design-screenshots/
