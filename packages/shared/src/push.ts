@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // send it. The sending itself happens on the server (the send-push edge
 // function), fed by database triggers; the app only keeps these settings.
 
-export type NotificationKind = "messages" | "friends" | "society_events" | "reminders" | "hosting" | "seating";
+export type NotificationKind = "messages" | "friends" | "society_events" | "reminders" | "hosting" | "seating" | "hub";
 export type NotificationSettings = Record<NotificationKind, boolean>;
 
 export const NOTIFICATION_KINDS: { key: NotificationKind; title: string; detail: string }[] = [
@@ -14,17 +14,26 @@ export const NOTIFICATION_KINDS: { key: NotificationKind; title: string; detail:
   { key: "reminders", title: "Starting soon", detail: "Half an hour before an event you've joined starts." },
   { key: "hosting", title: "Your events", detail: "When someone joins, or asks to join, an event you're hosting." },
   { key: "seating", title: "Poker seating", detail: "When the committee reshuffles your table and you get a new seat." },
+  { key: "hub", title: "Society Hub", detail: "Updates about societies you run, such as being added as a manager." },
 ];
 
-export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = { messages: true, friends: true, society_events: true, reminders: true, hosting: true, seating: true };
+export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = { messages: true, friends: true, society_events: true, reminders: true, hosting: true, seating: true, hub: true };
+
+// Columns added by later migrations: until a migration has run, the
+// settings are read and saved without its column (so nothing else breaks).
+const LATER_COLUMNS: NotificationKind[] = ["hub"];
+const isMissingColumn = (error: { code?: string; message?: string } | null) => !!error && (error.code === "42703" || error.code === "PGRST204" || /column/i.test(error.message ?? ""));
 
 export async function loadNotificationSettings(supabase: SupabaseClient, myId: string): Promise<NotificationSettings> {
-  const { data } = await supabase.from("notification_settings").select("messages, friends, society_events, reminders, hosting, seating").eq("user_id", myId).maybeSingle();
+  const first = await supabase.from("notification_settings").select("messages, friends, society_events, reminders, hosting, seating, hub").eq("user_id", myId).maybeSingle();
+  const { data } = isMissingColumn(first.error) ? await supabase.from("notification_settings").select("messages, friends, society_events, reminders, hosting, seating").eq("user_id", myId).maybeSingle() : first;
   return { ...DEFAULT_NOTIFICATION_SETTINGS, ...((data as Partial<NotificationSettings> | null) ?? {}) };
 }
 
 export async function saveNotificationSettings(supabase: SupabaseClient, myId: string, settings: NotificationSettings): Promise<{ error?: string }> {
-  const { error } = await supabase.from("notification_settings").upsert({ user_id: myId, ...settings, updated_at: new Date().toISOString() });
+  const row = { user_id: myId, ...settings, updated_at: new Date().toISOString() };
+  let { error } = await supabase.from("notification_settings").upsert(row);
+  if (isMissingColumn(error)) ({ error } = await supabase.from("notification_settings").upsert(Object.fromEntries(Object.entries(row).filter(([k]) => !(LATER_COLUMNS as string[]).includes(k)))));
   return error ? { error: "Couldn't save. Please try again." } : {};
 }
 

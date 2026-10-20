@@ -105,7 +105,8 @@ eas submit --platform ios --latest
   certificates for you. Say **yes** when it offers to create a
   distribution certificate and provisioning profile, and **yes** when it
   asks "Set up Push Notifications?" (that creates the key notifications on
-  iPhones need). If anything asks to install `expo-updates`, say **no**.
+  iPhones need). Over-the-air updates (`expo-updates`) are already set up
+  (part 3b); if EAS asks anything about EAS Update, say **yes**.
 - `eas init` adds the project id to `app.json` on your computer. Commit
   and push that change (or send the id to whoever maintains the code) so
   the next build from anywhere keeps it.
@@ -140,7 +141,8 @@ yet.
 ### Links that open the app
 
 `app.json` already asks iOS and Android to open `studentfunction.com`
-links (`/e/…`, `/s/…`, `/social/…`, `/u/…`) in the app
+links (`/e/…`, `/s/…`, `/social/…`, `/u/…`, and society claim links
+`/claim/…` and the Society Hub `/hub`, `/hub/…`) in the app
 once it's installed. For that to work the website must publish two small
 files that name your app, in `apps/mobile/public/.well-known/`.
 
@@ -161,6 +163,101 @@ The fingerprint comes from `eas credentials --platform android`
 
 Until these files are live the links still work; they just open in the
 browser instead of the app.
+
+Claim and Hub links were added for the App Store build that includes the
+Society Hub. On Android they work from that build on. On iPhones the list
+comes from the website, so once the website is deployed an older build
+without the Hub (only TestFlight testers have one) opens those links to
+"not found" until it's updated.
+
+---
+
+## 3b. Sending an update to phones (no new build)
+
+Most changes (screens, wording, fixes, anything in `apps/mobile/src` or
+`packages/shared`) don't need a new build or Apple's review. They go
+straight to the phones as an over-the-air update, in a few minutes.
+
+**Once, first:** the TestFlight build already on phones (build 1) was
+made before updates were switched on, so it can't get them. Make one more
+build with the two commands in part 3 (`eas build --profile production
+--platform ios`, then `eas submit --platform ios --latest`) and install it
+from TestFlight. Every build from then on gets updates.
+
+If the change came with new files in `supabase/migrations`, run them in
+the Supabase SQL Editor first (one at a time, in filename order, as the
+notes for that change say), then send the update; otherwise phones get
+screens that need database changes that aren't there yet.
+
+**Each time**, in PowerShell (use the folder you cloned into):
+
+```
+cd C:\code\Student-Motive
+git pull
+npm install
+cd apps/mobile
+npm run send-update -- "Fixed the Hub button"
+```
+
+Put what changed between the quotes; it's how you'll recognise the update
+later on expo.dev (your project → Updates). If you're not logged in to
+Expo, it asks you to (the same account as `eas login`). This is only for
+the phone app: the website updates itself when the code is pushed (Vercel).
+
+What happens:
+
+- It checks `eas.json` has the app's settings (the database address and
+  key, the website address, the emails) and stops if any is missing. They
+  have to come from there: your computer has no `.env` file, and without
+  them the app would stop at launch on every phone that got the update.
+- It bundles the app on your computer and uploads it to Expo. That takes
+  a couple of minutes.
+- Phones download it the next time someone opens the app (or comes back
+  to it after a while), then show "A new version of Function is ready."
+  with a **Restart** button. Restart shows the new version straight away;
+  if they ignore it, the new version starts the next time the app is
+  opened from scratch.
+
+**It goes to everyone.** The update goes to every phone on a production
+build, which means **both TestFlight testers and App Store users** (once
+the app is live). So check a change on the website first (the staging
+address, or the Vercel preview of the branch): the website runs the same
+code, and a mistake there only costs a page reload.
+
+**To check without sending:** `npm run send-update -- --dry-run` bundles
+the iPhone app into a temporary folder and checks the database address and
+key are inside. Nothing is uploaded.
+
+**If an update breaks something:** the quickest fix is another update
+with the fix in it. To take it back instead, run `eas update:rollback` in
+`apps/mobile`, choose **Published Update**, then **Channel**, then
+**production**, and pick the last update that worked (the one below the
+broken one, not the top one). Press Enter at the message prompt. That
+update is sent to every phone again. (Or choose **Embedded Update** to send
+phones back to the version their build came with.)
+
+**If EAS says "Your repository working tree is dirty":** files on your
+computer differ from GitHub (often just `package-lock.json` after
+`npm install`). Answer **no**, run `git status` to see which, and if
+`package-lock.json` is the only one, `git checkout -- package-lock.json`,
+then send again. Ask whoever maintains the code about anything else.
+
+**What still needs a new build** (`eas build` then `eas submit`, as in
+part 3, and a store review once the app is live):
+
+- a new native library (anything added with `npx expo install` that has
+  phone code of its own; if unsure, build),
+- a new permission (camera, contacts, …) or a changed permission message,
+- the icon or the splash screen,
+- any change to `app.json` (plugins, links, the app's name), or an Expo
+  SDK upgrade.
+
+When that happens, **first bump `"version"` in `apps/mobile/app.json`**
+(1.0.0 → 1.0.1, or 1.1.0 for something bigger), then build and submit. An
+update only reaches builds with the same version, so older builds never get
+code that needs phone parts they don't have; their users get the new
+version from TestFlight or the App Store as usual. If you forget the bump,
+the next update can reach old builds that can't run it.
 
 ---
 
@@ -232,7 +329,9 @@ eas submit --platform android    # uploads to Play Console (first time: upload t
 ```
 
 Each production build bumps the build number by itself. `version` in
-`app.json` (1.0.0) is what people see; change it for later releases.
+`app.json` (1.0.0) is what people see; change it for later releases, and
+always before a build that changes something native (part 3b), because it
+also decides which builds get which updates.
 
 ### App Store Connect (appstoreconnect.apple.com)
 
@@ -388,9 +487,10 @@ or a one-off command; none changes existing data.
 - **Tell people:** the install page (`/install`) still explains "add to
   home screen" for the web; once the apps are live, add the App Store and
   Play links to that page and the landing page.
-- **Updates:** small fixes can go out without the stores through EAS Update
-  later; it isn't set up yet (needs `expo-updates`). For now, each release
-  is `eas build --profile production` and `eas submit`.
+- **Updates:** most changes reach phones with `npm run send-update`
+  (part 3b), with no store review. New native features, permissions, the
+  icon and `app.json` changes still need a new version, a build and a
+  store release.
 - **Watch for:** the Supabase email rate limit (the free plan sends few
   auth emails per hour; set up a custom SMTP provider in Supabase →
   Authentication → SMTP before a big launch day).

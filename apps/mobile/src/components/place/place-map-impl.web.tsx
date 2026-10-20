@@ -12,6 +12,7 @@ export function PlaceMapImpl({ centre, pin, onPick, ref }: { centre: [number, nu
   const map = useRef<MapLibreMap | null>(null);
   const marker = useRef<Marker | null>(null);
   const onPickRef = useRef(onPick);
+  // eslint-disable-next-line react-hooks/refs -- the map's click handler reads the latest callback through this ref
   onPickRef.current = onPick;
   const first = useRef({ centre, pin });
 

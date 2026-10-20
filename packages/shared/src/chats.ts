@@ -148,7 +148,7 @@ export async function searchPeople(supabase: SupabaseClient, myId: string, query
   const q = query.trim().replace(/[%_,()]/g, " ").slice(0, 60);
   if (q.length < 2) return [];
   const [{ data }, relations, hidden] = await Promise.all([
-    supabase.from("profile_cards").select("id, name, avatar_url, course, bio, country").ilike("name", `%${q}%`).order("name").limit(25),
+    supabase.from("profile_cards").select("id, name, avatar_url, course, bio, university, country").ilike("name", `%${q}%`).order("name").limit(25),
     getFriendships(supabase, myId),
     getHiddenPeople(supabase),
   ]);

@@ -1,4 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { withoutDrafts } from "./drafts";
+import type { FeatureRow } from "./features";
 import type { MapCategory } from "./map-categories";
 import { socialToMapCategory } from "./map-categories";
 import { getCards, type PersonCard } from "./social";
@@ -92,7 +94,7 @@ export async function loadFeed(supabase: SupabaseClient, myUni: string | null, n
   const from = new Date(now).toISOString();
   const until = new Date(now + days * 86_400_000).toISOString();
   const [{ data }, { data: socialData }] = await Promise.all([
-    supabase.from("events").select(FEED_EVENT_SELECT).eq("is_cancelled", false).gt("ends_at", from).lt("starts_at", until).order("starts_at").limit(300),
+    withoutDrafts(() => supabase.from("events").select(FEED_EVENT_SELECT).eq("is_cancelled", false).gt("ends_at", from).lt("starts_at", until).order("starts_at").limit(300)),
     supabase.from("social_events").select(FEED_SOCIAL_SELECT).eq("is_cancelled", false).gt("ends_at", from).lt("starts_at", until).order("starts_at").limit(300),
   ]);
   const rows = (data ?? []) as unknown as FeedEventRow[];
@@ -111,21 +113,23 @@ export async function loadFeed(supabase: SupabaseClient, myUni: string | null, n
   return groups.filter((g) => g.items.length > 0);
 }
 
-// One society event (or student-hosted event) with its society, venue and tables.
+// One society event (or student-hosted event) with its society (and the
+// features it has chosen), venue and tables.
 export type EventWithDetails = MotiveEvent & {
-  societies: Pick<Society, "name" | "slug" | "logo_url" | "university"> | null;
+  societies: (Pick<Society, "name" | "slug" | "logo_url" | "university" | "society_type"> & { society_features?: FeatureRow[] | null }) | null;
   venues: Pick<Venue, "name" | "address" | "lat" | "lng"> | null;
   event_tables: { started_at: string | null }[] | null;
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const EVENT_SELECT = "*, societies(name, slug, logo_url, university, society_type, society_features(feature_key, enabled, config)), venues(name, address, lat, lng), event_tables(started_at)";
+// Before the society features migration has run: every society counts as one from before features.
+const EVENT_SELECT_BEFORE_FEATURES = "*, societies(name, slug, logo_url, university), venues(name, address, lat, lng), event_tables(started_at)";
+
 export async function loadEvent(supabase: SupabaseClient, id: string): Promise<EventWithDetails | null> {
   if (!UUID.test(id)) return null;
-  const { data } = await supabase
-    .from("events")
-    .select("*, societies(name, slug, logo_url, university), venues(name, address, lat, lng), event_tables(started_at)")
-    .eq("id", id)
-    .maybeSingle();
+  const first = await supabase.from("events").select(EVENT_SELECT).eq("id", id).maybeSingle();
+  const { data } = first.error ? await supabase.from("events").select(EVENT_SELECT_BEFORE_FEATURES).eq("id", id).maybeSingle() : first;
   return (data as EventWithDetails | null) ?? null;
 }

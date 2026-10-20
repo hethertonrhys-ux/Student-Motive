@@ -3,6 +3,12 @@
     "name": "Function",
     "slug": "function",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/0b973917-964c-41f7-89f4-c2a2abb81265"
+    },
     "orientation": "portrait",
     "icon": "./assets/brand/icon.png",
     "scheme": "function",
@@ -50,6 +56,16 @@
               "scheme": "https",
               "host": "studentfunction.com",
               "pathPrefix": "/u/"
+            },
+            {
+              "scheme": "https",
+              "host": "studentfunction.com",
+              "pathPrefix": "/claim/"
+            },
+            {
+              "scheme": "https",
+              "host": "studentfunction.com",
+              "pathPrefix": "/hub"
             }
           ],
           "category": [

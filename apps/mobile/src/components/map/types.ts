@@ -1,6 +1,5 @@
 import type { Ref } from "react";
-import type { Look, MapEvent, Walk } from "@function/shared";
-import type { MapCategory } from "@function/shared";
+import type { Look, MapCategory, MapEvent, Walk } from "@function/shared";
 
 // The one Map component, drawn by maplibre-gl on the web and by MapLibre
 // Native on iOS and Android (Map.web.tsx / Map.native.tsx). It only draws:

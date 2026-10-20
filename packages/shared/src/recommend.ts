@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { withoutDrafts } from "./drafts";
 import type { FilterContext } from "./event-filters";
 import { FEED_EVENT_SELECT, feedItemFromEvent, type FeedEventRow, type FeedItem } from "./events";
 import { getCards, type PersonCard } from "./social";
@@ -99,7 +100,7 @@ export async function loadSocietyRecommendations(supabase: SupabaseClient, me: M
   const from = new Date(now).toISOString();
   const until = new Date(now + RECOMMEND_DAYS * 86_400_000).toISOString();
   const [{ data }, { data: mine }] = await Promise.all([
-    supabase.from("events").select(FEED_EVENT_SELECT).eq("is_cancelled", false).gt("ends_at", from).lt("starts_at", until).order("starts_at").limit(300),
+    withoutDrafts(() => supabase.from("events").select(FEED_EVENT_SELECT).eq("is_cancelled", false).gt("ends_at", from).lt("starts_at", until).order("starts_at").limit(300)),
     supabase.from("event_entries").select("event_id").eq("user_id", me.id),
   ]);
   const joined = new Set((mine ?? []).map((r) => r.event_id as string));

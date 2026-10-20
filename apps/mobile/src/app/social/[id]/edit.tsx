@@ -5,7 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { SOCIAL_EVENT_FIELDS, isoToLondonInput, uniById, updateSocialEvent, type SocialEvent } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { SocialEventForm } from "@/components/social/event-form";
-import { Card, Heading, Muted, T } from "@/components/ui";
+import { Card, Heading, Muted } from "@/components/ui";
 import { useProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";

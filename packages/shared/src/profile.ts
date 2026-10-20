@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isCountryCode } from "./countries";
+import { withoutDrafts } from "./drafts";
 import { getPhotos, getProfileSocieties, PHOTO_BUCKET, type ProfilePhoto, type ProfileSociety } from "./profile-photos";
 import { MAX_PROMPTS, promptById, TWO_TRUTHS_ID } from "./prompts";
 import { getCards, getFriendships, getHiddenPeople, relationFor, type PersonCard, type Relation } from "./social";
@@ -46,7 +47,7 @@ export async function loadPublicProfile(supabase: SupabaseClient, myId: string, 
 
   const [{ data: events }, photos, societies, { data: prompts }, { data: twoTruths }, { data: mutual }] = await Promise.all([
     // Their upcoming events you're allowed to see (public, or friends-only if you're friends).
-    supabase.from("events").select("id, title, starts_at, ends_at, visibility, location_note").eq("host_user_id", id).eq("is_cancelled", false).gt("ends_at", new Date(nowMs()).toISOString()).order("starts_at").limit(10),
+    withoutDrafts(() => supabase.from("events").select("id, title, starts_at, ends_at, visibility, location_note").eq("host_user_id", id).eq("is_cancelled", false).gt("ends_at", new Date(nowMs()).toISOString()).order("starts_at").limit(10)),
     getPhotos(supabase, id),
     getProfileSocieties(supabase, id),
     supabase.from("profile_prompts").select("prompt_id, answer").eq("user_id", id).order("position"),

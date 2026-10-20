@@ -6,6 +6,7 @@
   "build": {
     "development": {
       "developmentClient": true,
+      "channel": "development",
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://xrpbmcoptyrpgkdowfdt.supabase.co",
@@ -17,6 +18,7 @@
     },
     "preview": {
       "distribution": "internal",
+      "channel": "preview",
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://xrpbmcoptyrpgkdowfdt.supabase.co",
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_hjMuaTI3n4A4YQwscZIazQ_6W9hwukK",
@@ -27,6 +29,7 @@
     },
     "production": {
       "autoIncrement": true,
+      "channel": "production",
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://xrpbmcoptyrpgkdowfdt.supabase.co",
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_hjMuaTI3n4A4YQwscZIazQ_6W9hwukK",

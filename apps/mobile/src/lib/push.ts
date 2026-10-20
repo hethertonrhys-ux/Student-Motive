@@ -67,6 +67,7 @@ export async function enablePush(userId: string): Promise<PushStatus> {
   const { status } = await Notifications.requestPermissionsAsync();
   if (status !== "granted") return status === "denied" ? "denied" : "undetermined";
   if (Platform.OS === "android") {
+    // eslint-disable-next-line import/namespace -- AndroidImportance is re-exported by expo-notifications; the import plugin can't follow it
     await Notifications.setNotificationChannelAsync("default", { name: "Function", importance: Notifications.AndroidImportance.DEFAULT });
   }
   const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;

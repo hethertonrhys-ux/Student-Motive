@@ -3,7 +3,7 @@ import maplibre, { type GeoJSONSource, type Map as MapLibreMap, type Marker } fr
 import "maplibre-gl/dist/maplibre-gl.css";
 import { CATEGORY_ORDER, CATEGORY_STYLE, eventStatus, heatColours, mapCategoryLabel, mapStyle, walkGeoJson, type Look, type MapEvent } from "@function/shared";
 import campus from "@/assets/map/lse-campus.json";
-import { ME_COLOUR, WALK_COLOUR, type MapHandle, type MapProps } from "./types";
+import { ME_COLOUR, WALK_COLOUR, type MapProps } from "./types";
 
 // The live map on the web, drawn by maplibre-gl: a port of the website's
 // map (apps/web/src/app/map/live-map.tsx) with the pop-up cards taken out,
@@ -152,6 +152,7 @@ export function LiveMapImpl({ events, now, look, home, me, walk, onSelect, onRea
   const appliedLook = useRef(look); // the look the map is drawn in
   // The latest events and callbacks, for the map's own event handlers.
   const latest = useRef({ byId: new Map<string, MapEvent>(), now, onSelect });
+  // eslint-disable-next-line react-hooks/refs -- the map's own event handlers read the latest props through this ref
   latest.current = { byId: new Map(events.map((e) => [e.id, e])), now, onSelect };
 
   useImperativeHandle(ref, () => ({

@@ -4,16 +4,19 @@ import { Link, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { categoryLabel, DEFAULT_CLEANUP_DAYS, deleteSocietyPastEvents, formatEventTime, hasEnded, initialOf, isLive, loadManagedSociety, nowMs, societyPastEventsSummary, updateSociety, type MotiveEvent, type Society, type SocietyPastSummary } from "@function/shared";
+import { categoryLabel, DEFAULT_CLEANUP_DAYS, deleteSocietyPastEvents, eventAdminAvailable, formatEventTime, hasEnded, hasFeature, initialOf, isLive, loadManagedSociety, nowMs, societyPastEventsSummary, updateSociety, type MotiveEvent, type Society, type SocietyPastSummary } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { pickPhotos, type Picked } from "@/components/photos/pick-photos";
 import { Button, Card, Heading, Input, Label, Muted, T } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
-// One society's dashboard: its events (upcoming and past) and its details.
+// One society's dashboard: its events (upcoming and past, drafts marked)
+// and its details. Arriving from a claim link (?claimed=1) says you're now a
+// manager; after posting (?posted=1) it says the event is live, or (with
+// &draft=1) that it was saved as a draft until the SU approves it.
 export default function SocietyDashboardScreen() {
-  const { societyId, posted } = useLocalSearchParams<{ societyId: string; posted?: string }>();
+  const { societyId, posted, claimed, draft } = useLocalSearchParams<{ societyId: string; posted?: string; claimed?: string; draft?: string }>();
   const { session } = useSession();
   const page = useQuery({ queryKey: ["managed", societyId], queryFn: () => loadManagedSociety(supabase, societyId), enabled: !!session && !!societyId });
   // Set once the committee has deleted past events, so the cleanup card stays put.
@@ -26,10 +29,13 @@ export default function SocietyDashboardScreen() {
   if (!d) return <Screen><Heading>Not found</Heading><Muted className="mt-2">You don&apos;t run this society, or it doesn&apos;t exist.</Muted></Screen>;
   const upcoming = d.events.filter((e) => !hasEnded(e.ends_at, now));
   const past = d.events.filter((e) => hasEnded(e.ends_at, now)).reverse();
+  // An LSE society with Event admin on: a new event is a draft until "SU approved" is ticked.
+  const withAdmin = hasFeature(d.features, "event_admin") && eventAdminAvailable(d.society.university);
 
   return (
     <Screen>
       <Heading>{d.society.name}</Heading>
+      {claimed && <T variant="semibold" className="mt-3 rounded-xl bg-ok/10 px-4 py-3 text-ok" testID="claimed">You&apos;re now a manager of {d.society.name}.</T>}
       <View className="mt-3 flex-row flex-wrap gap-2">
         <Link href={`/dashboard/${societyId}/members` as never} asChild>
           <Button variant="ghost" testID="members-link">Members{d.pendingCount ? ` · ${d.pendingCount} waiting` : ""}</Button>
@@ -38,10 +44,18 @@ export default function SocietyDashboardScreen() {
           <Button testID="post-event">+ Post an event</Button>
         </Link>
       </View>
-      {posted && <T variant="semibold" className="mt-6 rounded-xl bg-ok/10 px-4 py-3 text-ok" testID="posted">Your event is live on Function. Share its link to get more people going.</T>}
+      {posted && draft === "1" ? (
+        <T variant="semibold" className="mt-6 rounded-xl bg-brand-soft px-4 py-3" testID="posted-draft">Saved as a draft. It goes live once your committee ticks &ldquo;SU approved&rdquo;.</T>
+      ) : posted ? (
+        <T variant="semibold" className="mt-6 rounded-xl bg-ok/10 px-4 py-3 text-ok" testID="posted">Your event is live on Function. Share its link to get more people going.</T>
+      ) : null}
 
       <T variant="display" className="mt-8 text-xl">Upcoming</T>
-      {upcoming.length === 0 ? <Muted className="mt-3">No upcoming events. Post one and it appears on the map straight away.</Muted> : <View className="mt-3 gap-3">{upcoming.map((e) => <EventRow key={e.id} event={e} live={isLive(e.starts_at, e.ends_at, now)} />)}</View>}
+      {upcoming.length === 0 ? (
+        <Muted className="mt-3" testID="no-upcoming">
+          {withAdmin ? <>No upcoming events. Post one and it goes live once your committee ticks &ldquo;SU approved&rdquo;.</> : "No upcoming events. Post one and it appears on the map straight away."}
+        </Muted>
+      ) : <View className="mt-3 gap-3">{upcoming.map((e) => <EventRow key={e.id} event={e} live={isLive(e.starts_at, e.ends_at, now)} />)}</View>}
       {(past.length > 0 || cleaned) && (
         <View className="mt-10">
           {past.length > 0 && (
@@ -75,6 +89,7 @@ function EventRow({ event, live }: { event: MotiveEvent; live: boolean }) {
         {live && <Pill box="bg-live" text="text-white">LIVE</Pill>}
         {event.is_cancelled && <Pill box="bg-danger/10" text="text-danger">Cancelled</Pill>}
         {event.is_hidden && <Pill box="bg-danger/10" text="text-danger">Hidden by Function</Pill>}
+        {event.is_draft && <Pill box="bg-brand-soft" text="text-brand" testID="draft-pill">Draft</Pill>}
         <T variant="display-bold" className="flex-1 text-lg">{event.title}</T>
       </View>
       <Muted className="text-sm">{formatEventTime(event.starts_at, event.ends_at)} · {categoryLabel(event.category)}</Muted>
@@ -181,9 +196,9 @@ function PastCleanup({ societyId, onDeleted }: { societyId: string; onDeleted: (
   );
 }
 
-function Pill({ children, box, text }: { children: string; box: string; text: string }) {
+function Pill({ children, box, text, testID }: { children: string; box: string; text: string; testID?: string }) {
   return (
-    <View className={`rounded-full px-2 py-0.5 ${box}`}>
+    <View className={`rounded-full px-2 py-0.5 ${box}`} testID={testID}>
       <T variant="bold" className={`text-xs ${text}`}>{children}</T>
     </View>
   );
@@ -205,7 +220,14 @@ function SocietyForm({ society }: { society: Society }) {
     setState(r.error ? { error: r.error } : { saved: true });
     if (!r.error) {
       setLogo(null);
-      await Promise.all([queryClient.invalidateQueries({ queryKey: ["managed", society.id] }), queryClient.invalidateQueries({ queryKey: ["society", society.slug] }), queryClient.invalidateQueries({ queryKey: ["societies-tab"] })]);
+      // The Society Hub shows the page too (its "Your page" card and header).
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["managed", society.id] }),
+        queryClient.invalidateQueries({ queryKey: ["society", society.slug] }),
+        queryClient.invalidateQueries({ queryKey: ["societies-tab"] }),
+        queryClient.invalidateQueries({ queryKey: ["hub", society.id] }),
+        queryClient.invalidateQueries({ queryKey: ["my-hub"] }),
+      ]);
     }
   }
   return (

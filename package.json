@@ -8,6 +8,8 @@
   "scripts": {
     "web": "npm run dev --workspace apps/web",
     "mobile": "npm run start --workspace apps/mobile",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:db": "bash supabase/tests/run.sh"
   }
 }

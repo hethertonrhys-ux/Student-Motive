@@ -4,7 +4,7 @@ import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState 
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CATEGORY_ORDER, CATEGORY_STYLE, eventStatus, heatColours, mapStyle, walkGeoJson, type MapEvent } from "@function/shared";
 import campus from "@/assets/map/lse-campus.json";
-import { ME_COLOUR, PIN_ICON, WALK_COLOUR, type MapHandle, type MapProps } from "./types";
+import { ME_COLOUR, PIN_ICON, WALK_COLOUR, type MapProps } from "./types";
 
 // The live map on iOS and Android, drawn by MapLibre Native. The same map
 // style, groups and glow as the web version; the pins are small React

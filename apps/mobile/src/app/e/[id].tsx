@@ -4,10 +4,11 @@ import { Link, useIsFocused, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Linking, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { audienceLabel, bankEditorRows, categoryLabel, type EventWithDetails, formatCost, formatEventTime, getCards, hasEnded, isLive, loadEvent, loadEventChat, loadEventHosts, loadParticipation, nowMs, type Participation, type PersonCard, reportEvent, uniShort } from "@function/shared";
+import { audienceLabel, bankEditorRows, categoryLabel, eventAdminAvailable, type EventWithDetails, featureSubject, formatCost, formatEventTime, getCards, hasEnded, hasFeature, isLive, loadEvent, loadEventAdmin, loadEventChat, loadEventHosts, loadParticipation, nowMs, type Participation, type PersonCard, publishEvent, reportEvent, setSuApproved, uniShort } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { CompleteProfileCard } from "@/components/complete-profile-card";
+import { Icon } from "@/components/icon";
 import { PushPromptCard } from "@/components/push-prompt";
 import { ReportLink } from "@/components/report-link";
 import { BankLedger, MyBankLine } from "@/components/event/bank-ledger";
@@ -28,6 +29,8 @@ type Exact = { address: string | null; lat: number | null; lng: number | null } 
 // A society event (or a student-hosted one): the details, who can come,
 // and everything about taking part: I'm going, sign-up lists, tables and
 // waiting lists, the bank, your own result, and who pays who at the end.
+// A draft (only its committee can load it) shows a banner to tick "SU
+// approved" and publish it instead of the ways to take part.
 export default function EventScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useSession();
@@ -121,6 +124,7 @@ export default function EventScreen() {
 
   return (
     <Screen>
+      {ev.is_draft && <DraftBanner event={ev} onPublished={refresh} />}
       {ev.image_url && <Image source={{ uri: ev.image_url }} style={{ width: "100%", aspectRatio: 16 / 9, borderRadius: 16, marginBottom: 24 }} contentFit="cover" />}
       <View className="flex-row flex-wrap items-center gap-2">
         {live && <Badge className="bg-live" textClassName="text-white">LIVE NOW</Badge>}
@@ -167,7 +171,7 @@ export default function EventScreen() {
         <Row label={ev.format === "entries" && !hosted ? "Entered" : "Going"}>{ev.going_count} {ev.going_count === 1 ? "person" : "people"}</Row>
       </Card>
 
-      {!ev.is_cancelled && (
+      {!ev.is_cancelled && !ev.is_draft && (
         <View className="mt-6 gap-6">
           {!session ? (
             !finished && (
@@ -194,8 +198,8 @@ export default function EventScreen() {
       {ev.description && <T className="mt-6 text-lg leading-7">{ev.description}</T>}
 
       <View className="mt-8 flex-row flex-wrap gap-3">
-        {ev.ticket_url && <Button onPress={() => Linking.openURL(ev.ticket_url!)}>Tickets / sign up</Button>}
-        <ShareButton url={`${SITE_URL}/e/${ev.id}`} title={ev.title} />
+        {ev.ticket_url && <Button onPress={() => Linking.openURL(ev.ticket_url!)} testID="ticket-link">Tickets / sign up</Button>}
+        {!ev.is_draft && <ShareButton url={`${SITE_URL}/e/${ev.id}`} title={ev.title} />}
       </View>
       {userId && ev.host_user_id !== userId && !chat.data?.hostIds.has(userId) && (
         <View className="mt-4">
@@ -216,7 +220,78 @@ export default function EventScreen() {
   );
 }
 
-// The "take part" part of a society event.
+// A draft: only the committee sees it. For an LSE society with Event admin
+// on, "SU approved" has to be ticked before it can be published (the
+// database checks this too), and the banner links to the event's Event
+// admin card (the manage screen); otherwise it can be published straight
+// away, and the link goes to the edit screen.
+function DraftBanner({ event, onPublished }: { event: EventWithDetails; onPublished: () => Promise<unknown> }) {
+  const queryClient = useQueryClient();
+  const society = event.societies;
+  const gated = !!society && eventAdminAvailable(society.university) && hasFeature(featureSubject(society), "event_admin");
+  const admin = useQuery({ queryKey: ["event-admin", event.id], queryFn: () => loadEventAdmin(supabase, event.id), enabled: gated });
+  const approved = Boolean(admin.data?.su_approved_at);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run(action: () => Promise<{ error?: string }>, after: () => Promise<unknown>) {
+    setBusy(true);
+    setError(null);
+    const r = await action();
+    if (r.error) setError(r.error);
+    else await after();
+    setBusy(false);
+  }
+  const refreshAdmin = () => queryClient.invalidateQueries({ queryKey: ["event-admin", event.id] });
+  const published = () =>
+    Promise.all([
+      onPublished(),
+      refreshAdmin(),
+      queryClient.invalidateQueries({ queryKey: ["managed", event.society_id] }),
+      queryClient.invalidateQueries({ queryKey: ["edit-event", event.society_id, event.id] }),
+      queryClient.invalidateQueries({ queryKey: ["manage-event", event.society_id, event.id] }),
+      queryClient.invalidateQueries({ queryKey: ["founding-progress", event.society_id] }),
+      queryClient.invalidateQueries({ queryKey: ["founding-badge", event.society_id] }),
+    ]);
+
+  return (
+    <View className="mb-6 gap-3 rounded-2xl border border-brand bg-brand-soft p-5" testID="draft-banner">
+      <T variant="semibold" className="text-base">Draft: only your committee can see this.</T>
+      {gated && (
+        <Pressable
+          onPress={() => void run(() => setSuApproved(supabase, event.id, !approved), refreshAdmin)}
+          disabled={busy || admin.isPending}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: approved, disabled: busy || admin.isPending }}
+          aria-checked={approved}
+          className="min-h-[44px] flex-row items-center gap-3 rounded-xl border border-line bg-surface px-3.5 py-2.5"
+          testID="draft-su-approved"
+        >
+          <View className={`h-5 w-5 items-center justify-center rounded-md border ${approved ? "border-brand bg-brand" : "border-line bg-surface"}`}>{approved && <Icon name="checkmark" size={14} color="#fff" />}</View>
+          <View className="flex-1">
+            <T variant="semibold">SU approved</T>
+            <Muted className="text-xs">LSESU must approve events before they&apos;re promoted.</Muted>
+          </View>
+        </Pressable>
+      )}
+      {error && <T variant="semibold" className="text-sm text-danger" testID="draft-error">{error}</T>}
+      <View className="flex-row flex-wrap items-center gap-4">
+        <Button onPress={() => void run(() => publishEvent(supabase, event.id), published)} disabled={busy || (gated && !approved)} testID="draft-publish">{busy ? "Saving…" : "Publish"}</Button>
+        {event.society_id && (
+          <Link href={(gated ? `/dashboard/${event.society_id}/events/${event.id}` : `/dashboard/${event.society_id}/events/${event.id}/edit`) as never} asChild>
+            <Pressable testID="draft-admin-link">
+              <T variant="semibold" className="text-sm text-brand">{gated ? "Event admin and checklist →" : "Edit event →"}</T>
+            </Pressable>
+          </Link>
+        )}
+      </View>
+    </View>
+  );
+}
+
+// The "take part" part of a society event. The settle-up tools (bank, your
+// own result) only show if the society uses the ledger, or this event already
+// does. A group chat that already exists always shows.
 function SocietyPart({ event, p, userId, profile, finished, tap, busy, refresh, seatConfirmed, onConfirmed, chatId, hostIds }: { event: EventWithDetails; p: Participation; userId: string; profile: { display_name: string | null; university: string }; finished: boolean; tap: Tap; busy: boolean; refresh: () => Promise<unknown>; seatConfirmed: boolean; onConfirmed: () => void; chatId: string | null; hostIds?: Set<string> }) {
   const society = event.societies;
   const me = p.people.find((x) => x.userId === userId) ?? null;
@@ -231,6 +306,8 @@ function SocietyPart({ event, p, userId, profile, finished, tap, busy, refresh, 
   const myTable = me?.tableId ? p.tables.find((t) => t.id === me.tableId) : null;
   const started = new Date(event.starts_at).getTime() <= nowMs() || Boolean(myTable?.started_at);
   const myBankRow = me && myTable ? (p.ledger.rows.find((r) => r.user_id === me.userId && r.table_id === myTable.id) ?? null) : null;
+  // Switching the ledger off mid-night doesn't take it away from an event already using it.
+  const ledgerShown = hasFeature(featureSubject(society), "ledger") || p.ledger.rows.length > 0 || p.ledger.payments.length > 0 || p.tables.some((t) => t.bank_user_id);
 
   return (
     <>
@@ -278,7 +355,8 @@ function SocietyPart({ event, p, userId, profile, finished, tap, busy, refresh, 
       {!finished && me?.status === "going" && <CompleteProfileCard prompts={p.prompts} />}
 
       {/* Tables where this player is the bank: their bank screen. */}
-      {!event.results_published &&
+      {ledgerShown &&
+        !event.results_published &&
         p.tables
           .filter((t) => t.bank_user_id === userId)
           .map((t) => {
@@ -293,9 +371,9 @@ function SocietyPart({ event, p, userId, profile, finished, tap, busy, refresh, 
           })}
 
       {/* Playing at a table with a bank (and not the bank): buy in and cash out with them. */}
-      {me?.status === "going" && !event.results_published && myTable?.bank_user_id && myTable.bank_user_id !== userId && <MyBankLine table={myTable} mine={myBankRow} people={p.people} />}
+      {ledgerShown && me?.status === "going" && !event.results_published && myTable?.bank_user_id && myTable.bank_user_id !== userId && <MyBankLine table={myTable} mine={myBankRow} people={p.people} />}
 
-      {me?.status === "going" && !event.results_published && started && (event.format !== "tables" || me.tableId) && !myTable?.bank_user_id && (
+      {ledgerShown && me?.status === "going" && !event.results_published && started && (event.format !== "tables" || me.tableId) && !myTable?.bank_user_id && (
         <SelfReport event={event} me={me} people={p.people} rows={p.ledger.rows} payments={p.ledger.payments} onChange={refresh} />
       )}
 

@@ -32,6 +32,7 @@ export default function ChatScreen() {
   const [reportReason, setReportReason] = useState("Harassment or bullying");
   const [sending, setSending] = useState(false);
   const lastAt = useRef<string | null>(null);
+  // eslint-disable-next-line react-hooks/purity -- only the initial value is used; it marks when the chat was opened
   const lastActivity = useRef(Date.now());
   const focused = useIsFocused();
   const focusedRef = useRef(true);

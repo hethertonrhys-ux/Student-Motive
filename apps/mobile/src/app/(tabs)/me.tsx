@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "expo-router";
 import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { countOpenReports, uniShort } from "@function/shared";
+import { countMyManagedSocieties, countOpenReports, uniShort } from "@function/shared";
 import { Avatar } from "@/components/avatar";
 import { Flag } from "@/components/flag";
 import { Icon } from "@/components/icon";
@@ -13,7 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
 // Your own corner: who you're logged in as, your profile, friends,
-// notifications, and the way out.
+// notifications, the Society Hub (if you run a society), and the way out.
 export default function MeScreen() {
   const router = useRouter();
   const { session } = useSession();
@@ -21,6 +21,9 @@ export default function MeScreen() {
   const queryClient = useQueryClient();
   // Reports waiting for the Function team (admins only), so they're dealt with quickly.
   const openReports = useQuery({ queryKey: ["open-reports"], queryFn: () => countOpenReports(supabase), enabled: !!profile?.is_admin, staleTime: 60_000 });
+  // How many societies you manage (a count only), for the Society Hub row.
+  const userId = session?.user.id ?? null;
+  const managed = useQuery({ queryKey: ["my-hub-count", userId], queryFn: () => countMyManagedSocieties(supabase, userId!), enabled: !!userId, staleTime: 60_000 });
 
   async function logOut() {
     await disablePushOnThisDevice();
@@ -38,6 +41,7 @@ export default function MeScreen() {
     { href: "/notifications", icon: "notifications-outline", title: "Notifications", detail: "What's happened lately", testID: "notifications" },
     { href: "/support", icon: "help-circle-outline", title: "Help & support", detail: "Email us, report a problem", testID: "support" },
     { href: "/privacy", icon: "document-text-outline", title: "Privacy & terms", detail: "How Function uses your data", testID: "privacy" },
+    ...(managed.data ? [{ href: "/hub", icon: "briefcase-outline" as const, title: "Society Hub", detail: managed.data === 1 ? "Run your society: setup, features, committee" : `Run your ${managed.data} societies: setup, features, committee`, testID: "society-hub" }] : []),
     ...(profile?.is_admin ? [{ href: "/admin", icon: "shield-checkmark-outline" as const, title: "Admin panel", detail: openReports.data ? `${openReports.data} ${openReports.data === 1 ? "report" : "reports"} waiting` : "Function team: users, events, reports", testID: "admin-panel" }] : []),
   ];
 

@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Alert, Platform, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { deleteMyAccount, loadMyProfile, setShowSocieties } from "@function/shared";
@@ -11,7 +11,7 @@ import { Icon } from "@/components/icon";
 import { MyFive } from "@/components/profile/my-five";
 import { PhotoPicker } from "@/components/profile/photo-picker";
 import { PromptsEditor } from "@/components/profile/prompts-editor";
-import { Button, Card, Heading, Input, Label, Muted, T } from "@/components/ui";
+import { Button, Card, Heading, Muted, T } from "@/components/ui";
 import { useInvalidateProfile, useProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
