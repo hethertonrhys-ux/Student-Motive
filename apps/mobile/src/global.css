@@ -2,7 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Function brand colours: the website's tokens, with the brand in red. */
+/* Function brand colours: the website's tokens, with the brand in red.
+   src/lib/colors.ts holds the same values for icons, the map and native
+   pickers; a test (packages/shared/test/design-tokens.test.ts) fails if the
+   two differ, so change both together. */
 :root {
   color-scheme: light;
   --bg: #f7f7fb;
