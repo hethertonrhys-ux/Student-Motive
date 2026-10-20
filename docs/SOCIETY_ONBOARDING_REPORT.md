@@ -38,6 +38,7 @@ The goal: a society committee goes from a link in an Instagram DM to a live, SU-
 - The shared code now has unit tests.
 - There is now a database test runner. It builds a throwaway copy of the database from every migration file and checks the permission rules. It never touches Supabase.
 - GitHub now runs the shared tests and the app's lint on every pull request.
+- GitHub's check had already been failing on `expo-app`, at the old website's type check, because Next.js's generated types weren't made first. It now makes them first, so the check passes. The old website's code is unchanged.
 
 **Three security problems already in the live app, fixed in `20261116000000_security_fixes.sql`:**
 1. Any logged-in student could edit or delete anyone's profile, through the public "profile cards" list. It is now read-only.
