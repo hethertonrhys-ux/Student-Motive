@@ -26,6 +26,10 @@ scan the QR code that `npm start` shows.
 - `src/lib/supabase.ts`: the Supabase client. The session lives in secure
   storage on phones and local storage on the web.
 - `src/global.css` and `tailwind.config.js`: the design tokens, with the brand in Function red `#DA291C`.
+- `/design` (`src/app/design.tsx`): the style guide, with every colour, font and shared component
+  on one page. Not linked from anywhere; open it to check a design change in light and dark.
+  Admins only on the live site and store app; open to anyone in preview mode (`npm start`, a development build).
+- `scripts/screenshots.mjs`: phone-width screenshots of the web build, light and dark (instructions at the top).
 - `assets/brand/`: the logo, icon, splash and favicon.
 - `../../packages/shared`: types, config and query code shared with the website.
 
