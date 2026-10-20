@@ -3,7 +3,7 @@ import type { FeedItem } from "@function/shared";
 import { Avatar } from "@/components/avatar";
 import { EventCard } from "@/components/event-card";
 import { Icon } from "@/components/icon";
-import { Button, Card, Heading, Input, Label, Muted, Pill, Screen, SectionTitle, T } from "@/components/ui";
+import { Button, Card, DetailRow, Heading, Input, Label, Muted, Pill, Screen, SectionTitle, T } from "@/components/ui";
 import { useProfile } from "@/lib/profile";
 import { LIGHT, useTheme } from "@/lib/theme";
 import { useMounted } from "@/lib/use-mounted";
@@ -157,6 +157,15 @@ export default function DesignPage() {
         </Card>
         <EventCard item={SAMPLE_EVENT} />
         <EventCard item={SAMPLE_EVENT} note="Your friends are going" />
+      </Section>
+
+      <Section title="Event details">
+        <Card className="gap-4">
+          <DetailRow icon="calendar-outline" label="When">Wed, 21 Oct, 19:30–22:00</DetailRow>
+          <DetailRow icon="location-outline" label="Where">Saw Swee Hock Centre</DetailRow>
+          <DetailRow icon="cash-outline" label="Cost">Free</DetailRow>
+          <DetailRow icon="people-outline" label="Going">42 people</DetailRow>
+        </Card>
       </Section>
 
       <Section title="Avatars">

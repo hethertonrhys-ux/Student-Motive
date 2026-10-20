@@ -20,6 +20,14 @@ module.exports = {
         danger: "var(--danger)",
         ok: "var(--ok)",
       },
+      // A soft, wide shadow for cards and buttons (NativeWind's own are a
+      // hard 35% black). Android uses the matching elevation.
+      boxShadow: {
+        soft: "0px 2px 12px rgba(21, 20, 43, 0.08)",
+      },
+      elevation: {
+        soft: "2",
+      },
       fontFamily: {
         sans: ["Figtree_400Regular"],
         "sans-semibold": ["Figtree_600SemiBold"],
