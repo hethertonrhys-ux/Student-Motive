@@ -37,6 +37,7 @@ export default function MeScreen() {
   const rows: { href: string; icon: React.ComponentProps<typeof Icon>["name"]; title: string; detail: string; testID: string }[] = [
     { href: `/u/${session?.user.id}`, icon: "person-circle-outline", title: "My profile", detail: "How other students see you", testID: "my-profile" },
     { href: "/account/security", icon: "lock-closed-outline", title: "Password & security", detail: "Set a password, two-factor authentication", testID: "security" },
+    { href: "/account/privacy", icon: "hand-left-outline", title: "Privacy", detail: "People you've blocked", testID: "privacy-settings" },
     { href: "/account/notifications", icon: "notifications-circle-outline", title: "Notification settings", detail: "Choose what Function tells you about", testID: "notification-settings" },
     { href: "/friends", icon: "people-outline", title: "Friends", detail: "Requests, people you may know", testID: "friends" },
     { href: "/notifications", icon: "notifications-outline", title: "Notifications", detail: "What's happened lately", testID: "notifications" },

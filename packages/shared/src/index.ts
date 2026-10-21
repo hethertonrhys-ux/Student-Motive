@@ -28,6 +28,7 @@ export * from "./profile";
 export * from "./chats";
 export * from "./chat-media";
 export * from "./qr";
+export * from "./reports";
 export * from "./committee";
 export * from "./admin";
 export * from "./push";

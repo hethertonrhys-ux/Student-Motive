@@ -1,13 +1,17 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocalSearchParams } from "expo-router";
+import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { formatEventTime, loadPublicProfile, promptById } from "@function/shared";
+import { blockUser, formatEventTime, iBlocked, loadPublicProfile, promptById, unblockUser } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { CompleteProfileCard } from "@/components/complete-profile-card";
-import { AvatarZoom, FriendButton, PhotoGallery, ProfileMenu, TwoTruthsGame } from "@/components/profile/people";
-import { Button, Card, Heading, Muted, T } from "@/components/ui";
+import { AvatarZoom, FriendButton, PhotoGallery, TwoTruthsGame } from "@/components/profile/people";
+import { MoreMenu } from "@/components/safety/more-menu";
+import { ReportSheet } from "@/components/safety/report-sheet";
+import { confirmAction } from "@/lib/confirm";
+import { Button, Card, Muted, T } from "@/components/ui";
 import { UniTag } from "@/components/uni-tag";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
@@ -21,6 +25,21 @@ export default function PersonScreen() {
   const myId = session?.user.id ?? null;
   const page = useQuery({ queryKey: ["person", id, myId], queryFn: () => loadPublicProfile(supabase, myId!, id), enabled: !!id && !!myId });
   const refresh = () => void queryClient.invalidateQueries({ queryKey: ["person", id] });
+  const [reporting, setReporting] = useState(false);
+  // A profile that doesn't load: did you block them? (If they blocked you,
+  // it just isn't available: we never say so.) The Function team still load
+  // everyone, so for them it's asked when either of you blocked the other.
+  const blocked = useQuery({ queryKey: ["i-blocked", id, myId], queryFn: () => iBlocked(supabase, id), enabled: !!id && !!myId && page.isSuccess && (!page.data || page.data.isBlocked) });
+
+  async function block(name: string) {
+    if (!(await confirmAction(`Block ${name}?`, "You won't see each other's profiles or messages, and they can't add or message you. They aren't told.", "Block"))) return;
+    await blockUser(supabase, id);
+    void queryClient.invalidateQueries();
+  }
+  async function unblock() {
+    await unblockUser(supabase, myId!, id);
+    void queryClient.invalidateQueries();
+  }
 
   if (!session) {
     return (
@@ -36,10 +55,22 @@ export default function PersonScreen() {
   }
   if (page.isPending) return <Screen><Muted>Loading…</Muted></Screen>;
   const p = page.data;
-  if (!p) {
+  if (!p || (p.isBlocked && blocked.data)) {
+    if (!p && blocked.isPending) return <Screen><Muted>Loading…</Muted></Screen>;
     return (
       <Screen>
-        <Heading>Person not found</Heading>
+        {blocked.data ? (
+          <Card className="items-center gap-3" testID="blocked-by-me">
+            <T variant="title3">You&apos;ve blocked this person</T>
+            <Muted className="text-center">You won&apos;t see each other&apos;s profiles or messages until you unblock them.</Muted>
+            <Button variant="ghost" onPress={() => void unblock()} testID="unblock">Unblock</Button>
+          </Card>
+        ) : (
+          <Card className="items-center gap-2" testID="profile-unavailable">
+            <T variant="title3">This profile isn&apos;t available</T>
+            <Muted className="text-center">It may have been deleted, or you can&apos;t see it.</Muted>
+          </Card>
+        )}
       </Screen>
     );
   }
@@ -47,7 +78,16 @@ export default function PersonScreen() {
   const self = relation === "self";
 
   return (
-    <Screen>
+    <Screen menu={self ? null : (
+      <MoreMenu
+        label={`Options for ${person.name}`}
+        items={[
+          { label: `Report ${person.name}`, icon: "alert-circle-outline", onPress: () => setReporting(true), testID: "report-user" },
+          { label: `Block ${person.name}`, icon: "remove-circle-outline", danger: true, onPress: () => void block(person.name), testID: "block-user" },
+        ]}
+      />
+    )}>
+      <ReportSheet target={reporting ? { kind: "user", id } : null} what={person.name} onClose={() => setReporting(false)} />
       <Card className="items-center gap-3" testID="person-card">
         <AvatarZoom name={person.name} url={person.avatar_url} size={88} />
         <View className="items-center gap-1">
@@ -95,11 +135,10 @@ export default function PersonScreen() {
             </Link>
           </View>
         ) : isBlocked ? (
-          <Muted className="text-sm font-sans-semibold">You&apos;ve blocked this person, or they&apos;ve blocked you.</Muted>
+          <Muted className="text-sm font-sans-semibold">You can&apos;t add this person.</Muted>
         ) : (
           <FriendButton id={id} relation={relation} onChanged={refresh} />
         )}
-        {!self && <ProfileMenu id={id} myId={myId!} name={person.name} blockedByMe={isBlocked} onChanged={refresh} />}
       </Card>
       {self && <CompleteProfileCard prompts={p.prompts.length} />}
 
@@ -168,11 +207,14 @@ export default function PersonScreen() {
   );
 }
 
-function Screen({ children }: { children: React.ReactNode }) {
+function Screen({ children, menu }: { children: React.ReactNode; menu?: React.ReactNode }) {
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10">
-        <BackButton fallback="/(tabs)/me" className="mb-4" />
+        <View className="z-10 mb-4 flex-row items-start justify-between">
+          <BackButton fallback="/(tabs)/me" />
+          {menu}
+        </View>
         {children}
       </ScrollView>
     </SafeAreaView>

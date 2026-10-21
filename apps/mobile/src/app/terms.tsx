@@ -6,7 +6,7 @@ export const generateMetadata = () => ({ title: "Terms of use · Function" });
 
 export default function TermsPage() {
   return (
-    <ProsePage title="Terms of use" updated="15 October 2026">
+    <ProsePage title="Terms of use" updated="21 October 2026">
       <P>By using Function you agree to these terms.</P>
 
       <H2>Who can use Function</H2>
@@ -25,13 +25,14 @@ export default function TermsPage() {
 
       <H2>Friends and messages</H2>
       <Li>Be respectful. No harassment, threats, spam, or sharing other people&apos;s private information.</Li>
-      <Li>You can block anyone at any time. Blocked people can&apos;t message you, add you or see your events.</Li>
+      <Li>You can block anyone at any time, from their profile or a chat. Blocked people can&apos;t message you, find you in search or see your profile, and you no longer see their messages in group chats. Unblock them in Me → Privacy.</Li>
 
       <H2>Reporting and removal</H2>
       <P>
-        Anyone can report content, and you can block anyone. We have no tolerance for objectionable content or
-        abusive users: content that breaks these terms is removed, and the account behind it can be banned.
-        Reports are reviewed within 24 hours.
+        Abusive or objectionable content isn&apos;t tolerated on Function. Anyone can report a message, photo, video,
+        shared event, event or profile (press and hold a message, or use the ••• menu). Reports go to the Function
+        team and are reviewed within 24 hours. Content that breaks these terms is removed, and the account behind it
+        can be suspended or banned. Society organisers and chat admins can also delete messages in their group chats.
       </P>
 
       <H2>Liability</H2>

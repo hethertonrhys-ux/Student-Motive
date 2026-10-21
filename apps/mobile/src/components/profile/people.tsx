@@ -2,15 +2,14 @@ import { Image } from "expo-image";
 import { Link, useRouter } from "expo-router";
 import { useState } from "react";
 import { Modal, Pressable, ScrollView, View, useWindowDimensions } from "react-native";
-import { blockUser, guessTwoTruths, openFriendChat, REPORT_REASONS, removeFriend, reportPhoto, reportUser, respondToFriendRequest, sendFriendRequest, unblockUser, type Relation, type TwoTruthsView } from "@function/shared";
+import { guessTwoTruths, openFriendChat, removeFriend, respondToFriendRequest, sendFriendRequest, type Relation, type TwoTruthsView } from "@function/shared";
 import { Avatar } from "@/components/avatar";
-import { LinkButton } from "@/components/event/panels";
-import { Chip } from "@/components/social/filters";
-import { Button, Input, Muted, T } from "@/components/ui";
+import { ReportSheet } from "@/components/safety/report-sheet";
+import { Button, Muted, T } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 
-// Pieces of someone's profile page: the friend button, block/report, the
-// photo gallery, the profile picture zoom and the Two truths game.
+// Pieces of someone's profile page: the friend button, the
+// photo gallery (with "Report photo"), the profile picture zoom and the Two truths game.
 
 // Add friend / Requested / Accept / Friends, depending on how you're connected.
 export function FriendButton({ id, relation, compact = false, onChanged }: { id: string; relation: Relation; compact?: boolean; onChanged?: () => void }) {
@@ -60,68 +59,6 @@ export function FriendButton({ id, relation, compact = false, onChanged }: { id:
   );
 }
 
-// Block or report, tucked away under a small link.
-export function ProfileMenu({ id, myId, name, blockedByMe, onChanged }: { id: string; myId: string; name: string; blockedByMe: boolean; onChanged: () => void }) {
-  const [open, setOpen] = useState<"menu" | "report" | null>(null);
-  const [reason, setReason] = useState("");
-  const [details, setDetails] = useState("");
-  const [state, setState] = useState<{ sent?: boolean; error?: string }>({});
-  const [sending, setSending] = useState(false);
-
-  if (open === null) {
-    return (
-      <Pressable onPress={() => setOpen("menu")} testID="block-or-report">
-        <T variant="semibold" className="text-xs text-muted">Block or report</T>
-      </Pressable>
-    );
-  }
-  if (state.sent) return <T variant="semibold" className="text-sm text-ok">Thanks. The Function team will look at this.</T>;
-  return (
-    <View className="w-full max-w-sm gap-3 rounded-2xl border border-line p-4">
-      {open === "menu" && (
-        <>
-          {blockedByMe ? (
-            <Button variant="ghost" onPress={() => void unblockUser(supabase, myId, id).then(onChanged)} testID="unblock">Unblock {name}</Button>
-          ) : (
-            <LinkButton onPress={() => void blockUser(supabase, id).then(onChanged)} confirmText={`Block ${name}? They won't be able to message you, add you or see your events.`} danger testID="block">{`Block ${name}`}</LinkButton>
-          )}
-          <Button variant="ghost" onPress={() => setOpen("report")} testID="report-user">Report {name}</Button>
-          <Pressable onPress={() => setOpen(null)} className="items-center">
-            <T className="text-sm text-muted">Cancel</T>
-          </Pressable>
-        </>
-      )}
-      {open === "report" && (
-        <View className="gap-3">
-          <T variant="semibold">Why are you reporting {name}?</T>
-          <View className="flex-row flex-wrap gap-2">
-            {REPORT_REASONS.map((r) => (
-              <Chip key={r} active={reason === r} onPress={() => setReason(r)}>{r}</Chip>
-            ))}
-          </View>
-          <Input value={details} onChangeText={setDetails} multiline maxLength={2000} placeholder="Anything else we should know (optional)" className="min-h-20" style={{ textAlignVertical: "top" }} />
-          {state.error && <T className="text-sm text-danger">{state.error}</T>}
-          <View className="flex-row gap-2">
-            <Button
-              className="flex-1"
-              disabled={sending}
-              onPress={async () => {
-                setSending(true);
-                const r = await reportUser(supabase, id, reason, details);
-                setSending(false);
-                setState(r.error ? { error: r.error } : { sent: true });
-              }}
-              testID="send-user-report"
-            >
-              {sending ? "Sending…" : "Send report"}
-            </Button>
-            <Button variant="ghost" onPress={() => setOpen(null)}>Cancel</Button>
-          </View>
-        </View>
-      )}
-    </View>
-  );
-}
 
 // The profile picture; tap it to see it big.
 export function AvatarZoom({ name, url, size }: { name: string; url: string | null; size: number }) {
@@ -148,8 +85,6 @@ export function PhotoGallery({ photos, canReport }: { photos: { id: string; url:
   const w = Math.min(width - 32, 640);
   const [index, setIndex] = useState(0);
   const [reporting, setReporting] = useState<string | null>(null);
-  const [reason, setReason] = useState("Inappropriate");
-  const [reported, setReported] = useState<Set<string>>(new Set());
   const current = photos[index];
   return (
     <View>
@@ -171,29 +106,12 @@ export function PhotoGallery({ photos, canReport }: { photos: { id: string; url:
       </View>
       {canReport && current && (
         <View className="mt-2 items-end">
-          {reported.has(current.id) ? (
-            <Muted className="text-xs font-sans-semibold">Reported. Thanks.</Muted>
-          ) : reporting === current.id ? (
-            <View className="w-full flex-row items-center gap-2">
-              <Input value={reason} onChangeText={setReason} className="flex-1 py-2" placeholder="Why are you reporting this photo?" />
-              <Button
-                className="py-2"
-                onPress={async () => {
-                  const r = await reportPhoto(supabase, current.id, reason);
-                  if (!r.error) setReported((s) => new Set(s).add(current.id));
-                  setReporting(null);
-                }}
-              >
-                Send
-              </Button>
-            </View>
-          ) : (
-            <Pressable onPress={() => setReporting(current.id)}>
-              <Muted className="text-xs font-sans-semibold">Report photo</Muted>
-            </Pressable>
-          )}
+          <Pressable onPress={() => setReporting(current.id)} hitSlop={8} className="min-h-8 justify-center" testID="report-photo">
+            <Muted className="text-xs font-sans-semibold">Report photo</Muted>
+          </Pressable>
         </View>
       )}
+      <ReportSheet target={reporting ? { kind: "photo", id: reporting } : null} what="this photo" onClose={() => setReporting(null)} />
     </View>
   );
 }

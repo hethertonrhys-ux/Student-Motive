@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { chatMediaUrls } from "./chat-media";
 import { PHOTO_BUCKET } from "./profile-photos";
 import { getCards, type PersonCard } from "./social";
 import type { Society } from "./types";
@@ -21,7 +22,8 @@ export type AdminReport = {
   reported_user_id: string | null;
   events: { title: string } | null;
   societies: { name: string } | null;
-  messages: { body: string; sender_id: string | null; deleted_at: string | null } | null;
+  // kind and media_path: a photo or video in a chat (missing before those database changes).
+  messages: { body: string; sender_id: string | null; deleted_at: string | null; kind?: string; media_path?: string | null } | null;
 };
 export type ReportedPhoto = { photoId: string; path: string; url: string | null; userId: string; reasons: string[] };
 export type AdminPage = {
@@ -31,6 +33,8 @@ export type AdminPage = {
   societies: Society[];
   allowed: { email: string; note: string | null }[];
   people: Map<string, PersonCard>;
+  // Links to reported chat photos and videos, by their path.
+  mediaUrls: Map<string, string>;
 };
 
 // How many reports are waiting for the Function team (all kinds).
@@ -43,7 +47,7 @@ export async function countOpenReports(supabase: SupabaseClient): Promise<number
 export async function loadAdmin(supabase: SupabaseClient): Promise<AdminPage> {
   const [{ data: claims }, { data: reports }, { data: societies }, { data: allowed }, { data: photoReports }] = await Promise.all([
     supabase.from("society_claims").select("id, committee_role, message, created_at, societies(name, university), profiles(email)").eq("status", "pending").order("created_at"),
-    supabase.from("reports").select("id, reason, details, created_at, event_id, message_id, reported_user_id, events(title), societies(name), messages(body, sender_id, deleted_at)").eq("status", "open").order("created_at"),
+    supabase.from("reports").select("id, reason, details, created_at, event_id, message_id, reported_user_id, events(title), societies(name), messages(*)").eq("status", "open").order("created_at"),
     supabase.from("societies").select("*").order("kind").order("name"),
     supabase.from("allowed_emails").select("email, note").order("email"),
     supabase.from("profile_photo_reports").select("photo_id, reason, created_at, profile_photos(path, user_id)").eq("status", "open").order("created_at"),
@@ -60,7 +64,10 @@ export async function loadAdmin(supabase: SupabaseClient): Promise<AdminPage> {
   const { data: signed } = list.length ? await supabase.storage.from(PHOTO_BUCKET).createSignedUrls(list.map(([, p]) => p.path), 3600) : { data: [] };
   const urls = new Map((signed ?? []).map((s) => [s.path, s.signedUrl]));
   const reportList = (reports ?? []) as unknown as AdminReport[];
-  const people = await getCards(supabase, [...reportList.flatMap((r) => [r.reported_user_id, r.messages?.sender_id]), ...list.map(([, p]) => p.user_id)].filter((x): x is string => !!x));
+  const [people, mediaUrls] = await Promise.all([
+    getCards(supabase, [...reportList.flatMap((r) => [r.reported_user_id, r.messages?.sender_id]), ...list.map(([, p]) => p.user_id)].filter((x): x is string => !!x)),
+    chatMediaUrls(supabase, reportList.map((r) => r.messages?.media_path).filter((x): x is string => !!x)),
+  ]);
   return {
     claims: (claims ?? []) as unknown as AdminClaim[],
     reports: reportList,
@@ -68,6 +75,7 @@ export async function loadAdmin(supabase: SupabaseClient): Promise<AdminPage> {
     societies: (societies ?? []) as Society[],
     allowed: (allowed ?? []) as { email: string; note: string | null }[],
     people,
+    mediaUrls,
   };
 }
 

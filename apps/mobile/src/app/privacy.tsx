@@ -6,7 +6,7 @@ export const generateMetadata = () => ({ title: "Privacy policy · Function" });
 
 export default function PrivacyPage() {
   return (
-    <ProsePage title="Privacy policy" updated="20 October 2026">
+    <ProsePage title="Privacy policy" updated="21 October 2026">
       <P>
         This policy explains what personal data Function collects, why, and your rights under UK data protection law
         (UK GDPR and the Data Protection Act 2018). Function is run by its founders, who are the data controller.
@@ -26,7 +26,7 @@ export default function PrivacyPage() {
       <Li><B>Notifications</B>: a push token for each phone or browser you allow notifications on, and your notification preferences.</Li>
       <Li><B>Security</B>: your two-factor authentication method, including a phone number if you choose text messages.</Li>
       <Li><B>A few counters for us</B>: which sign-up steps you reached and what you searched for across all London unis, so we can see where Function needs work.</Li>
-      <Li><B>Reports and blocks</B> you make, to keep Function safe.</Li>
+      <Li><B>Reports and blocks</B> you make, to keep Function safe. A report records who made it, what was reported, the reason, any note and the time; the Function team gets an email with these details so we can review it. The person you report isn&apos;t told who reported them.</Li>
       <Li><B>Content societies post</B>: event details and images.</Li>
 
       <H2>Why we use it (lawful basis)</H2>

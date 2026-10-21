@@ -1,13 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "expo-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { adminSearchUsers, adminUserDetail, countryByCode, uniShort } from "@function/shared";
+import { adminLiftBan, adminSearchUsers, adminSetBan, adminUserDetail, banLabel, countryByCode, loadAccountBan, uniShort } from "@function/shared";
 import { AdminTabs } from "@/components/admin-tabs";
 import { Avatar } from "@/components/avatar";
 import { BackButton } from "@/components/back-button";
-import { Card, Heading, Input, Muted, T } from "@/components/ui";
+import { Button, Card, Heading, Input, Label, Muted, T } from "@/components/ui";
+import { confirmAction } from "@/lib/confirm";
 import { useProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 
@@ -15,12 +16,15 @@ const when = (iso: string | null | undefined) => (iso ? new Intl.DateTimeFormat(
 
 // Admin panel → Users: find a person by name or email and see what support
 // needs: account details, verification, societies, events, reports against
-// them. Nothing else (no photos, prompts, chats or money).
+// them, and suspending or banning the account. Nothing else (no photos,
+// prompts, chats or money).
 export default function AdminUsersScreen() {
   const { profile, loading } = useProfile();
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
-  const [picked, setPicked] = useState<string | null>(null);
+  // /admin/users?user=<id> opens that person (e.g. from a report).
+  const { user } = useLocalSearchParams<{ user?: string }>();
+  const [picked, setPicked] = useState<string | null>(typeof user === "string" ? user : null);
   useEffect(() => {
     const t = setTimeout(() => setDebounced(query), 250);
     return () => clearTimeout(t);
@@ -126,6 +130,7 @@ function UserDetail({ d }: { d: NonNullable<Awaited<ReturnType<typeof adminUserD
       </View>
       <EventList title={`Hosting (${d.hosted_count})`} items={d.hosted} />
       <EventList title={`Joined (${d.joined_count})`} items={d.joined} />
+      {!d.is_admin && <BanControls userId={d.id} name={d.name} />}
       <View>
         <T variant="semibold">Reports against them ({d.reports_against.length})</T>
         {d.reports_against.length === 0 ? (
@@ -142,6 +147,59 @@ function UserDetail({ d }: { d: NonNullable<Awaited<ReturnType<typeof adminUserD
         )}
       </View>
     </>
+  );
+}
+
+// Suspend (7 or 30 days) or ban an account: it can't log in until then (or
+// ever), and is logged out everywhere now. The reason is kept with it.
+function BanControls({ userId, name }: { userId: string; name: string }) {
+  const queryClient = useQueryClient();
+  const ban = useQuery({ queryKey: ["admin", "ban", userId], queryFn: () => loadAccountBan(supabase, userId) });
+  const [reason, setReason] = useState("");
+  const [state, setState] = useState<{ error?: string; done?: string }>({});
+  const [busy, setBusy] = useState(false);
+  const label = banLabel(ban.data ?? null);
+
+  async function apply(days: number | null) {
+    const what = days === null ? `Ban ${name}?` : `Suspend ${name} for ${days} days?`;
+    if (!(await confirmAction(what, "They're logged out now and can't log in until it ends (a ban doesn't end). You can lift it here.", days === null ? "Ban" : "Suspend"))) return;
+    setBusy(true);
+    const r = await adminSetBan(supabase, userId, days, reason);
+    setBusy(false);
+    setState(r.error ? { error: r.error } : { done: days === null ? "Banned." : `Suspended for ${days} days.` });
+    if (!r.error) setReason("");
+    await queryClient.invalidateQueries({ queryKey: ["admin", "ban", userId] });
+  }
+
+  async function lift() {
+    setBusy(true);
+    const r = await adminLiftBan(supabase, userId);
+    setBusy(false);
+    setState(r.error ? { error: r.error } : { done: "Lifted. They can log in again." });
+    await queryClient.invalidateQueries({ queryKey: ["admin", "ban", userId] });
+  }
+
+  return (
+    <View className="gap-2 rounded-xl border border-line p-3" testID="ban-controls">
+      <View className="flex-row items-center justify-between gap-2">
+        <T variant="semibold">Suspend or ban</T>
+        {label ? <Pill>{label}</Pill> : <Pill ok>Active</Pill>}
+      </View>
+      {label && ban.data?.reason && <Muted className="text-sm" testID="ban-reason">Reason: {ban.data.reason}</Muted>}
+      <View>
+        <Label>Reason (kept with it)</Label>
+        <Input value={reason} onChangeText={setReason} maxLength={500} placeholder="e.g. Abusive messages in a group chat" testID="ban-reason-input" />
+      </View>
+      <View className="flex-row flex-wrap gap-2">
+        <Button variant="ghost" className="py-2" disabled={busy} onPress={() => void apply(7)} testID="suspend-7">Suspend 7 days</Button>
+        <Button variant="ghost" className="py-2" disabled={busy} onPress={() => void apply(30)} testID="suspend-30">Suspend 30 days</Button>
+        <Button className="py-2" disabled={busy} onPress={() => void apply(null)} testID="ban">Ban</Button>
+        {label && <Button variant="ghost" className="py-2" disabled={busy} onPress={() => void lift()} testID="lift-ban">Lift</Button>}
+      </View>
+      {state.error && <T variant="semibold" className="text-sm text-danger" testID="ban-error">{state.error}</T>}
+      {state.done && <T variant="semibold" className="text-sm text-ok" testID="ban-done">{state.done}</T>}
+      <Muted className="text-xs">To remove what they posted, use the buttons on each report in Overview.</Muted>
+    </View>
   );
 }
 
