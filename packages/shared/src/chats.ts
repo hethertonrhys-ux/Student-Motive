@@ -26,6 +26,12 @@ export type Thread = {
   unread: number;
 };
 
+// Friend requests waiting for your answer (the number on Me → Friends).
+export async function countFriendRequests(supabase: SupabaseClient, myId: string): Promise<number> {
+  const { count } = await supabase.from("friendships").select("requester_id", { count: "exact", head: true }).eq("addressee_id", myId).eq("status", "pending");
+  return count ?? 0;
+}
+
 export async function loadThreads(supabase: SupabaseClient, myId: string): Promise<{ threads: Thread[]; requests: number }> {
   const [{ data }, { count }] = await Promise.all([
     supabase.rpc("my_threads"),

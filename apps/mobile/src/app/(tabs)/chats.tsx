@@ -45,8 +45,11 @@ export default function ChatsScreen() {
           <Heading>Messages</Heading>
           {myId && (
             <Link href={"/friends" as never} asChild>
-              <Button variant="ghost" className="py-2" testID="friends-link">
-                Friends
+              {/* Its words are in a text block of their own: loose words beside the
+                  number showed an empty box on phones. */}
+              <Button variant="ghost" className="py-2" accessibilityLabel={requests > 0 ? `Friends, ${requests} ${requests === 1 ? "request" : "requests"} waiting` : "Friends"} testID="friends-link">
+                <Icon name="people-outline" size={18} color="#15142b" />
+                <T variant="semibold" className="text-base text-ink">Friends</T>
                 {requests > 0 && (
                   <View className="min-w-5 items-center rounded-full bg-live px-1.5">
                     <T variant="bold" className="text-xs leading-5 text-white" testID="requests-badge">{requests}</T>

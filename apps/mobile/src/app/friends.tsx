@@ -20,7 +20,7 @@ export default function FriendsScreen() {
   const queryClient = useQueryClient();
   const myId = session?.user.id ?? null;
   const data = useQuery({ queryKey: ["friends", myId], queryFn: () => loadFriends(supabase, myId!), enabled: !!myId });
-  const refresh = () => void Promise.all([queryClient.invalidateQueries({ queryKey: ["friends"] }), queryClient.invalidateQueries({ queryKey: ["threads"] }), queryClient.invalidateQueries({ queryKey: ["notification-times"] })]);
+  const refresh = () => void Promise.all([queryClient.invalidateQueries({ queryKey: ["friends"] }), queryClient.invalidateQueries({ queryKey: ["threads"] }), queryClient.invalidateQueries({ queryKey: ["notification-times"] }), queryClient.invalidateQueries({ queryKey: ["friend-request-count"] })]);
 
   return (
     <SafeAreaView className="flex-1 bg-bg">

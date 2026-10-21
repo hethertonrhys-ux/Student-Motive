@@ -3,14 +3,16 @@ import { Link, useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { countMyManagedSocieties, countOpenReports, uniShort } from "@function/shared";
+import { countFriendRequests, countMyManagedSocieties, countOpenReports, uniShort } from "@function/shared";
 import { Avatar } from "@/components/avatar";
 import { Icon } from "@/components/icon";
 import { QrSheet } from "@/components/qr/qr-sheet";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
+import { useNewNotifications } from "@/lib/badges";
 import { useProfile } from "@/lib/profile";
 import { disablePushOnThisDevice } from "@/lib/push";
 import { supabase } from "@/lib/supabase";
+import { useRefetchOnFocus } from "@/lib/use-refetch-on-focus";
 import { useSession } from "@/providers/session";
 
 // Your own corner: who you're logged in as, your profile, friends,
@@ -26,6 +28,11 @@ export default function MeScreen() {
   // How many societies you manage (a count only), for the Society Hub row.
   const userId = session?.user.id ?? null;
   const managed = useQuery({ queryKey: ["my-hub-count", userId], queryFn: () => countMyManagedSocieties(supabase, userId!), enabled: !!userId, staleTime: 60_000 });
+  // The red numbers: what's new in Notifications (the same number as on the
+  // Me tab), and friend requests waiting for your answer.
+  const fresh = useNewNotifications();
+  const requests = useQuery({ queryKey: ["friend-request-count", userId], queryFn: () => countFriendRequests(supabase, userId!), enabled: !!userId });
+  useRefetchOnFocus(requests);
 
   async function logOut() {
     await disablePushOnThisDevice();
@@ -34,13 +41,13 @@ export default function MeScreen() {
     router.replace("/");
   }
 
-  const rows: { href: string; icon: React.ComponentProps<typeof Icon>["name"]; title: string; detail: string; testID: string }[] = [
+  const rows: { href: string; icon: React.ComponentProps<typeof Icon>["name"]; title: string; detail: string; testID: string; count?: number }[] = [
     { href: `/u/${session?.user.id}`, icon: "person-circle-outline", title: "My profile", detail: "How other students see you", testID: "my-profile" },
     { href: "/account/security", icon: "lock-closed-outline", title: "Password & security", detail: "Set a password, two-factor authentication", testID: "security" },
     { href: "/account/privacy", icon: "hand-left-outline", title: "Privacy", detail: "People you've blocked", testID: "privacy-settings" },
     { href: "/account/notifications", icon: "notifications-circle-outline", title: "Notification settings", detail: "Choose what Function tells you about", testID: "notification-settings" },
-    { href: "/friends", icon: "people-outline", title: "Friends", detail: "Requests, people you may know", testID: "friends" },
-    { href: "/notifications", icon: "notifications-outline", title: "Notifications", detail: "What's happened lately", testID: "notifications" },
+    { href: "/friends", icon: "people-outline", title: "Friends", detail: requests.data ? `${requests.data} ${requests.data === 1 ? "request" : "requests"} waiting` : "Requests, people you may know", testID: "friends", count: requests.data },
+    { href: "/notifications", icon: "notifications-outline", title: "Notifications", detail: fresh ? `${fresh} new` : "What's happened lately", testID: "notifications", count: fresh },
     { href: "/support", icon: "help-circle-outline", title: "Help & support", detail: "Email us, report a problem", testID: "support" },
     { href: "/privacy", icon: "document-text-outline", title: "Privacy & terms", detail: "How Function uses your data", testID: "privacy" },
     ...(managed.data ? [{ href: "/hub", icon: "briefcase-outline" as const, title: "Society Hub", detail: managed.data === 1 ? "Run your society: setup, features, committee" : `Run your ${managed.data} societies: setup, features, committee`, testID: "society-hub" }] : []),
@@ -82,6 +89,11 @@ export default function MeScreen() {
                       <T variant="semibold">{row.title}</T>
                       <Muted className="text-xs">{row.detail}</Muted>
                     </View>
+                    {!!row.count && (
+                      <View className="min-w-6 items-center rounded-full bg-live px-1.5" accessibilityLabel={`${row.count} new`} testID={`${row.testID}-badge`}>
+                        <T variant="bold" className="text-xs leading-6 text-white">{row.count}</T>
+                      </View>
+                    )}
                     <Icon name="chevron-forward" size={18} color="#5e5d78" />
                   </Pressable>
                 </Link>
