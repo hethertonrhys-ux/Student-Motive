@@ -1,23 +1,20 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
-import { useState } from "react";
 import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { formatEventTime, loadSocietiesTab, uniShort } from "@function/shared";
+import { loadSocietiesTab, uniShort } from "@function/shared";
 import { Avatar } from "@/components/avatar";
-import { PersonalFilterBoxes } from "@/components/personal-filters";
-import { ListModeSwitch, SocietyEventsForYou, type ListMode } from "@/components/recommended-events";
+import { Icon } from "@/components/icon";
 import { SocietySearch } from "@/components/society-search";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
-import { useFilterContext } from "@/lib/filter-context";
-import { usePersonalFilters } from "@/lib/personal-filters";
 import { useProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { usePullToRefresh, useRefetchOnFocus } from "@/lib/use-refetch-on-focus";
 import { useSession } from "@/providers/session";
 
-// The Societies tab: find societies, your memberships, the ones you run and
-// your upcoming society events.
+// The Societies tab: find societies, your memberships, the ones you run, and
+// two buttons to the society events pages (everything coming up, and the
+// ones you're going to).
 export default function SocietiesScreen() {
   const { session } = useSession();
   const { profile } = useProfile();
@@ -28,9 +25,7 @@ export default function SocietiesScreen() {
   const pull = usePullToRefresh(() => Promise.all([tab.refetch(), queryClient.invalidateQueries({ queryKey: ["filter-context"] }), queryClient.invalidateQueries({ queryKey: ["recommended", "society"] })]));
   const data = tab.data;
   const myUni = profile?.university;
-  const [mode, setMode] = useState<ListMode>("all");
-  const { context: who, ready: whoReady } = useFilterContext();
-  const [personal, setPersonal] = usePersonalFilters();
+  const runs = data?.runs ?? [];
 
   return (
     <SafeAreaView className="flex-1 bg-bg">
@@ -39,42 +34,6 @@ export default function SocietiesScreen() {
         <Muted className="mt-1 text-sm">{myUni ? `Every ${uniShort(myUni)} society, hall and more in one place.` : "Every society, hall and more across London's unis."}</Muted>
 
         <SocietySearch societies={data?.all ?? []} myUni={myUni} relations={data?.relations} />
-        {me && (
-          <View className="mt-8">
-            <T variant="display" className="text-xl">Events coming up</T>
-            <View className="mt-3">
-              <ListModeSwitch mode={mode} onChange={setMode} allLabel="All events" testID="societies-mode" />
-            </View>
-            <View className="mt-3 rounded-2xl border border-line bg-surface px-2 py-1">
-              <PersonalFilterBoxes filters={personal} onChange={setPersonal} compact testID="recommended-personal" />
-            </View>
-            <SocietyEventsForYou me={{ id: me.id, university: me.university }} who={who} ready={whoReady} personal={personal} mode={mode} />
-          </View>
-        )}
-
-        {!!data?.upcoming.length && (
-          <View className="mt-8">
-            <T variant="display" className="text-xl">Your upcoming events</T>
-            <View className="mt-3 gap-2">
-              {data.upcoming.map(({ status, event: e }) => (
-                <Link key={e.id} href={`/e/${e.id}` as never} asChild>
-                  <Pressable>
-                    <Card className="flex-row items-center justify-between gap-3 py-3">
-                      <View className="min-w-0 flex-1">
-                        <T variant="bold" numberOfLines={1}>{e.title}</T>
-                        <Muted className="text-sm">{formatEventTime(e.starts_at, e.ends_at)}{e.societies ? ` · ${e.societies.name}` : ""}</Muted>
-                      </View>
-                      <View className={`rounded-full px-2.5 py-0.5 ${status === "going" ? "bg-ok/10" : "bg-brand-soft"}`}>
-                        <T variant="bold" className={`text-xs ${status === "going" ? "text-ok" : "text-brand"}`}>{status === "going" ? "Going" : status === "requested" ? "Requested" : "Waiting list"}</T>
-                      </View>
-                    </Card>
-                  </Pressable>
-                </Link>
-              ))}
-            </View>
-          </View>
-        )}
-
         {!!data?.memberships.length && (
           <View className="mt-8">
             <T variant="display" className="text-xl">Your societies</T>
@@ -95,34 +54,35 @@ export default function SocietiesScreen() {
         {session && profile && (
           <View className="mt-8">
             <T variant="display" className="text-xl">Societies you run</T>
-            <View className="mt-3 gap-3">
-              {data?.runs.map((s) => (
-                <Link key={s.id} href={`/dashboard/${s.id}` as never} asChild>
-                <Pressable testID={`manage-${s.id}`}>
-                  <Card className="flex-row items-center justify-between gap-4">
-                    <View className="flex-1 flex-row items-center gap-3">
-                      <Avatar name={s.name} url={s.logo_url} size={36} />
-                      <T variant="display-bold" className="flex-1 text-lg" numberOfLines={1}>{s.name}</T>
-                    </View>
-                    <T variant="semibold" className="text-sm text-brand">Manage →</T>
-                  </Card>
-                </Pressable>
+            {runs.length > 0 ? (
+              <>
+                <Muted className="mt-1 text-sm">{runs.length === 1 ? runs[0].name : `${runs.length} societies`}: post events, approve members and see who&apos;s coming.</Muted>
+                {/* One society: straight to its dashboard. More: pick one there. */}
+                <Link href={(runs.length === 1 ? `/dashboard/${runs[0].id}` : "/dashboard") as never} asChild>
+                  <Button className="mt-3" testID="dashboard-link">Society dashboard</Button>
                 </Link>
-              ))}
-              {data && data.runs.length === 0 && (
-                <Card>
-                  <Muted>On a committee? Ask to manage your society&apos;s page and we&apos;ll approve it once we&apos;ve checked.</Muted>
-                </Card>
-              )}
-            </View>
-            <View className="mt-4 flex-row flex-wrap gap-2">
-              <Link href={"/dashboard/claim" as never} asChild>
-                <Button variant="ghost">+ Request to manage a society</Button>
-              </Link>
-              <Link href={"/dashboard" as never} asChild>
-                <Button variant="ghost" testID="dashboard-link">Society dashboard</Button>
-              </Link>
-            </View>
+              </>
+            ) : (
+              data && <Muted className="mt-1 text-sm">On a committee? Ask to manage your society&apos;s page and we&apos;ll approve it once we&apos;ve checked.</Muted>
+            )}
+            <Link href={"/dashboard/claim" as never} asChild>
+              <Pressable className="mt-3 min-h-11 justify-center self-start" accessibilityRole="link" testID="request-manage">
+                <T variant="semibold" className="text-sm text-brand">+ Request to manage a society</T>
+              </Pressable>
+            </Link>
+          </View>
+        )}
+
+        {me && (
+          <View className="mt-8 gap-3" testID="society-event-buttons">
+            <EventsButton href="/society-events" icon="calendar-outline" title="Events coming up" detail="Every society event in the next two weeks" testID="events-coming-up" />
+            <EventsButton
+              href="/society-events/going"
+              icon="checkmark-circle-outline"
+              title="Your upcoming society events"
+              detail={data?.upcoming.length ? `${data.upcoming.length} coming up` : "Events you're going to or have asked to join"}
+              testID="your-upcoming"
+            />
           </View>
         )}
 
@@ -138,5 +98,21 @@ export default function SocietiesScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+// A big tappable row to one of the society events pages.
+function EventsButton({ href, icon, title, detail, testID }: { href: string; icon: React.ComponentProps<typeof Icon>["name"]; title: string; detail: string; testID: string }) {
+  return (
+    <Link href={href as never} asChild>
+      <Pressable accessibilityRole="button" className="flex-row items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3.5 active:opacity-80" testID={testID}>
+        <Icon name={icon} size={24} color="#DA291C" />
+        <View className="min-w-0 flex-1">
+          <T variant="semibold">{title}</T>
+          <Muted className="text-xs">{detail}</Muted>
+        </View>
+        <Icon name="chevron-forward" size={18} color="#5e5d78" />
+      </Pressable>
+    </Link>
   );
 }

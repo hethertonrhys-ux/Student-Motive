@@ -5,11 +5,13 @@ import { T } from "@/components/ui";
 
 // The two tick boxes that work the same everywhere events are listed:
 // "Only events my friends are hosting" and "Only events from societies I'm
-// a member of". Both ticked shows events that match either one.
-export function PersonalFilterBoxes({ filters, onChange, compact = false, testID = "personal" }: { filters: PersonalFilters; onChange: (next: PersonalFilters) => void; compact?: boolean; testID?: string }) {
+// a member of". Both ticked shows events that match either one. "only"
+// shows just one of them (Social has the friends box, the society events
+// page the societies box).
+export function PersonalFilterBoxes({ filters, onChange, compact = false, only, testID = "personal" }: { filters: PersonalFilters; onChange: (next: PersonalFilters) => void; compact?: boolean; only?: keyof PersonalFilters; testID?: string }) {
   return (
     <View className={compact ? "gap-1" : "gap-1.5"} testID={testID}>
-      {PERSONAL_FILTER_OPTIONS.map((o) => {
+      {PERSONAL_FILTER_OPTIONS.filter((o) => !only || o.key === only).map((o) => {
         const on = filters[o.key];
         return (
           <Pressable key={o.key} onPress={() => onChange({ ...filters, [o.key]: !on })} accessibilityRole="checkbox" accessibilityState={{ checked: on }} aria-checked={on} testID={`${testID}-${o.key}`} className={`flex-row items-center gap-3 rounded-xl ${compact ? "px-1 py-1.5" : "px-2 py-2.5"}`}>
