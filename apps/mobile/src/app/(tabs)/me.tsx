@@ -1,10 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "expo-router";
+import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { countMyManagedSocieties, countOpenReports, uniShort } from "@function/shared";
 import { Avatar } from "@/components/avatar";
 import { Icon } from "@/components/icon";
+import { QrSheet } from "@/components/qr/qr-sheet";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
 import { useProfile } from "@/lib/profile";
 import { disablePushOnThisDevice } from "@/lib/push";
@@ -18,6 +20,7 @@ export default function MeScreen() {
   const { session } = useSession();
   const { profile } = useProfile();
   const queryClient = useQueryClient();
+  const [qrOpen, setQrOpen] = useState(false);
   // Reports waiting for the Function team (admins only), so they're dealt with quickly.
   const openReports = useQuery({ queryKey: ["open-reports"], queryFn: () => countOpenReports(supabase), enabled: !!profile?.is_admin, staleTime: 60_000 });
   // How many societies you manage (a count only), for the Society Hub row.
@@ -57,6 +60,10 @@ export default function MeScreen() {
         ) : profile ? (
           <>
             <Card className="mt-6 items-center gap-3">
+              {/* Your QR code (and a scanner for someone else's). */}
+              <Pressable onPress={() => setQrOpen(true)} accessibilityRole="button" accessibilityLabel="My QR code" hitSlop={8} className="absolute right-3 top-3 h-11 w-11 items-center justify-center rounded-full active:opacity-70" testID="open-qr">
+                <Icon name="qr-code-outline" size={24} color="#DA291C" />
+              </Pressable>
               <Avatar name={profile.display_name || "You"} url={profile.avatar_url} size={88} />
               <View className="items-center">
                 <View className="flex-row items-center gap-2">
@@ -80,6 +87,7 @@ export default function MeScreen() {
               ))}
             </View>
             <Button variant="ghost" className="mt-6" onPress={logOut} testID="log-out">Log out</Button>
+            <QrSheet visible={qrOpen} onClose={() => setQrOpen(false)} me={{ id: profile.id, name: profile.display_name || "You", avatarUrl: profile.avatar_url ?? null }} />
           </>
         ) : (
           <View className="mt-6">
