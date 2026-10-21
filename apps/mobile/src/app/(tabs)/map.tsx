@@ -291,14 +291,12 @@ export default function MapScreen() {
 
       {/* Bottom: the count (or the walking route), and the uni / London buttons. */}
       {!selected && (
-        <View className="absolute inset-x-0 bottom-0 z-10 gap-2 p-3 web:pb-8" pointerEvents="box-none">
-          {/* Your uni and all of London, on their own row like Snap Map's location buttons. */}
-          <View className="mr-12 flex-row justify-end gap-2" pointerEvents="box-none">
-            <PlaceButton label={home.short} onPress={() => map.current?.flyTo(campusView(home.centre))} testID="go-uni" />
-            <PlaceButton label="London" onPress={() => map.current?.flyTo(LONDON_VIEW)} testID="go-london" />
-          </View>
+        <View className="absolute inset-x-0 bottom-0 z-10 p-3 web:pb-8" pointerEvents="box-none">
+          {/* One line: the count (or the walking route) on the left, and your
+              uni and all of London on the right, lined up along the bottom. */}
+          <View className="mr-12 flex-row items-end gap-2" pointerEvents="box-none" testID="map-bottom-row">
           {walk ? (
-            <View className="mr-12 self-start rounded-2xl shadow-soft">
+            <View className="min-w-0 shrink rounded-2xl shadow-soft">
             <Frosted className="rounded-2xl px-4 py-3" testID="walk-bar">
               <T variant="footnote" className="font-sans-semibold text-muted" numberOfLines={1}>Walking to {walk.title}</T>
               <T variant="headline">{walkText(walk.walk)}</T>
@@ -314,7 +312,7 @@ export default function MapScreen() {
             </Frosted>
             </View>
           ) : (
-            <View className="mr-12 self-start rounded-2xl shadow-soft">
+            <View className="min-w-0 shrink rounded-2xl shadow-soft">
             <Frosted className="rounded-2xl px-4 py-3" testID="status">
               <T variant="headline">
                 {data.isPending ? "Loading…" : `${visible.length} ${visible.length === 1 ? "event" : "events"} ${whenLabel}`}
@@ -351,6 +349,11 @@ export default function MapScreen() {
             </Frosted>
             </View>
           )}
+            <View className="ml-auto flex-none flex-row gap-2" pointerEvents="box-none">
+              <PlaceButton label={home.short} onPress={() => map.current?.flyTo(campusView(home.centre))} testID="go-uni" />
+              <PlaceButton label="London" onPress={() => map.current?.flyTo(LONDON_VIEW)} testID="go-london" />
+            </View>
+          </View>
         </View>
       )}
 

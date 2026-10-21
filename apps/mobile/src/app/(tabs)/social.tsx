@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { RECOMMEND_LIMIT, filterContextKey, isLive, isPersonalFiltering, loadSocialRecommendations, loadSocialTab, matchesDiscover, matchesPersonalFilters, nowMs, type DiscoverFilters, type SocialEvent, type SocialTab } from "@function/shared";
+import { PersonalFilterBoxes } from "@/components/personal-filters";
 import { EMPTY_RECOMMENDED_SOCIAL, ListModeSwitch, RECOMMEND_ERROR, type ListMode } from "@/components/recommended-events";
 import { SocialEventCard } from "@/components/social/event-card";
 import { EMPTY_FILTERS, Filters } from "@/components/social/filters";
@@ -37,7 +38,10 @@ export default function SocialScreen() {
   const [mode, setMode] = useState<ListMode>("all");
   const { profile, loading: profileLoading } = useProfile();
   const { context: who, ready: whoReady } = useFilterContext();
-  const [personal, setPersonal] = usePersonalFilters();
+  // Plans are hosted by students, so only the friends box applies here (it
+  // sits at the top of Discover); the societies box is for society events.
+  const [savedPersonal, setPersonal] = usePersonalFilters();
+  const personal = { friendsHosting: savedPersonal.friendsHosting, mySocieties: false };
   const personalOn = !!myId && whoReady && isPersonalFiltering(personal);
   const keep = (e: SocialEvent) => matchesDiscover(e, filters, now) && (!personalOn || matchesPersonalFilters({ hostId: e.host_id, societyId: null }, who, personal));
   const recommending = tab === "discover" && mode === "recommended" && !!myId;
@@ -95,7 +99,12 @@ export default function SocialScreen() {
         {tab === "discover" && (
           <View className="mt-3">
             <Muted className="mb-3 text-[15px]">Plans hosted by students. Join one or start your own.</Muted>
-            <Filters filters={filters} onChange={setFilters} personal={myId ? personal : undefined} onPersonalChange={myId ? setPersonal : undefined} />
+            {myId && (
+              <View className="mb-3 rounded-2xl border border-line bg-surface px-2 py-1">
+                <PersonalFilterBoxes filters={personal} onChange={(next) => setPersonal({ ...savedPersonal, friendsHosting: next.friendsHosting })} only="friendsHosting" compact testID="social-friends" />
+              </View>
+            )}
+            <Filters filters={filters} onChange={setFilters} />
             {myId && (
               <View className="mt-3">
                 <ListModeSwitch mode={mode} onChange={setMode} allLabel="All plans" testID="social-mode" />
