@@ -1,0 +1,66 @@
+# Sends the app to phones (an over-the-air update, like `npm run
+# send-update`) every time something is merged into expo-app, so phones
+# update by themselves the way the website does. It can also be started by
+# hand: GitHub → Actions → "Send update to phones" → Run workflow.
+#
+# Needs one secret, set once: GitHub → Settings → Secrets and variables →
+# Actions → New repository secret, name EXPO_TOKEN, value an access token
+# from expo.dev → Account settings → Access tokens. Without it this does
+# nothing (and says so).
+#
+# A change that needs a new App Store build (a new app version in app.json)
+# is still sent, but only phones on that new version pick it up, so older
+# builds are never sent code they can't run.
+name: Send update to phones
+on:
+  push:
+    branches: [expo-app]
+    paths: ["apps/mobile/**", "packages/shared/**"]
+  workflow_dispatch:
+    inputs:
+      message:
+        description: "What changed (shown on expo.dev)"
+        required: false
+        default: "Latest changes"
+concurrency:
+  group: send-update
+  cancel-in-progress: false
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the Expo token is set
+        id: token
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::warning::No EXPO_TOKEN secret yet, so nothing was sent. See the top of .github/workflows/send-update.yml."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.token.outputs.ready == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.token.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+        if: steps.token.outputs.ready == 'true'
+      - name: Send the update
+        if: steps.token.outputs.ready == 'true'
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          # The first line of the merge's message, or what was typed when started by hand.
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          TYPED_MESSAGE: ${{ github.event.inputs.message }}
+        run: |
+          # A merged pull request's message is "Merge pull request #N ..." then its title: use the title.
+          FIRST="${COMMIT_MESSAGE%%$'\n'*}"
+          TITLE="$(printf '%s\n' "$COMMIT_MESSAGE" | sed -n '3p')"
+          case "$FIRST" in "Merge pull request"*) [ -n "$TITLE" ] && FIRST="$TITLE" ;; esac
+          MESSAGE="${TYPED_MESSAGE:-$FIRST}"
+          npm run send-update -- "${MESSAGE:-Latest changes}"
