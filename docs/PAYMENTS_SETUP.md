@@ -11,7 +11,7 @@ Where the keys go:
 | Secret key `sk_test_…` | Supabase → Edge Functions → Secrets: `STRIPE_SECRET_KEY` | Only the server. Never in the app, never in GitHub, never in a chat. |
 | Webhook signing secrets `whsec_…` (two) | Supabase secrets: `STRIPE_WEBHOOK_SECRET`, `STRIPE_CONNECT_WEBHOOK_SECRET` | Only the server. |
 | Worker password (make one up) | Supabase secret `PAYMENTS_WORKER_SECRET`, and in `supabase/RUN_ONCE_payments_cron.sql` before running it | Only the server. |
-| Publishable key `pk_test_…` | `apps/mobile/eas.json` (all three profiles): `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY`; and Vercel → function-app → Settings → Environment Variables (same name) | Public by design (it can only start payments). |
+| Publishable key `pk_test_…` | `apps/mobile/eas.json` (add a line `"EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_…"` to each profile's `env`; EAS won't build with it there but empty); and Vercel → function-app → Settings → Environment Variables (same name) | Public by design (it can only start payments). |
 
 ## 1. Database
 
@@ -87,11 +87,17 @@ Editor. Every minute it sends queued refunds to Stripe and pays hosts out
 
 ## 9. The app
 
-1. Put the `pk_test_…` key in `apps/mobile/eas.json` (all three profiles) and
-   in Vercel's environment variables (same name), then redeploy the website.
-2. The Stripe SDK is native, so phones need a **new build (1.4.0)**:
+1. The Stripe SDK is native, so phones need a **new build (1.4.0)**:
    expo.dev → Build from GitHub → iOS, `expo-app`, production, auto-submit.
    It doesn't work in Expo Go (you use TestFlight builds, which is right).
+   This can be done before you have the keys: payments just stay off.
+2. Add the `pk_test_…` key to `apps/mobile/eas.json`: in each of the three
+   profiles' `env`, add `"EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_…"`
+   (mind the comma on the line before). Never leave it as `""`: EAS refuses
+   to build with an empty value. Add it to Vercel's environment variables
+   too (same name), then redeploy the website.
+3. Once that's merged, `npm run send-update` (or the "Send update to phones"
+   workflow) switches payments on in the 1.4.0 build. No new build needed.
 
 ## Testing on your phone (test mode, no real money)
 
