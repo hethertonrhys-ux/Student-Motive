@@ -37,8 +37,11 @@ export async function loadThreads(supabase: SupabaseClient, myId: string): Promi
 // "message" is what people write; "event" is an event someone shared (shown
 // as a card); "photo" and "video" are files sent in the chat; "left" and
 // "rejoined" are the notes a group chat shows when someone leaves it or
-// comes back ("Rhys left").
-export type MessageKind = "message" | "event" | "photo" | "video" | "left" | "rejoined";
+// comes back ("Rhys left"), and "removed" when an admin takes someone out
+// ("Sam removed Rhys from the group").
+export type MessageKind = "message" | "event" | "photo" | "video" | "left" | "rejoined" | "removed";
+
+export const isNote = (kind: MessageKind) => kind === "left" || kind === "rejoined" || kind === "removed";
 
 export type ChatMessage = {
   id: string;
@@ -51,6 +54,8 @@ export type ChatMessage = {
   media_width: number | null;
   media_height: number | null;
   media_duration_ms: number | null;
+  // Who a "removed" note is about.
+  subject_user_id: string | null;
   body: string;
   created_at: string;
   sender_id: string | null;
@@ -59,20 +64,23 @@ export type ChatMessage = {
   deleted: boolean;
 };
 
-// Messages in a chat, optionally only those after a time (for live updates). Opening marks it read.
-export async function fetchMessages(supabase: SupabaseClient, threadId: string, after: string | null): Promise<ChatMessage[]> {
+// Every message from a time onwards (oldest first), to reach a pinned
+// message older than the latest 100.
+export async function fetchMessagesFrom(supabase: SupabaseClient, threadId: string, from: string): Promise<ChatMessage[]> {
   if (!UUID.test(threadId)) return [];
-  // All columns, so this still works before the database has the "kind" column.
-  let query = supabase.from("messages").select("*").eq("thread_id", threadId).order("created_at", { ascending: false }).limit(100);
-  if (after) query = query.gt("created_at", after);
-  const { data } = await query;
-  const rows = (data ?? []).reverse() as { id: string; kind?: MessageKind; event_id?: string | null; social_event_id?: string | null; media_path?: string | null; media_width?: number | null; media_height?: number | null; media_duration_ms?: number | null; body: string; created_at: string; sender_id: string | null; deleted_at: string | null }[];
-  // Who sent them, and (on opening, or when something new arrived) mark the chat read: both at once.
-  const [cards] = await Promise.all([
-    getCards(supabase, rows.map((r) => r.sender_id).filter((x): x is string => !!x)),
-    after === null || rows.length > 0 ? supabase.rpc("mark_thread_read", { tid: threadId }) : Promise.resolve(null),
-  ]);
-  return rows.map((r) => ({
+  const { data } = await supabase.from("messages").select("*").eq("thread_id", threadId).gte("created_at", from).order("created_at", { ascending: true }).limit(1000);
+  return toChatMessages(supabase, (data ?? []) as MessageRow[]);
+}
+
+type MessageRow = { id: string; kind?: MessageKind; event_id?: string | null; social_event_id?: string | null; media_path?: string | null; media_width?: number | null; media_height?: number | null; media_duration_ms?: number | null; subject_user_id?: string | null; body: string; created_at: string; sender_id: string | null; deleted_at: string | null };
+
+async function toChatMessages(supabase: SupabaseClient, rows: MessageRow[]): Promise<ChatMessage[]> {
+  const cards = await getCards(supabase, rows.map((r) => r.sender_id).filter((x): x is string => !!x));
+  return rows.map((r) => toChatMessage(r, cards));
+}
+
+function toChatMessage(r: MessageRow, cards: Map<string, PersonCard>): ChatMessage {
+  return {
     id: r.id,
     kind: r.kind ?? "message",
     event_id: r.event_id ?? null,
@@ -81,13 +89,30 @@ export async function fetchMessages(supabase: SupabaseClient, threadId: string, 
     media_width: r.media_width ?? null,
     media_height: r.media_height ?? null,
     media_duration_ms: r.media_duration_ms ?? null,
+    subject_user_id: r.subject_user_id ?? null,
     body: r.deleted_at ? "" : r.body,
     created_at: r.created_at,
     sender_id: r.sender_id,
     sender_name: (r.sender_id && cards.get(r.sender_id)?.name) || "Former member",
     sender_avatar: (r.sender_id && cards.get(r.sender_id)?.avatar_url) || null,
     deleted: Boolean(r.deleted_at),
-  }));
+  };
+}
+
+// Messages in a chat, optionally only those after a time (for live updates). Opening marks it read.
+export async function fetchMessages(supabase: SupabaseClient, threadId: string, after: string | null): Promise<ChatMessage[]> {
+  if (!UUID.test(threadId)) return [];
+  // All columns, so this still works before the database has the "kind" column.
+  let query = supabase.from("messages").select("*").eq("thread_id", threadId).order("created_at", { ascending: false }).limit(100);
+  if (after) query = query.gt("created_at", after);
+  const { data } = await query;
+  const rows = (data ?? []).reverse() as MessageRow[];
+  // Who sent them, and (on opening, or when something new arrived) mark the chat read: both at once.
+  const [cards] = await Promise.all([
+    getCards(supabase, rows.map((r) => r.sender_id).filter((x): x is string => !!x)),
+    after === null || rows.length > 0 ? supabase.rpc("mark_thread_read", { tid: threadId }) : Promise.resolve(null),
+  ]);
+  return rows.map((r) => toChatMessage(r, cards));
 }
 
 export type ThreadInfo = {
@@ -105,13 +130,19 @@ export type ThreadInfo = {
   isAdmin: boolean;
   // Everyone in the chat may share events (admins can switch it off).
   membersCanShare: boolean;
+  // An admin took you out of this group chat (you can't rejoin by yourself).
+  removed: boolean;
+  // The pinned message, and whether you may pin and unpin (admins in a
+  // group chat, either person in a private one).
+  pinnedMessageId: string | null;
+  canPin: boolean;
 };
 
 // Who the chat is with: an event (society or Social) or one other person.
 export async function loadThreadInfo(supabase: SupabaseClient, threadId: string, myId: string): Promise<ThreadInfo | null> {
   if (!UUID.test(threadId)) return null;
   // All columns, so this still works before the database has members_can_share_events.
-  const { data: thread } = await supabase.from("threads").select("*").eq("id", threadId).maybeSingle<{ id: string; event_id: string | null; social_event_id: string | null; user_a: string | null; user_b: string | null; members_can_share_events?: boolean }>();
+  const { data: thread } = await supabase.from("threads").select("*").eq("id", threadId).maybeSingle<{ id: string; event_id: string | null; social_event_id: string | null; user_a: string | null; user_b: string | null; members_can_share_events?: boolean; pinned_message_id?: string | null }>();
   if (!thread) return null;
   const otherId = thread.event_id || thread.social_event_id ? null : thread.user_a === myId ? thread.user_b : thread.user_a;
   const isGroup = !!(thread.event_id || thread.social_event_id);
@@ -122,12 +153,13 @@ export async function loadThreadInfo(supabase: SupabaseClient, threadId: string,
     thread.social_event_id ? supabase.from("social_events").select("id, title, host_id, going_count").eq("id", thread.social_event_id).maybeSingle() : Promise.resolve({ data: null }),
     thread.event_id ? loadEventHosts(supabase, thread.event_id) : Promise.resolve(new Set<string>()),
     // Only your own row is readable. Before the database change there's no table: not left.
-    isGroup ? supabase.from("thread_leaves").select("thread_id").eq("thread_id", threadId).eq("user_id", myId).maybeSingle() : Promise.resolve({ data: null }),
+    // All columns, so this still works before the database has removed_by.
+    isGroup ? supabase.from("thread_leaves").select("*").eq("thread_id", threadId).eq("user_id", myId).maybeSingle() : Promise.resolve({ data: null }),
     isGroup ? supabase.rpc("is_thread_admin", { tid: threadId }) : Promise.resolve({ data: false }),
   ]);
   const social = socialEvent as (ThreadInfo["socialEvent"] & { host_id: string }) | null;
   const hostIds = thread.event_id ? hosts : new Set(social ? [social.host_id] : []);
-  return { event: (event as ThreadInfo["event"]) ?? null, socialEvent: social ? { id: social.id, title: social.title, going_count: social.going_count } : null, other: otherId ? (cards.get(otherId) ?? null) : null, hidden, hostIds, isGroup, left: !!leave, isAdmin: admin === true, membersCanShare: thread.members_can_share_events !== false };
+  return { event: (event as ThreadInfo["event"]) ?? null, socialEvent: social ? { id: social.id, title: social.title, going_count: social.going_count } : null, other: otherId ? (cards.get(otherId) ?? null) : null, hidden, hostIds, isGroup, left: !!leave, isAdmin: admin === true, membersCanShare: thread.members_can_share_events !== false, removed: !!(leave as { removed_by?: string | null } | null)?.removed_by, pinnedMessageId: thread.pinned_message_id ?? null, canPin: !isGroup || admin === true };
 }
 
 export async function sendMessage(supabase: SupabaseClient, threadId: string, body: string): Promise<Result> {
@@ -222,7 +254,73 @@ export async function setMembersCanShareEvents(supabase: SupabaseClient, threadI
 // event stays as it is.
 export async function leaveChat(supabase: SupabaseClient, threadId: string): Promise<Result> {
   const { error } = await supabase.rpc("leave_thread", { tid: threadId });
-  return error ? { error: "Couldn't leave the group. Try again." } : {};
+  if (!error) return {};
+  return { error: /only admin/.test(error.message) ? "You're this group's only admin. Make someone else an admin (in Members) before you leave." : "Couldn't leave the group. Try again." };
+}
+
+// ---- Pinned messages ----
+
+export async function pinMessage(supabase: SupabaseClient, messageId: string): Promise<Result> {
+  const { error } = await supabase.rpc("pin_message", { mid: messageId });
+  return error ? { error: /admins/.test(error.message) ? "Only the chat's admins can pin messages." : "Couldn't pin it. Try again." } : {};
+}
+
+export async function unpinMessage(supabase: SupabaseClient, threadId: string): Promise<Result> {
+  const { error } = await supabase.rpc("unpin_message", { tid: threadId });
+  return error ? { error: "Couldn't unpin it. Try again." } : {};
+}
+
+// One message (the pinned one, when it isn't among those loaded).
+export async function fetchMessage(supabase: SupabaseClient, messageId: string): Promise<ChatMessage | null> {
+  if (!UUID.test(messageId)) return null;
+  const { data } = await supabase.from("messages").select("*").eq("id", messageId).maybeSingle();
+  if (!data) return null;
+  return (await toChatMessages(supabase, [data as MessageRow]))[0] ?? null;
+}
+
+// What a message says in a line (the pinned bar, previews).
+export function messagePreview(m: Pick<ChatMessage, "kind" | "body" | "deleted">): string {
+  if (m.deleted) return "Message deleted";
+  if (m.kind === "photo") return "Photo";
+  if (m.kind === "video") return "Video";
+  if (m.kind === "event") return m.body.replace(/^Shared an event: /, "Event: ").replace(/ https:\/\/\S+$/, "");
+  return m.body;
+}
+
+// ---- Group chat members and admins ----
+
+export type ThreadMember = { user_id: string; name: string; avatar_url: string | null; is_admin: boolean; is_organiser: boolean; is_me: boolean; removed: boolean };
+
+// Who's in a group chat (names and photos only). Admins also get who was removed.
+export async function loadThreadMembers(supabase: SupabaseClient, threadId: string): Promise<ThreadMember[]> {
+  if (!UUID.test(threadId)) return [];
+  const { data, error } = await supabase.rpc("thread_members", { tid: threadId });
+  if (error) throw error;
+  return (data ?? []) as ThreadMember[];
+}
+
+const adminError = (message: string) =>
+  /at least one admin/.test(message) ? "A chat needs at least one admin. Make someone else an admin first."
+  : /always admins/.test(message) ? "Organisers are always admins."
+  : /Organisers/.test(message) ? "Organisers can't be removed from their chat."
+  : /Only the chat's admins/.test(message) ? "Only the chat's admins can do that."
+  : /not in this chat/.test(message) ? "They're not in this chat any more."
+  : "That didn't work. Try again.";
+
+export async function setThreadAdmin(supabase: SupabaseClient, threadId: string, userId: string, makeAdmin: boolean): Promise<Result> {
+  const { error } = await supabase.rpc("set_thread_admin", { tid: threadId, uid: userId, make_admin: makeAdmin });
+  return error ? { error: adminError(error.message) } : {};
+}
+
+// Take someone out of the group chat (not the event). They can't rejoin by themselves.
+export async function removeFromThread(supabase: SupabaseClient, threadId: string, userId: string): Promise<Result> {
+  const { error } = await supabase.rpc("remove_from_thread", { tid: threadId, uid: userId });
+  return error ? { error: adminError(error.message) } : {};
+}
+
+export async function addBackToThread(supabase: SupabaseClient, threadId: string, userId: string): Promise<Result> {
+  const { error } = await supabase.rpc("add_back_to_thread", { tid: threadId, uid: userId });
+  return error ? { error: adminError(error.message) } : {};
 }
 
 // Back into a group chat you left (only while you're still going).
