@@ -4,7 +4,9 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
+import { Platform } from "react-native";
 import { AccountGate } from "@/components/account-gate";
+import { LaunchSplash } from "@/components/launch-splash";
 import { PushLifecycle } from "@/components/push-lifecycle";
 import { UpdateBanner } from "@/components/update-banner";
 import { SessionProvider } from "@/providers/session";
@@ -22,8 +24,10 @@ export default function RootLayout() {
   const [client] = useState(queryClient);
 
   // The text is in the phone's own font, so there's nothing to wait for.
+  // On phones the opening animation (LaunchSplash) hides the launch screen
+  // once it's on screen in its place.
   useEffect(() => {
-    SplashScreen.hideAsync();
+    if (Platform.OS === "web") SplashScreen.hideAsync();
   }, []);
 
   return (
@@ -38,6 +42,7 @@ export default function RootLayout() {
         </Stack>
         {/* Phones only: "A new version of Function is ready", after an over-the-air update has downloaded. */}
         <UpdateBanner />
+        {Platform.OS !== "web" && <LaunchSplash />}
       </SessionProvider>
     </QueryClientProvider>
   );
