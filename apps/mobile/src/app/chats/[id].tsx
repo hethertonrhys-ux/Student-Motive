@@ -3,7 +3,7 @@ import { Link, useIsFocused, useLocalSearchParams, useRouter } from "expo-router
 import { useEffect, useRef, useState } from "react";
 import { AppState, KeyboardAvoidingView, Platform, Pressable, ScrollView, Switch, View, type ScrollViewInstance } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { chatMediaPath, chatMediaUrls, deleteMessage, fetchMessages, leaveChat, loadSharedEvents, loadThreadInfo, rejoinChat, reportMessage, sendMedia, sendMessage, setMembersCanShareEvents, type ChatMessage, type MediaKind } from "@function/shared";
+import { chatMediaPath, chatMediaUrls, deleteMessage, fetchMessage, fetchMessages, fetchMessagesFrom, isNote, leaveChat, loadSharedEvents, loadThreadInfo, messagePreview, pinMessage, rejoinChat, reportMessage, sendMedia, sendMessage, setMembersCanShareEvents, unpinMessage, type ChatMessage, type MediaKind } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { MediaPreview, MediaViewer } from "@/components/chat/media";
@@ -30,7 +30,9 @@ const day = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric",
 // of the message box (leaving never changes their place at the event).
 // Shared events show as cards; a group chat's admins can let only admins
 // share events (in the ••• menu). Photos and videos (the + button) upload
-// with a progress bar, show as previews and open full screen.
+// with a progress bar, show as previews and open full screen. One message
+// can be pinned (admins in a group chat, either person in a private one):
+// it shows in a bar at the top, and tapping the bar jumps to it.
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useSession();
@@ -54,6 +56,10 @@ export default function ChatScreen() {
   const uploading = useRef(new Map<string, Upload>());
   const [attachOpen, setAttachOpen] = useState(false);
   const [viewer, setViewer] = useState<{ kind: MediaKind; url: string } | null>(null);
+  // Where each message sits in the scrolling list, to jump to the pinned one.
+  const positions = useRef(new Map<string, number>());
+  const [highlight, setHighlight] = useState<string | null>(null);
+  const [jumpTo, setJumpTo] = useState<string | null>(null);
   const lastAt = useRef<string | null>(null);
   // eslint-disable-next-line react-hooks/purity -- only the initial value is used; it marks when the chat was opened
   const lastActivity = useRef(Date.now());
@@ -190,6 +196,28 @@ export default function ChatScreen() {
     setUploads((cur) => cur.filter((u) => u.localId !== localId));
   }
 
+  async function pin(m: ChatMessage, on: boolean) {
+    setMenuFor(null);
+    setError(null);
+    const result = on ? await pinMessage(supabase, m.id) : await unpinMessage(supabase, id);
+    if (result.error) setError(result.error);
+    await info.refetch();
+  }
+
+  // Tapping the pinned bar: scroll to the message (loading older messages if it's further back) and flash it.
+  async function goToPinned() {
+    const pid = info.data?.pinnedMessageId;
+    if (!pid) return;
+    if (!(messages ?? []).some((m) => m.id === pid) && pinned.data) {
+      const older = await fetchMessagesFrom(supabase, id, pinned.data.created_at);
+      setMessages((cur) => {
+        const seen = new Set(older.map((m) => m.id));
+        return [...older, ...(cur ?? []).filter((m) => !seen.has(m.id))].sort((a, b) => a.created_at.localeCompare(b.created_at));
+      });
+    }
+    setJumpTo(pid);
+  }
+
   async function toggleSharing(allowed: boolean) {
     setBusy(true);
     setError(null);
@@ -216,6 +244,41 @@ export default function ChatScreen() {
     staleTime: 45 * 60_000,
     queryFn: () => chatMediaUrls(supabase, mediaPaths),
   });
+
+  // The pinned message: from the loaded ones, or fetched on its own when it's older.
+  const pinnedId = info.data?.pinnedMessageId ?? null;
+  const pinned = useQuery({
+    queryKey: ["pinned", id, pinnedId, (messages ?? []).find((m) => m.id === pinnedId)?.deleted ?? null],
+    enabled: !!pinnedId,
+    queryFn: async () => (messages ?? []).find((m) => m.id === pinnedId) ?? (await fetchMessage(supabase, pinnedId!)),
+  });
+  // The pinned bar takes room at the top: keep the newest message in view when it appears.
+  const pinnedShown = pinned.data?.id ?? null;
+  useEffect(() => {
+    if (pinnedShown) setTimeout(() => scroll.current?.scrollToEnd({ animated: false }), 50);
+  }, [pinnedShown]);
+
+  // Scroll once the pinned message is laid out, then flash it for a moment.
+  // (Older messages can take a moment to lay out after loading: keep trying for about 2 seconds.)
+  useEffect(() => {
+    if (!jumpTo) return;
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries += 1;
+      const y = positions.current.get(jumpTo);
+      if (y === undefined && tries < 20) return;
+      clearInterval(timer);
+      if (y !== undefined) scroll.current?.scrollTo({ y: Math.max(0, y - 24), animated: true });
+      setHighlight(jumpTo);
+      setJumpTo(null);
+    }, 100);
+    return () => clearInterval(timer);
+  }, [jumpTo]);
+  useEffect(() => {
+    if (!highlight) return;
+    const off = setTimeout(() => setHighlight(null), 2200);
+    return () => clearTimeout(off);
+  }, [highlight]);
 
   // A photo or video starting to upload, or failing: show it (and its progress or error).
   const uploadState = uploads.map((u) => `${u.localId}:${u.error ? "x" : ""}`).join(",");
@@ -277,6 +340,13 @@ export default function ChatScreen() {
           </View>
           {groupMenu === "open" && (
             <Card className="mt-2 p-0" testID="chat-options-menu">
+              <Link href={`/chats/members?thread=${id}` as never} asChild>
+                <Pressable onPress={() => setGroupMenu("closed")} className="min-h-12 flex-row items-center gap-3 border-b border-line px-4 active:opacity-80" accessibilityRole="button" testID="chat-members">
+                  <Icon name="people-outline" size={20} color={colors.ink} />
+                  <T variant="semibold" className="flex-1">Members</T>
+                  <Icon name="chevron-forward" size={16} color={colors.muted} />
+                </Pressable>
+              </Link>
               {header?.isAdmin && (
                 <View className="min-h-14 flex-row items-center gap-3 border-b border-line px-4 py-2">
                   <Icon name="calendar-outline" size={20} color={colors.ink} />
@@ -306,9 +376,26 @@ export default function ChatScreen() {
             </Card>
           )}
 
+          {pinnedId && pinned.data && !pinned.data.deleted && !header?.left && (
+            <View className="mt-2 flex-row items-center gap-2 rounded-2xl border border-line bg-surface pl-3" testID="pinned-bar">
+              <Pressable onPress={() => void goToPinned()} className="min-h-12 min-w-0 flex-1 flex-row items-center gap-2.5 py-2 active:opacity-80" accessibilityRole="button" accessibilityLabel="Go to the pinned message">
+                <Icon name="pin" size={18} color={colors.brand} />
+                <View className="min-w-0 flex-1">
+                  <T variant="caption2" className="text-brand">PINNED · {pinned.data.sender_name.toUpperCase()}</T>
+                  <T className="text-sm" numberOfLines={1}>{messagePreview(pinned.data)}</T>
+                </View>
+              </Pressable>
+              {header?.canPin && (
+                <Pressable onPress={() => void pin(pinned.data!, false)} accessibilityRole="button" accessibilityLabel="Unpin" hitSlop={8} className="h-12 w-11 items-center justify-center" testID="unpin">
+                  <Icon name="close" size={18} color={colors.muted} />
+                </Pressable>
+              )}
+            </View>
+          )}
+
           <ScrollView ref={scroll} className="flex-1" contentContainerClassName="py-4" keyboardShouldPersistTaps="handled" testID="messages">
             {header?.left ? (
-              <Muted className="py-10 text-center text-sm" testID="left-note">You left this group. Rejoin to see its messages.</Muted>
+              <Muted className="py-10 text-center text-sm" testID="left-note">{header.removed ? "An admin removed you from this group." : "You left this group. Rejoin to see its messages."}</Muted>
             ) : (
               messages && visible.length === 0 && <Muted className="py-10 text-center text-sm">No messages yet. Say hi.</Muted>
             )}
@@ -318,17 +405,18 @@ export default function ChatScreen() {
               const newDay = !prev || new Date(prev.created_at).toDateString() !== new Date(m.created_at).toDateString();
               const firstInRun = newDay || prev?.sender_id !== m.sender_id || prev?.kind === "left" || prev?.kind === "rejoined";
               // "Rhys left" / "Rhys rejoined": a small note, not a bubble.
-              if (m.kind === "left" || m.kind === "rejoined") {
+              if (isNote(m.kind)) {
                 const who = mine ? "You" : m.sender_name;
+                const what = m.kind === "left" ? "left" : m.kind === "rejoined" ? "rejoined" : m.body;
                 return (
                   <View key={m.id}>
                     {newDay && <Muted className="py-2 text-center text-xs font-sans-semibold">{day.format(new Date(m.created_at))}</Muted>}
-                    <Muted className="py-2 text-center text-xs" testID={`note-${m.id}`}>{who} {m.kind === "left" ? "left" : "rejoined"} · {time.format(new Date(m.created_at))}</Muted>
+                    <Muted className="py-2 text-center text-xs" testID={`note-${m.id}`}>{who} {what} · {time.format(new Date(m.created_at))}</Muted>
                   </View>
                 );
               }
               return (
-                <View key={m.id}>
+                <View key={m.id} onLayout={(e) => positions.current.set(m.id, e.nativeEvent.layout.y)} className={`rounded-2xl ${highlight === m.id ? "bg-brand-soft" : ""}`} testID={highlight === m.id ? "highlighted" : undefined}>
                   {newDay && <Muted className="py-2 text-center text-xs font-sans-semibold">{day.format(new Date(m.created_at))}</Muted>}
                   <View className={`flex-row items-end gap-2 ${mine ? "justify-end" : ""} ${firstInRun ? "mt-2" : "mt-0.5"}`}>
                     {!mine && (
@@ -385,6 +473,9 @@ export default function ChatScreen() {
                       )}
                       {menuFor === m.id && !m.deleted && (
                         <View className="mt-1 flex-row gap-3">
+                          {header?.canPin && (
+                            <LinkButton onPress={() => void pin(m, pinnedId !== m.id)} testID="pin-message">{pinnedId === m.id ? "Unpin" : "Pin"}</LinkButton>
+                          )}
                           {mine ? (
                             <LinkButton
                               onPress={() =>
@@ -461,8 +552,8 @@ export default function ChatScreen() {
             {error && <T variant="semibold" className="mb-2 text-sm text-danger">{error}</T>}
             {header?.left ? (
               <View className="flex-row flex-wrap items-center justify-between gap-3">
-                <Muted className="flex-1 text-sm">You won&apos;t get this group&apos;s messages.</Muted>
-                <Button onPress={() => void rejoin()} disabled={busy} testID="rejoin-group">{busy ? "Rejoining…" : "Rejoin group"}</Button>
+                <Muted className="flex-1 text-sm">{header.removed ? "Ask one of the group's admins if you think this was a mistake." : "You won't get this group's messages."}</Muted>
+                {!header.removed && <Button onPress={() => void rejoin()} disabled={busy} testID="rejoin-group">{busy ? "Rejoining…" : "Rejoin group"}</Button>}
               </View>
             ) : (
             <>
