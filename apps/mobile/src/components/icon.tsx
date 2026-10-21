@@ -9,11 +9,15 @@ import { useMounted } from "@/lib/use-mounted";
 //
 // Colours: pass a theme colour (the light value, e.g. "#5e5d78" for muted)
 // and it becomes the dark-mode value when the phone is in dark mode.
-const SWAP: Record<string, string> = { [LIGHT.ink]: DARK.ink, [LIGHT.muted]: DARK.muted, [LIGHT.brand]: DARK.brand, [LIGHT.line]: DARK.line, [LIGHT.surface]: DARK.surface, [LIGHT.bg]: DARK.bg };
+// (Not white or the page grey: white is also dark mode's ink, so swapping it would hide white icons.)
+const SWAP: Record<string, string> = { [LIGHT.ink]: DARK.ink, [LIGHT.muted]: DARK.muted, [LIGHT.brand]: DARK.brand, [LIGHT.line]: DARK.line };
+// The old palette's ink and grey, still written into a few screens, are the theme's ink and grey.
+const OLD: Record<string, string> = { "#15142b": LIGHT.ink, "#5e5d78": LIGHT.muted };
 export function Icon({ color, ...props }: ComponentProps<typeof Ionicons>) {
   const mounted = useMounted();
   const { dark } = useTheme();
   if (!mounted) return null;
-  const themed = typeof color === "string" && dark ? (SWAP[color] ?? color) : color;
+  const light = typeof color === "string" ? (OLD[color.toLowerCase()] ?? color) : color;
+  const themed = typeof light === "string" && dark ? (SWAP[light] ?? light) : light;
   return <Ionicons color={themed} {...props} />;
 }

@@ -2,7 +2,9 @@ import type { ComponentProps, ReactNode } from "react";
 import { Pressable, ScrollView, Text, TextInput, View, type PressableProps, type ScrollViewProps, type TextInputProps, type TextProps, type ViewProps } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Icon } from "@/components/icon";
-import { LIGHT, usePlaceholderColor } from "@/lib/theme";
+import { BlurView } from "expo-blur";
+import { cssInterop } from "nativewind";
+import { LIGHT, TEXT_STYLES, usePlaceholderColor, useTheme, type TextStyle } from "@/lib/theme";
 
 // The website's shared styles (.btn, .btn-ghost, .card, .input, .label in
 // globals.css) as components, with the same names and the same classes, so
@@ -13,17 +15,22 @@ export function Card({ className = "", ...props }: ViewProps & { className?: str
   return <View className={`rounded-2xl border border-line bg-surface p-5 shadow-soft ${className}`} {...props} />;
 }
 
-// Body text in the site's font. Variants pick the weight (each weight is its own font file).
-type TextVariant = "normal" | "semibold" | "bold" | "display" | "display-bold";
+// Text in the phone's own font (SF Pro on iPhone). The iOS text styles
+// (largeTitle, title, headline, body, footnote, caption...; theme.ts) set
+// the size, line height and weight together. The older variants only pick
+// a weight, for text that sets its own size.
+type TextVariant = "normal" | "semibold" | "bold" | "display" | "display-bold" | TextStyle;
 const FONT: Record<TextVariant, string> = {
   normal: "font-sans",
   semibold: "font-sans-semibold",
   bold: "font-sans-bold",
   display: "font-display",
   "display-bold": "font-display-bold",
+  ...TEXT_STYLES,
 };
-// Text is ink-coloured unless the classes give it another colour.
-const HAS_COLOUR = /\btext-(ink|muted|brand|brand-ink|live|danger|ok|white|\[)/;
+// Text is ink-coloured unless the classes give it another colour
+// (a colour name, or an exact one like text-[#fff]; not a size like text-[11px]).
+const HAS_COLOUR = /\btext-(ink|muted|brand|brand-ink|live|danger|ok|white|\[(#|rgb))/;
 export function T({ variant = "normal", className = "", ...props }: TextProps & { variant?: TextVariant; className?: string }) {
   return <Text className={`${FONT[variant]} ${HAS_COLOUR.test(className) ? "" : "text-ink"} ${className}`} {...props} />;
 }
@@ -125,5 +132,18 @@ export function DetailRow({ icon, label, children, className = "", ...props }: V
         {typeof children === "string" ? <T variant="semibold">{children}</T> : children}
       </View>
     </View>
+  );
+}
+
+// The iOS frosted-glass blur, for bars and panels that float over the map
+// or a photo. Light or dark to match the phone. On Android it's a plain
+// see-through panel (Android's blur is slow on many phones).
+cssInterop(BlurView, { className: "style" });
+export function Frosted({ className = "", children, ...props }: ViewProps & { className?: string; children?: ReactNode }) {
+  const { dark } = useTheme();
+  return (
+    <BlurView intensity={80} tint={dark ? "systemChromeMaterialDark" : "systemChromeMaterialLight"} className={`overflow-hidden ${className}`} {...props}>
+      {children}
+    </BlurView>
   );
 }

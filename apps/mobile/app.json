@@ -2,7 +2,7 @@
   "expo": {
     "name": "Function",
     "slug": "function",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -98,18 +98,6 @@
           "backgroundColor": "#DA291C",
           "image": "./assets/brand/splash-glyph.png",
           "imageWidth": 160
-        }
-      ],
-      [
-        "expo-font",
-        {
-          "fonts": [
-            "@expo-google-fonts/figtree/400Regular/Figtree_400Regular.ttf",
-            "@expo-google-fonts/figtree/600SemiBold/Figtree_600SemiBold.ttf",
-            "@expo-google-fonts/figtree/700Bold/Figtree_700Bold.ttf",
-            "@expo-google-fonts/bricolage-grotesque/700Bold/BricolageGrotesque_700Bold.ttf",
-            "@expo-google-fonts/bricolage-grotesque/800ExtraBold/BricolageGrotesque_800ExtraBold.ttf"
-          ]
         }
       ],
       "@maplibre/maplibre-react-native",

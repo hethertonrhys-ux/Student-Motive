@@ -2,13 +2,14 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { Camera, GeoJSONSource, Layer, Map as MapLibreMap, Marker, UserLocation, type CameraRef, type GeoJSONSourceRef, type MapRef } from "@maplibre/maplibre-react-native";
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { CATEGORY_ORDER, CATEGORY_STYLE, eventStatus, heatColours, mapStyle, walkGeoJson, type MapEvent } from "@function/shared";
-import campus from "@/assets/map/lse-campus.json";
+import { CATEGORY_ORDER, CATEGORY_STYLE, eventStatus, heatColours, mapLand, mapStyle, timeFormat, walkGeoJson, type MapEvent } from "@function/shared";
+import { selectionTap } from "@/lib/haptics";
+import { DARK, LIGHT } from "@/lib/theme";
 import { ME_COLOUR, PIN_ICON, WALK_COLOUR, type MapProps } from "./types";
 
-// The live map on iOS and Android, drawn by MapLibre Native. The same map
-// style, groups and glow as the web version; the pins are small React
-// Native views placed on the map.
+// The live map on iOS and Android, drawn by MapLibre Native. The same flat
+// map style, groups and busy-area shading as the web version; the pins are
+// small React Native views placed on the map, in the style of Snap Map.
 
 type Pin = { key: string; at: [number, number]; cluster: false; event: MapEvent; live: boolean } | { key: string; at: [number, number]; cluster: true; id: number; count: number; counts: Record<string, number>; live: boolean };
 
@@ -30,7 +31,7 @@ export function LiveMap({ events, now, look, home, me, walk, onSelect, onReady, 
   const byId = useMemo(() => new Map(events.map((e) => [e.id, e])), [events]);
   const data = useMemo(() => featuresOf(events, now), [events, now]);
   const heat = useMemo<GeoJSON.FeatureCollection>(() => ({ type: "FeatureCollection", features: events.map((e) => ({ type: "Feature", geometry: { type: "Point", coordinates: [e.lng, e.lat] }, properties: {} })) }), [events]);
-  const style = useMemo(() => mapStyle(look, campus), [look]);
+  const style = useMemo(() => mapStyle(look), [look]);
 
   useImperativeHandle(ref, () => ({
     flyTo: (target) => camera.current?.flyTo({ center: target.center, zoom: target.zoom, pitch: target.pitch ?? 0, duration: 1200 }),
@@ -80,6 +81,7 @@ export function LiveMap({ events, now, look, home, me, walk, onSelect, onReady, 
   async function openGroup(pin: Extract<Pin, { cluster: true }>) {
     const src = source.current;
     if (!src) return;
+    selectionTap();
     const zoom = await src.getClusterExpansionZoom(pin.id);
     const current = (await map.current?.getZoom()) ?? 0;
     if (zoom <= 17 && current < 17) {
@@ -93,7 +95,7 @@ export function LiveMap({ events, now, look, home, me, walk, onSelect, onReady, 
 
   const night = look === "night";
   return (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: night ? "#171C27" : "#F7F6F2" }]} testID="map">
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: mapLand(look) }]} testID="map">
       <MapLibreMap
         ref={map}
         style={StyleSheet.absoluteFill}
@@ -102,6 +104,9 @@ export function LiveMap({ events, now, look, home, me, walk, onSelect, onReady, 
         attribution
         attributionPosition={{ bottom: 8, left: 8 }}
         compass={false}
+        // Flat and north-up, like Snap Map: no tilting or turning.
+        touchPitch={false}
+        touchRotate={false}
         onDidFinishLoadingMap={() => {
           onReady?.();
           void syncPins();
@@ -109,7 +114,7 @@ export function LiveMap({ events, now, look, home, me, walk, onSelect, onReady, 
         onDidFailLoadingMap={() => onError?.()}
         onRegionDidChange={() => void syncPins()}
       >
-        <Camera ref={camera} initialViewState={{ center: home, zoom: 16.2, pitch: 35 }} minZoom={9} maxZoom={19} />
+        <Camera ref={camera} initialViewState={{ center: home, zoom: 16.2, pitch: 0 }} minZoom={9} maxZoom={19} />
 
         {/* Events, grouped into a numbered bubble when they're close together. */}
         <GeoJSONSource
@@ -156,10 +161,10 @@ export function LiveMap({ events, now, look, home, me, walk, onSelect, onReady, 
         {pins.map((pin) =>
           pin.cluster ? (
             <Marker key={pin.key} id={pin.key} lngLat={pin.at} anchor="center" onPress={() => void openGroup(pin)}>
-              <Cluster count={pin.count} counts={pin.counts} live={pin.live} night={night} />
+              <Cluster count={pin.count} live={pin.live} night={night} />
             </Marker>
           ) : (
-            <Marker key={pin.key} id={pin.key} lngLat={pin.at} anchor="bottom" onPress={() => onSelect([pin.event])}>
+            <Marker key={pin.key} id={pin.key} lngLat={pin.at} anchor="center" onPress={() => onSelect([pin.event])}>
               <PinView event={pin.event} live={pin.live} night={night} />
             </Marker>
           ),
@@ -169,49 +174,63 @@ export function LiveMap({ events, now, look, home, me, walk, onSelect, onReady, 
   );
 }
 
-// A "lollipop" pin: a round head with the category icon on a short stem.
+// A pin, like Snap Map's: the event's icon in a round bubble with a white
+// edge (its colour says the category), a red ring while it's on, a red
+// badge with how many are going, and its name and start time underneath.
+// The bubble sits in the middle of the pin, right over the event's spot.
 function PinView({ event, live, night }: { event: MapEvent; live: boolean; night: boolean }) {
   const { colour } = CATEGORY_STYLE[event.category];
+  const accent = night ? DARK.brand : LIGHT.brand;
+  const when = live ? "On now" : timeFormat.format(new Date(event.startsAt));
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={event.title} style={styles.pin} testID={`pin-${event.id}`}>
-      <View style={[styles.pinStem, night && { backgroundColor: "#cbd5e1" }]} />
-      <View style={styles.pinFoot} />
-      <View style={[styles.pinHead, { backgroundColor: colour }, night && { shadowColor: colour, shadowOpacity: 0.9, shadowRadius: 8 }]}>
-        <Ionicons name={PIN_ICON[event.category] as never} size={19} color="#fff" />
+    <Pressable accessibilityRole="button" accessibilityLabel={`${event.title}, ${when}, ${event.going} going`} style={styles.pin} testID={`pin-${event.id}`}>
+      <View style={styles.above} />
+      <View style={[styles.ring, live && { borderColor: accent }]}>
+        <View style={[styles.bubble, { backgroundColor: colour }]}>
+          <Ionicons name={PIN_ICON[event.category] as never} size={20} color="#fff" />
+        </View>
       </View>
-      {live && (
-        <View style={styles.pinLive}>
-          <Text style={styles.pinLiveText}>LIVE</Text>
+      {event.going > 0 && (
+        <View style={[styles.badge, { backgroundColor: accent }]}>
+          <Text style={styles.badgeText}>{event.going > 99 ? "99+" : event.going}</Text>
         </View>
       )}
-    </Pressable>
-  );
-}
-
-// A group of nearby events: the number, with a ring of the categories' colours.
-function Cluster({ count, counts, live, night }: { count: number; counts: Record<string, number>; live: boolean; night: boolean }) {
-  const size = count >= 20 ? 54 : count >= 6 ? 48 : 42;
-  const present = CATEGORY_ORDER.filter((c) => counts[c] > 0);
-  const ringColour = present.length === 1 ? CATEGORY_STYLE[present[0]].colour : WALK_COLOUR;
-  return (
-    <Pressable accessibilityRole="button" accessibilityLabel={`${count} events here. Tap to zoom in.`} style={[styles.cluster, { width: size, height: size, borderRadius: size / 2, borderColor: ringColour }]} testID="cluster">
-      <View style={[styles.clusterInner, night && { backgroundColor: "#1f2533" }]}>
-        <Text style={[styles.clusterNum, night && { color: "#fff" }]}>{count > 99 ? "99+" : count}</Text>
+      <View style={[styles.label, night && styles.labelNight]}>
+        <Text numberOfLines={1} style={[styles.labelText, night && styles.labelTextNight]}>
+          {event.title} · {when}
+        </Text>
       </View>
-      {live && <View style={styles.clusterLive} />}
     </Pressable>
   );
 }
 
+// A group of nearby events: a white (or dark grey) bubble with the number
+// and a Function red edge, and a red dot if one of them is on now.
+function Cluster({ count, live, night }: { count: number; live: boolean; night: boolean }) {
+  const size = count >= 20 ? 54 : count >= 6 ? 48 : 44;
+  const accent = night ? DARK.brand : LIGHT.brand;
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={`${count} events here. Tap to zoom in.`} style={[styles.cluster, { width: size, height: size, borderRadius: size / 2, borderColor: accent, backgroundColor: night ? "#2C2C2E" : "#FFFFFF" }]} testID="cluster">
+      <Text style={[styles.clusterNum, { color: night ? "#FFFFFF" : LIGHT.ink }]}>{count > 99 ? "99+" : count}</Text>
+      {live && <View style={[styles.clusterLive, { backgroundColor: accent }]} />}
+    </Pressable>
+  );
+}
+
+const SHADOW = { shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3 };
 const styles = StyleSheet.create({
-  pin: { width: 40, height: 56 },
-  pinHead: { position: "absolute", left: 2, top: 2, width: 36, height: 36, borderRadius: 18, borderWidth: 2.5, borderColor: "#fff", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 4, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
-  pinStem: { position: "absolute", left: 18.75, top: 34, width: 2.5, height: 18, borderRadius: 2, backgroundColor: "#475569" },
-  pinFoot: { position: "absolute", left: 15.5, top: 51, width: 9, height: 5, borderRadius: 4, backgroundColor: "rgba(0,0,0,0.25)" },
-  pinLive: { position: "absolute", left: 6, top: -12, backgroundColor: "#f43f5e", borderRadius: 999, borderWidth: 1.5, borderColor: "#fff", paddingHorizontal: 5, paddingVertical: 3 },
-  pinLiveText: { color: "#fff", fontSize: 9, fontFamily: "Figtree_700Bold", letterSpacing: 0.4, lineHeight: 10 },
-  cluster: { borderWidth: 4.5, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", shadowColor: "#000", shadowOpacity: 0.22, shadowRadius: 4, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
-  clusterInner: { flex: 1, alignSelf: "stretch", borderRadius: 999, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
-  clusterNum: { fontFamily: "Figtree_700Bold", fontSize: 16, color: "#1f2937" },
-  clusterLive: { position: "absolute", right: -4, top: -4, width: 12, height: 12, borderRadius: 6, backgroundColor: "#f43f5e", borderWidth: 2, borderColor: "#fff" },
+  // 160 wide so the label fits; the space above matches the label below, so the bubble is the centre.
+  pin: { width: 160, alignItems: "center" },
+  above: { height: 24 },
+  ring: { width: 52, height: 52, borderRadius: 26, borderWidth: 2.5, borderColor: "transparent", alignItems: "center", justifyContent: "center" },
+  bubble: { width: 44, height: 44, borderRadius: 22, borderWidth: 3, borderColor: "#fff", alignItems: "center", justifyContent: "center", ...SHADOW },
+  badge: { position: "absolute", top: 22, left: 98, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#fff" },
+  badgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
+  label: { marginTop: 2, maxWidth: 160, height: 22, justifyContent: "center", borderRadius: 11, paddingHorizontal: 8, backgroundColor: "#FFFFFF", ...SHADOW },
+  labelNight: { backgroundColor: "#2C2C2E" },
+  labelText: { fontSize: 12, fontWeight: "600", color: LIGHT.ink },
+  labelTextNight: { color: "#FFFFFF" },
+  cluster: { borderWidth: 3, alignItems: "center", justifyContent: "center", ...SHADOW },
+  clusterNum: { fontSize: 16, fontWeight: "700" },
+  clusterLive: { position: "absolute", right: -2, top: -2, width: 12, height: 12, borderRadius: 6, borderWidth: 2, borderColor: "#fff" },
 });

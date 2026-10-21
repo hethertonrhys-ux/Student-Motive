@@ -25,7 +25,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta property="og:description" content={DESCRIPTION} />
         <meta property="og:image" content="/icon-512.png" />
         <meta name="theme-color" media="(prefers-color-scheme: light)" content="#DA291C" />
-        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d0c1d" />
+        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-title" content="Function" />
@@ -37,7 +37,7 @@ export default function Root({ children }: PropsWithChildren) {
         {/* The service worker caches the app's files (fast launches from the home screen) and shows push notifications. */}
         <script dangerouslySetInnerHTML={{ __html: "if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}" }} />
         {/* The page background before any script runs, so there is no white flash in dark mode. */}
-        <style dangerouslySetInnerHTML={{ __html: "body{background:#f7f7fb}@media(prefers-color-scheme:dark){body{background:#0d0c1d}}" }} />
+        <style dangerouslySetInnerHTML={{ __html: "body{background:#F2F2F7}@media(prefers-color-scheme:dark){body{background:#000000}}" }} />
       </head>
       <body {...bodyAttributes}>
         {children}
