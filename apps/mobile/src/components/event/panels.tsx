@@ -3,7 +3,6 @@ import { useState, type ReactNode } from "react";
 import { Alert, Platform, Pressable, View } from "react-native";
 import { joinEvent, leaveEvent, saveName, type MotiveEvent, type Person } from "@function/shared";
 import { Avatar } from "@/components/avatar";
-import { Flag } from "@/components/flag";
 import { Button, Card, Input, Muted, T } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 
@@ -93,7 +92,6 @@ export function WhosComing({ people, meId, numbered, finished, hostIds }: { peop
             {numbered && <T className="w-6 text-right text-sm text-muted">{p.finishPosition ?? (finished ? "" : i + 1)}</T>}
             <Avatar name={p.name} url={p.avatarUrl} size={28} ring={p.userId === meId || !!hostIds?.has(p.userId)} />
             <T variant="semibold">{p.userId === meId ? `${p.name} (you)` : p.name}</T>
-            <Flag code={p.country} size={14} />
             {hostIds?.has(p.userId) && <HostPill />}
           </View>
         ))}
@@ -196,7 +194,6 @@ export function PersonRow({ id, name, avatarUrl, detail, children, first, countr
           <View className="min-w-0 flex-1">
             <View className="flex-row items-center gap-1.5">
               <T variant="semibold" numberOfLines={1} className="shrink">{name}</T>
-              <Flag code={country} size={14} />
             </View>
             {detail && <Muted className="text-xs" numberOfLines={1}>{detail}</Muted>}
           </View>

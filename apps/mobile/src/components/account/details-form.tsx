@@ -1,14 +1,10 @@
 import { useState } from "react";
 import { View } from "react-native";
-import { COUNTRIES, graduationYears, saveAccountDetails, searchCountries, UNIVERSITIES, uniFromEmail, flagEmoji, type AccountDetailsInput } from "@function/shared";
-import { Flag } from "@/components/flag";
+import { graduationYears, saveAccountDetails, UNIVERSITIES, uniFromEmail, type AccountDetailsInput } from "@function/shared";
 import { Select } from "@/components/select";
 import { Button, Input, Label, Muted, T } from "@/components/ui";
 import { UniTag } from "@/components/uni-tag";
 import { supabase } from "@/lib/supabase";
-
-const toOption = (c: { code: string; name: string }) => ({ value: c.code, label: `${flagEmoji(c.code)} ${c.name}`.trim() });
-const COUNTRY_OPTIONS = COUNTRIES.map(toOption);
 
 // The details every Function account has: full name, nickname (optional:
 // what other students see when set), university (from the email, or picked
@@ -19,15 +15,13 @@ export function AccountDetailsForm({
   email,
   initial,
   withCourse = false,
-  withCountry = false,
   submitLabel = "Continue",
   onSaved,
 }: {
   myId: string;
   email: string;
-  initial: { fullName?: string | null; nickname?: string | null; graduationYear?: number | null; university?: string | null; course?: string | null; country?: string | null };
+  initial: { fullName?: string | null; nickname?: string | null; graduationYear?: number | null; university?: string | null; course?: string | null };
   withCourse?: boolean;
-  withCountry?: boolean;
   submitLabel?: string;
   onSaved: () => void | Promise<unknown>;
 }) {
@@ -37,7 +31,6 @@ export function AccountDetailsForm({
   const [year, setYear] = useState(initial.graduationYear ? String(initial.graduationYear) : "");
   const [university, setUniversity] = useState(fromEmail?.id ?? initial.university ?? "");
   const [course, setCourse] = useState(initial.course ?? "");
-  const [country, setCountry] = useState(initial.country ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [pending, setPending] = useState(false);
@@ -49,7 +42,6 @@ export function AccountDetailsForm({
     setSaved(false);
     const input: AccountDetailsInput = { fullName, nickname, graduationYear: year ? Number(year) : null, university: fromEmail ? null : university || null };
     if (withCourse) input.course = course;
-    if (withCountry) input.country = country || null;
     if (!fromEmail && !university) {
       setPending(false);
       return setError("Choose your university.");
@@ -91,16 +83,6 @@ export function AccountDetailsForm({
         <View>
           <Label>Course and year <Muted className="text-sm">(optional)</Muted></Label>
           <Input value={course} onChangeText={setCourse} maxLength={60} placeholder="e.g. Economics, 2nd year" testID="course" />
-        </View>
-      )}
-      {withCountry && (
-        <View>
-          <Label>Where you&apos;re from <Muted className="text-sm">(optional)</Muted></Label>
-          <View className="flex-row items-center gap-2">
-            <Flag code={country} size={22} />
-            <Select value={country} onChange={setCountry} options={COUNTRY_OPTIONS} placeholder="Choose a country…" accessibilityLabel="Country" testID="country" className="flex-1" searchable search={(q) => searchCountries(q).map(toOption)} emptyValueLabel="Prefer not to say" />
-          </View>
-          <Muted className="mt-1 text-xs">Shows as a flag next to your name.</Muted>
         </View>
       )}
       {error && <T variant="semibold" className="text-sm text-danger" testID="details-error">{error}</T>}

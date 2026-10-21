@@ -65,7 +65,7 @@ export default function AccountScreen() {
             <ShowSocietiesToggle myId={myId!} initial={data.showSocieties} />
           </Card>
           <Card className="mt-6">
-            <AccountDetailsForm myId={myId!} email={session.user.email ?? ""} initial={{ fullName: data.full_name, nickname: data.nickname, graduationYear: data.graduation_year, university: data.university, course: data.course, country: data.country }} withCourse withCountry submitLabel="Save" onSaved={refresh} />
+            <AccountDetailsForm myId={myId!} email={session.user.email ?? ""} initial={{ fullName: data.full_name, nickname: data.nickname, graduationYear: data.graduation_year, university: data.university, course: data.course }} withCourse submitLabel="Save" onSaved={refresh} />
           </Card>
           <PromptsEditor initial={data.prompts} uni={profile?.university ?? null} twoTruths={data.twoTruths} onChanged={refresh} />
           <DeleteAccount />

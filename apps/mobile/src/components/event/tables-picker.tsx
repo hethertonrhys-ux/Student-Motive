@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Modal, Pressable, View } from "react-native";
 import { chooseTable, confirmSeat, hasEnded, joinEvent, joinTableWaitlist, leaveEvent, leaveTableWaitlist, nowMs, setAlsoTables, takeSeat, type EventTable, type MotiveEvent, type Person, type Queue } from "@function/shared";
 import { Avatar } from "@/components/avatar";
-import { Flag } from "@/components/flag";
 import { PersonCardSheet } from "@/components/profile/person-card-sheet";
 import { Button, Card, Muted, T } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
@@ -193,7 +192,6 @@ export function PokerTable({ table, seated, meId, hostIds, onSeat, onPerson }: {
                   <Avatar name={person.name} url={person.avatarUrl} size={34} ring={person.userId === meId || !!hostIds?.has(person.userId)} ringColor={person.userId === meId ? undefined : "#b45309"} />
                   <View className={`${above ? "mb-0.5" : "mt-0.5"} max-w-16 flex-row items-center gap-0.5 rounded bg-surface/90 px-1`}>
                     <T variant="bold" className="shrink text-[10px] leading-3" numberOfLines={1}>{n} · {person.userId === meId ? "You" : person.name.split(" ")[0]}</T>
-                    <Flag code={person.country} size={9} />
                   </View>
                 </Pressable>
               ) : (
