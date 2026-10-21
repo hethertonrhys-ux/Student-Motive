@@ -44,7 +44,7 @@ export function LaunchSplash() {
   return (
     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.cover, coverStyle]} testID="launch-splash">
       <Image source={require("../../assets/brand/splash-glyph.png")} style={styles.logo} onLoad={start} accessibilityIgnoresInvertColors />
-      <View style={[styles.words, { bottom: insets.bottom + 32 }]}>
+      <View style={[styles.words, { bottom: insets.bottom + 64 }]}>
         <T variant="title3" className="font-sans-bold text-white">Function</T>
         <T variant="footnote" className="mt-0.5 text-white/85">London&apos;s student social life</T>
       </View>
