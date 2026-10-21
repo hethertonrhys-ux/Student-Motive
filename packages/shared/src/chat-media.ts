@@ -12,8 +12,8 @@ export const CHAT_MEDIA = {
   // Videos: recording stops here, and longer ones from the library are refused.
   maxVideoSeconds: 60,
   // Photos are shrunk so their longest side is at most this, as JPEG.
-  maxPhotoSide: 1600,
-  photoQuality: 0.7,
+  maxPhotoSide: 1280,
+  photoQuality: 0.6,
 };
 
 export type MediaKind = "photo" | "video";

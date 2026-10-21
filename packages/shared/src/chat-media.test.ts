@@ -21,9 +21,9 @@ describe("chat media", () => {
     expect(mediaProblem("photo", { mimeType: "image/heic" })).toBeNull();
   });
 
-  it("shrinks photos to 1600px on the longest side, never enlarging", () => {
-    expect(shrinkTo(4032, 3024)).toEqual({ width: 1600, height: 1200 });
-    expect(shrinkTo(3024, 4032)).toEqual({ width: 1200, height: 1600 });
+  it("shrinks photos to 1280px on the longest side, never enlarging", () => {
+    expect(shrinkTo(4032, 3024)).toEqual({ width: 1280, height: 960 });
+    expect(shrinkTo(3024, 4032)).toEqual({ width: 960, height: 1280 });
     expect(shrinkTo(800, 600)).toEqual({ width: 800, height: 600 });
   });
 

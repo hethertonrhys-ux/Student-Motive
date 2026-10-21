@@ -27,8 +27,11 @@ export async function pickChatMedia(source: "library" | "camera"): Promise<Picke
     quality: 1,
     exif: false,
     videoMaxDuration: CHAT_MEDIA.maxVideoSeconds,
-    // iPhone: videos are compressed to 720p while they're picked or recorded.
-    videoExportPreset: ImagePicker.VideoExportPreset.H264_1280x720,
+    // iPhone: videos are compressed to 540p while they're picked or recorded.
+    videoExportPreset: ImagePicker.VideoExportPreset.H264_960x540,
+    // iPhone: hand over photos as ordinary JPEGs. Newer iPhones take HDR
+    // photos, and shrinking those as they were came out as rainbow noise.
+    preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
     videoQuality: ImagePicker.UIImagePickerControllerQualityType.Medium,
   };
   const result = source === "camera" ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
@@ -42,10 +45,11 @@ export async function pickChatMedia(source: "library" | "camera"): Promise<Picke
     if (problem) throw new Error(problem);
     return { kind: "video", uri: asset.uri, width: asset.width, height: asset.height, durationMs, mimeType, ext: VIDEO_EXT[mimeType] ?? "mp4" };
   }
-  // Photos: the longest side at most 1600px, as JPEG.
+  // Photos: the longest side at most 1280px, as JPEG. Both sides are given
+  // as whole numbers, so the shrunk picture's rows line up.
   const size = shrinkTo(asset.width, asset.height);
   const context = ImageManipulator.manipulate(asset.uri);
-  if (size.width < asset.width) context.resize({ width: size.width });
+  if (size.width < asset.width) context.resize({ width: size.width, height: size.height });
   const image = await context.renderAsync();
   const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: CHAT_MEDIA.photoQuality });
   image.release();
