@@ -3,6 +3,7 @@ import { getCards, type PersonCard } from "./social";
 import { SOCIAL_CATEGORIES, SOCIAL_EVENT_FIELDS, type MemberStatus, type SocialCategory, type SocialEvent } from "./social-events";
 import { END_SAME_AS_START, MAX_SOCIAL_HOURS, TOO_LONG_SOCIAL } from "./event-times";
 import { londonInputToIso, nowMs } from "./time";
+import { sharePerPerson } from "./payments";
 
 // The Social section (students hosting their own plans): reads and taps,
 // straight from the database. The website's server does the same.
@@ -139,18 +140,22 @@ export type SocialEventInput = {
   lng: number | null;
   spaces: string;
   costKind: "none" | "free" | "paid";
+  // "paid": the TOTAL cost, split across the spaces (the host is one of them).
   costAmount: string;
+  // Paid plans: people pay their share in the app (needs payouts set up).
+  collectPayments: boolean;
+  feeMode: "added" | "absorbed";
   isPrivate: boolean;
   friendsOnly: boolean;
 };
 
 // The cost from the form's Cost field: not said, Free, or a price in pounds.
-export function readCostInput(kind: string, amount: string): { value: number | null } | { error: string } {
+export function readCostInput(kind: string, amount: string, max = 1000): { value: number | null } | { error: string } {
   if (kind === "free") return { value: 0 };
   if (kind !== "paid") return { value: null };
-  const raw = amount.trim().replace(/^£/, "");
+  const raw = amount.trim().replace(/^£/, "").replace(/,/g, "");
   const pounds = Number(raw);
-  if (!raw || !Number.isFinite(pounds) || pounds <= 0 || pounds > 1000) return { error: "Enter the cost in pounds, e.g. 6 or 6.50 (up to £1,000)." };
+  if (!raw || !Number.isFinite(pounds) || pounds <= 0 || pounds > max) return { error: `Enter the cost in pounds, e.g. 6 or 6.50 (up to £${max.toLocaleString("en-GB")}).` };
   return { value: Math.round(pounds * 100) };
 }
 
@@ -161,7 +166,7 @@ function blur(lat: number, lng: number) {
 }
 
 export type ParsedSocialEvent = {
-  event: { title: string; category: SocialCategory; description: string | null; starts_at: string; ends_at: string; area: string; lat: number; lng: number; spaces: number; cost_pence: number | null; is_private: boolean; friends_only: boolean };
+  event: { title: string; category: SocialCategory; description: string | null; starts_at: string; ends_at: string; area: string; lat: number; lng: number; spaces: number; cost_pence: number | null; is_private: boolean; friends_only: boolean; collect_payments: boolean; total_cost_pence: number | null; fee_mode: "added" | "absorbed" };
   exact: { address: string | null; lat: number; lng: number };
 };
 
@@ -191,8 +196,13 @@ export function readSocialEventInput(input: SocialEventInput): ParsedSocialEvent
   if (!(Math.abs(lat) <= 90 && Math.abs(lng) <= 180)) return { error: "Search for the place or tap the map to show where it is." };
   if (!area) return { error: "Add the place name everyone sees, e.g. Powerleague Shoreditch." };
   if (!Number.isInteger(spaces) || spaces < 2 || spaces > 500) return { error: "Spaces must be a whole number from 2 to 500 (including you)." };
-  const cost = readCostInput(input.costKind, input.costAmount);
-  if ("error" in cost) return { error: cost.error };
+  // "Costs money": the total, split across every space (the host included), rounded up.
+  const total = readCostInput(input.costKind, input.costAmount, input.costKind === "paid" ? 10000 : 1000);
+  if ("error" in total) return { error: total.error };
+  const paid = input.costKind === "paid" && total.value != null;
+  const share = paid ? sharePerPerson(total.value!, spaces) : total.value;
+  const collect = paid && input.collectPayments;
+  if (collect && share! < 100) return { error: "Each person's share must be at least £1." };
 
   const rough = blur(lat, lng);
   return {
@@ -206,9 +216,12 @@ export function readSocialEventInput(input: SocialEventInput): ParsedSocialEvent
       lat: rough.lat,
       lng: rough.lng,
       spaces,
-      cost_pence: cost.value,
+      cost_pence: share,
       is_private: input.isPrivate,
       friends_only: input.friendsOnly,
+      collect_payments: collect,
+      total_cost_pence: paid ? total.value : null,
+      fee_mode: input.feeMode,
     },
     exact: { address, lat, lng },
   };

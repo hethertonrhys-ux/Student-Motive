@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 
 // Join, leave, withdraw or cancel. What you tapped shows straight away;
 // the database catches up in the background.
-export function JoinPanel({ eventId, isPrivate, cancelled, loggedIn, isHost, myId, mine, left, finished, hostName, suggestPrompt, tap, busy }: { eventId: string; isPrivate: boolean; cancelled: boolean; loggedIn: boolean; isHost: boolean; myId: string | null; mine: MemberStatus | null; left: number; finished: boolean; hostName: string; suggestPrompt: boolean; tap: Tap; busy: boolean }) {
+export function JoinPanel({ eventId, isPrivate, cancelled, loggedIn, isHost, myId, mine, left, finished, hostName, suggestPrompt, tap, busy, paid = false, paidCount = 0 }: { eventId: string; isPrivate: boolean; cancelled: boolean; loggedIn: boolean; isHost: boolean; myId: string | null; mine: MemberStatus | null; left: number; finished: boolean; hostName: string; suggestPrompt: boolean; tap: Tap; busy: boolean; paid?: boolean; paidCount?: number }) {
   const router = useRouter();
   const [asking, setAsking] = useState(false);
   const box = "flex-row flex-wrap items-center justify-between gap-3";
@@ -31,7 +31,7 @@ export function JoinPanel({ eventId, isPrivate, cancelled, loggedIn, isHost, myI
         <T variant="semibold">You&apos;re hosting</T>
         <View className="flex-row gap-2">
           <Button variant="ghost" className="py-2" onPress={() => router.push(`/social/${eventId}/edit` as never)} testID="edit-event">Edit</Button>
-          <LinkButton onPress={() => void tap(() => cancelSocialEvent(supabase, eventId, myId!))} confirmText="Cancel this event? Everyone going will see it's cancelled." disabled={busy} danger testID="cancel-event">Cancel event</LinkButton>
+          <LinkButton onPress={() => void tap(() => cancelSocialEvent(supabase, eventId, myId!))} confirmText={paidCount > 0 ? `Cancel this event? Everyone going will see it's cancelled, and the ${paidCount} ${paidCount === 1 ? "person who has" : "people who have"} paid will get a full refund.` : "Cancel this event? Everyone going will see it's cancelled."} disabled={busy} danger testID="cancel-event">Cancel event</LinkButton>
         </View>
       </Card>
     );
@@ -40,7 +40,8 @@ export function JoinPanel({ eventId, isPrivate, cancelled, loggedIn, isHost, myI
     return (
       <Card className={box} testID="going-panel">
         <T variant="semibold"><T className="text-ok">✓</T> You&apos;re going</T>
-        <LinkButton onPress={() => void tap(() => leaveSocialEvent(supabase, eventId))} confirmText="Leave this event? Your space goes to someone else." disabled={busy} testID="leave-social">Leave</LinkButton>
+        {/* After paying, people ask the host for a refund instead (below). */}
+        {!paid && <LinkButton onPress={() => void tap(() => leaveSocialEvent(supabase, eventId))} confirmText="Leave this event? Your space goes to someone else." disabled={busy} testID="leave-social">Leave</LinkButton>}
       </Card>
     );
   }

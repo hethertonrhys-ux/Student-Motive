@@ -3,7 +3,7 @@ import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { Linking, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { categoryInfo, formatCost, formatWhen, loadSocialEvent, nowMs, openHostChat, removeSocialGuest, respondToRequest, spacesLeft, timeFormat } from "@function/shared";
+import { categoryInfo, chargeFor, feeText, formatCost, formatWhen, pounds, loadSocialEvent, nowMs, openHostChat, removeSocialGuest, respondToRequest, spacesLeft, timeFormat } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { CompleteProfileCard } from "@/components/complete-profile-card";
@@ -15,6 +15,7 @@ import { ShareButton } from "@/components/share-button";
 import { Attendees } from "@/components/social/attendees";
 import { Pill } from "@/components/social/event-card";
 import { JoinPanel } from "@/components/social/join-panel";
+import { PaidBadge, PaymentPanel, usePlanPayments, WhoPaid } from "@/components/social/payment-panel";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
 import { SITE_URL } from "@/lib/site";
 import { supabase } from "@/lib/supabase";
@@ -32,7 +33,7 @@ export default function SocialEventScreen() {
   const [busy, setBusy] = useState(false);
   const [reporting, setReporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const refresh = () => Promise.all([queryClient.invalidateQueries({ queryKey: ["social-event", id] }), queryClient.invalidateQueries({ queryKey: ["social-tab"] }), queryClient.invalidateQueries({ queryKey: ["map-events"] }), queryClient.invalidateQueries({ queryKey: ["feed"] }), queryClient.invalidateQueries({ queryKey: ["recommended"] })]);
+  const refresh = () => Promise.all([queryClient.invalidateQueries({ queryKey: ["plan-payments", id] }), queryClient.invalidateQueries({ queryKey: ["social-event", id] }), queryClient.invalidateQueries({ queryKey: ["social-tab"] }), queryClient.invalidateQueries({ queryKey: ["map-events"] }), queryClient.invalidateQueries({ queryKey: ["feed"] }), queryClient.invalidateQueries({ queryKey: ["recommended"] })]);
   const tap: Tap = async (run) => {
     setBusy(true);
     setError(null);
@@ -44,6 +45,11 @@ export default function SocialEventScreen() {
       setBusy(false);
     }
   };
+
+  const pageData = page.data;
+  const amGoing = !!pageData && pageData.members.some((m) => m.user_id === myId && m.status === "going");
+  const payments = usePlanPayments(pageData?.event ?? NO_EVENT, !!pageData && pageData.event.host_id === myId, amGoing, myId);
+  const paidStatus = (uid: string) => payments.data?.statuses.get(uid) ?? "unpaid";
 
   if (page.isPending) return <Screen><Muted>Loading…</Muted></Screen>;
   const p = page.data;
@@ -66,6 +72,7 @@ export default function SocialEventScreen() {
   const cat = categoryInfo(event.category);
   const cost = formatCost(event.cost_pence);
   const pin = address?.lat != null && address?.lng != null ? address : null;
+  const charge = event.collect_payments && event.cost_pence ? chargeFor(event.cost_pence, event.fee_mode) : null;
 
   async function messageHost() {
     const thread = await openHostChat(supabase, event.id);
@@ -117,7 +124,11 @@ export default function SocialEventScreen() {
             </Pressable>
           )}
         </View>
-        {cost && <Row label="Cost">{cost === "Free" ? "Free" : `${cost} per person`}</Row>}
+        {charge ? (
+          <Row label="Cost">{`${pounds(charge.share)} per person`}{event.total_cost_pence ? ` (${pounds(event.total_cost_pence)} total)` : ""}{charge.fee > 0 ? ` + ${feeText(charge.fee)} card fee. Pay in the app.` : ". Pay in the app."}</Row>
+        ) : (
+          cost && <Row label="Cost">{cost === "Free" ? "Free" : `${cost} per person`}</Row>
+        )}
         <View>
           <Muted className="text-sm font-sans-semibold">Spaces</Muted>
           <T variant="semibold" className={left === 0 ? "text-danger" : ""} testID="spaces">{left === 0 ? `Full (${event.spaces} of ${event.spaces})` : `${left} of ${event.spaces} spaces left`}</T>
@@ -131,7 +142,9 @@ export default function SocialEventScreen() {
       />
 
       <View className="mt-5 gap-3">
-        <JoinPanel eventId={event.id} isPrivate={event.is_private} cancelled={event.is_cancelled} loggedIn={!!myId} isHost={isHost} myId={myId} mine={mine} left={left} finished={finished} hostName={host?.name ?? "The host"} suggestPrompt={myPrompts === 0} tap={tap} busy={busy} />
+        <JoinPanel eventId={event.id} isPrivate={event.is_private} cancelled={event.is_cancelled} loggedIn={!!myId} isHost={isHost} myId={myId} mine={mine} left={left} finished={finished} hostName={host?.name ?? "The host"} suggestPrompt={myPrompts === 0} tap={tap} busy={busy}
+          paid={!isHost && !!myId && paidStatus(myId) === "paid"} paidCount={isHost ? going.filter((g) => paidStatus(g.user_id) === "paid").length : 0} />
+        <PaymentPanel event={event} isHost={isHost} going={mine === "going"} myId={myId} cards={cards} tap={tap} busy={busy} />
         {error && <T variant="semibold" className="text-sm text-danger" testID="action-error">{error}</T>}
         {myId && !isHost && (mine === "going" || mine === "pending") && <PushPromptCard userId={myId} />}
         {myId && !isHost && (mine === "going" || mine === "pending") && <CompleteProfileCard prompts={myPrompts ?? 0} />}
@@ -143,6 +156,13 @@ export default function SocialEventScreen() {
       </View>
 
       {event.description && <T className="mt-6 text-lg leading-7">{event.description}</T>}
+
+      {/* Paid plans: who's paid, for people going (the host sees the ticks in their guest list below). */}
+      {!isHost && (
+        <WhoPaid event={event} isHost={false} going={mine === "going"} myId={myId}
+          people={going.map((g) => ({ id: g.user_id, name: cards.get(g.user_id)?.name ?? "Member", avatar_url: cards.get(g.user_id)?.avatar_url ?? null }))}
+          host={host ? { id: host.id, name: host.name, avatar_url: host.avatar_url } : null} />
+      )}
 
       {/* Host: requests to approve */}
       {isHost && requests.length > 0 && !event.is_cancelled && (
@@ -173,7 +193,10 @@ export default function SocialEventScreen() {
               const c = cards.get(g.user_id);
               return (
                 <PersonRow key={g.user_id} id={g.user_id} name={c?.name ?? "Member"} avatarUrl={c?.avatar_url} country={c?.country}>
-                  {!finished && <LinkButton onPress={() => void tap(() => removeSocialGuest(supabase, event.id, g.user_id))} confirmText={`Remove ${c?.name ?? "them"} from this event?`} disabled={busy} testID={`remove-${g.user_id}`}>Remove</LinkButton>}
+                  <View className="flex-row items-center gap-3">
+                    {event.collect_payments && <PaidBadge status={paidStatus(g.user_id)} id={g.user_id} />}
+                    {!finished && <LinkButton onPress={() => void tap(() => removeSocialGuest(supabase, event.id, g.user_id))} confirmText={paidStatus(g.user_id) === "paid" ? `Remove ${c?.name ?? "them"} from this event? They've paid, so they'll get a full refund.` : `Remove ${c?.name ?? "them"} from this event?`} disabled={busy} testID={`remove-${g.user_id}`}>Remove</LinkButton>}
+                  </View>
                 </PersonRow>
               );
             })}
@@ -193,6 +216,9 @@ export default function SocialEventScreen() {
     </Screen>
   );
 }
+
+// Stands in until the plan has loaded (so the payments hook can always run).
+const NO_EVENT = { id: "", host_id: "", collect_payments: false } as unknown as Parameters<typeof usePlanPayments>[0];
 
 function Screen({ children }: { children: React.ReactNode }) {
   return (

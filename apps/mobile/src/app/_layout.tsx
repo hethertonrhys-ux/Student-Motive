@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { Platform } from "react-native";
 import { AccountGate } from "@/components/account-gate";
 import { LaunchSplash } from "@/components/launch-splash";
+import { StripeRoot } from "@/components/payments/stripe-root";
 import { PushLifecycle } from "@/components/push-lifecycle";
 import { UpdateBanner } from "@/components/update-banner";
 import { SessionProvider } from "@/providers/session";
@@ -33,16 +34,18 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={client}>
       <SessionProvider>
-        <AccountGate />
-        <PushLifecycle />
-        <StatusBar style="auto" />
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "transparent" } }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(tabs)" />
-        </Stack>
-        {/* Phones only: "A new version of Function is ready", after an over-the-air update has downloaded. */}
-        <UpdateBanner />
-        {Platform.OS !== "web" && <LaunchSplash />}
+        <StripeRoot>
+          <AccountGate />
+          <PushLifecycle />
+          <StatusBar style="auto" />
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "transparent" } }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="(tabs)" />
+          </Stack>
+          {/* Phones only: "A new version of Function is ready", after an over-the-air update has downloaded. */}
+          <UpdateBanner />
+          {Platform.OS !== "web" && <LaunchSplash />}
+        </StripeRoot>
       </SessionProvider>
     </QueryClientProvider>
   );

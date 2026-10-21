@@ -1,11 +1,15 @@
 import { useState } from "react";
 import { Pressable, View } from "react-native";
-import { checkSocialTimes, SOCIAL_CATEGORIES, type SocialEvent, type SocialEventInput } from "@function/shared";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "expo-router";
+import { chargeFor, checkSocialTimes, feeText, payoutsReady, pounds, sharePerPerson, SOCIAL_CATEGORIES, type SocialEvent, type SocialEventInput } from "@function/shared";
 import { DateField, TimeField } from "@/components/fields/date-time";
 import { Icon } from "@/components/icon";
 import { PlacePicker, type Point } from "@/components/place/place-picker";
 import { Chip } from "@/components/social/filters";
-import { Button, Input, Label, Muted, T } from "@/components/ui";
+import { Button, Card, Input, Label, Muted, T } from "@/components/ui";
+import { supabase } from "@/lib/supabase";
+import { useSession } from "@/providers/session";
 
 type Props = {
   onSubmit: (input: SocialEventInput) => Promise<{ error?: string }>;
@@ -31,7 +35,12 @@ export function SocialEventForm({ onSubmit, event, exact, defaults, centre }: Pr
   const [address, setAddress] = useState(exact?.address ?? "");
   const [spaces, setSpaces] = useState(String(event?.spaces ?? 8));
   const [costKind, setCostKind] = useState<"none" | "free" | "paid">(event?.cost_pence == null ? "none" : event.cost_pence === 0 ? "free" : "paid");
-  const [costAmount, setCostAmount] = useState(event?.cost_pence ? (event.cost_pence % 100 === 0 ? String(event.cost_pence / 100) : (event.cost_pence / 100).toFixed(2)) : "");
+  // "Costs money" is the total, split across the spaces. (Older plans saved a
+  // price per person: that times the spaces is their total.)
+  const startTotal = event?.total_cost_pence ?? (event?.cost_pence ? event.cost_pence * event.spaces : null);
+  const [costAmount, setCostAmount] = useState(startTotal ? (startTotal % 100 === 0 ? String(startTotal / 100) : (startTotal / 100).toFixed(2)) : "");
+  const [collectPayments, setCollectPayments] = useState(event ? event.collect_payments : true);
+  const [feeMode, setFeeMode] = useState<"added" | "absorbed">(event?.fee_mode ?? "added");
   const [isPrivate, setIsPrivate] = useState(event?.is_private ?? false);
   const [friendsOnly, setFriendsOnly] = useState(event?.friends_only ?? false);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +51,7 @@ export function SocialEventForm({ onSubmit, event, exact, defaults, centre }: Pr
   async function submit() {
     setSaving(true);
     setError(null);
-    const result = await onSubmit({ title, category, description, date, start, finish, area, address, lat: pin?.lat ?? null, lng: pin?.lng ?? null, spaces, costKind, costAmount, isPrivate, friendsOnly });
+    const result = await onSubmit({ title, category, description, date, start, finish, area, address, lat: pin?.lat ?? null, lng: pin?.lng ?? null, spaces, costKind, costAmount, collectPayments, feeMode, isPrivate, friendsOnly });
     if (result.error) setError(result.error);
     setSaving(false);
   }
@@ -122,11 +131,16 @@ export function SocialEventForm({ onSubmit, event, exact, defaults, centre }: Pr
           ))}
         </View>
         {costKind === "paid" && (
-          <View className="mt-3 flex-row items-center gap-2">
-            <T variant="semibold">£</T>
-            <Input value={costAmount} onChangeText={setCostAmount} keyboardType="decimal-pad" placeholder="6" className="w-28" accessibilityLabel="Cost in pounds" testID="cost-amount" />
-            <Muted className="flex-1 text-xs">per person. Just shown on the event; no payments are taken.</Muted>
-          </View>
+          <PaidCost
+            total={costAmount}
+            onTotal={setCostAmount}
+            spaces={spaces}
+            collect={collectPayments}
+            onCollect={setCollectPayments}
+            feeMode={feeMode}
+            onFeeMode={setFeeMode}
+            locked={!!event?.collect_payments}
+          />
         )}
       </View>
 
@@ -154,9 +168,66 @@ export function SocialEventForm({ onSubmit, event, exact, defaults, centre }: Pr
   );
 }
 
-function Choice({ checked, onPress, title, help, testID }: { checked: boolean; onPress: () => void; title: string; help: string; testID?: string }) {
+// "Costs money": the total, the price per person, and whether people pay in
+// the app (which needs payouts set up, and a choice about the card fee).
+function PaidCost({ total, onTotal, spaces, collect, onCollect, feeMode, onFeeMode, locked }: {
+  total: string; onTotal: (v: string) => void; spaces: string; collect: boolean; onCollect: (v: boolean) => void;
+  feeMode: "added" | "absorbed"; onFeeMode: (v: "added" | "absorbed") => void; locked: boolean;
+}) {
+  const { session } = useSession();
+  const myId = session?.user.id ?? null;
+  const payouts = useQuery({ queryKey: ["payouts-ready", myId], queryFn: () => payoutsReady(supabase, myId!), enabled: !!myId && collect });
+  const pence = Math.round(Number(total.trim().replace(/^£/, "").replace(/,/g, "")) * 100);
+  const count = Number(spaces.trim());
+  const share = Number.isFinite(pence) && pence > 0 && Number.isInteger(count) && count >= 2 ? sharePerPerson(pence, count) : 0;
+  const added = share ? chargeFor(share, "added") : null;
+  const absorbed = share ? chargeFor(share, "absorbed") : null;
   return (
-    <Pressable onPress={onPress} accessibilityRole="radio" accessibilityState={{ checked }} testID={testID} className={`rounded-xl border px-3.5 py-3 ${checked ? "border-brand bg-brand-soft" : "border-line"}`}>
+    <View className="mt-3 gap-3">
+      <View>
+        <Label>Total cost</Label>
+        <View className="flex-row items-center gap-2">
+          <T variant="semibold">£</T>
+          <View className="w-32">
+            <Input value={total} onChangeText={onTotal} keyboardType="decimal-pad" placeholder="80" accessibilityLabel="Total cost in pounds" testID="cost-amount" />
+          </View>
+        </View>
+        <Muted className="mt-1 text-xs">The whole cost, e.g. the pitch. It&apos;s split across the spaces, you included.</Muted>
+        {share > 0 && (
+          <T variant="headline" className="mt-2" testID="per-person">{pounds(share)} per person <Muted className="text-sm">({pounds(pence)} ÷ {count} spaces)</Muted></T>
+        )}
+      </View>
+      <Choice checked={collect} onPress={() => onCollect(!collect)} role="checkbox" title="Collect payments in Function" help="People who join pay their share in the app, with Apple Pay or a card. The money goes to your bank 2 days after the plan." testID="collect-payments" />
+      {collect ? (
+        <>
+          {payouts.data === "ready" ? (
+            <T variant="semibold" className="text-sm text-ok" testID="payouts-ready">✓ Payouts set up</T>
+          ) : (
+            <Card className="gap-2" testID="payouts-needed">
+              <T variant="semibold">Set up payouts first</T>
+              <Muted className="text-sm">Connect your bank account through Stripe so the money can reach you. It takes about 5 minutes, and Function never sees your bank details.</Muted>
+              <Link href={"/account/payouts" as never} asChild>
+                <Button className="self-start py-2" testID="setup-payouts">{payouts.data === "incomplete" ? "Finish setting up payouts" : "Set up payouts"}</Button>
+              </Link>
+            </Card>
+          )}
+          <View className="gap-2">
+            <Label>The card fee</Label>
+            <Choice checked={feeMode === "added"} onPress={() => onFeeMode("added")} title="Add it to each share" help={added ? `People pay ${pounds(added.amount)} (${pounds(added.share)} + ${feeText(added.fee)} fee). You get ${pounds(added.toHost)} each.` : "People pay their share plus a small fee, and you get the full share."} testID="fee-added" />
+            <Choice checked={feeMode === "absorbed"} onPress={() => onFeeMode("absorbed")} title="I'll cover it" help={absorbed ? `People pay ${pounds(absorbed.amount)}. You get ${pounds(absorbed.toHost)} each.` : "People pay exactly their share, and the fee comes out of what you get."} testID="fee-absorbed" />
+          </View>
+          <Muted className="text-xs">If fewer people join, you collect less: the price per person stays the same.{locked ? " Once someone has paid, the price and spaces can't change." : ""}</Muted>
+        </>
+      ) : (
+        <Muted className="text-xs">Just shown on the plan; no payments are taken.</Muted>
+      )}
+    </View>
+  );
+}
+
+function Choice({ checked, onPress, title, help, role = "radio", testID }: { checked: boolean; onPress: () => void; title: string; help: string; role?: "radio" | "checkbox"; testID?: string }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole={role} accessibilityState={{ checked }} testID={testID} className={`rounded-xl border px-3.5 py-3 ${checked ? "border-brand bg-brand-soft" : "border-line"}`}>
       <T variant="semibold">{title}</T>
       <Muted className="text-sm">{help}</Muted>
     </Pressable>

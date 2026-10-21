@@ -3,7 +3,7 @@ import { Link, useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { countFriendRequests, countMyManagedSocieties, countOpenReports, uniShort } from "@function/shared";
+import { countFriendRequests, countMyManagedSocieties, countOpenReports, payoutsReady, uniShort } from "@function/shared";
 import { Avatar } from "@/components/avatar";
 import { Icon } from "@/components/icon";
 import { QrSheet } from "@/components/qr/qr-sheet";
@@ -33,6 +33,8 @@ export default function MeScreen() {
   const fresh = useNewNotifications();
   const requests = useQuery({ queryKey: ["friend-request-count", userId], queryFn: () => countFriendRequests(supabase, userId!), enabled: !!userId });
   useRefetchOnFocus(requests);
+  // Payouts for paid plans you host (from the database: no Stripe call here).
+  const payouts = useQuery({ queryKey: ["payouts-ready", userId], queryFn: () => payoutsReady(supabase, userId!), enabled: !!userId });
 
   async function logOut() {
     await disablePushOnThisDevice();
@@ -46,6 +48,7 @@ export default function MeScreen() {
     { href: "/account/security", icon: "lock-closed-outline", title: "Password & security", detail: "Set a password, two-factor authentication", testID: "security" },
     { href: "/account/privacy", icon: "hand-left-outline", title: "Privacy", detail: "People you've blocked", testID: "privacy-settings" },
     { href: "/account/notifications", icon: "notifications-circle-outline", title: "Notification settings", detail: "Choose what Function tells you about", testID: "notification-settings" },
+    { href: "/account/payouts", icon: "card-outline", title: "Payouts", detail: payouts.data === "ready" ? "Payouts set up" : payouts.data === "incomplete" ? "Finish setting up payouts" : "Get paid for plans you host", testID: "payouts" },
     { href: "/friends", icon: "people-outline", title: "Friends", detail: requests.data ? `${requests.data} ${requests.data === 1 ? "request" : "requests"} waiting` : "Requests, people you may know", testID: "friends", count: requests.data },
     { href: "/notifications", icon: "notifications-outline", title: "Notifications", detail: fresh ? `${fresh} new` : "What's happened lately", testID: "notifications", count: fresh },
     ...(managed.data ? [{ href: "/hub", icon: "briefcase-outline" as const, title: "Society Hub", detail: managed.data === 1 ? "Run your society: setup, features, committee" : `Run your ${managed.data} societies: setup, features, committee`, testID: "society-hub" }] : []),

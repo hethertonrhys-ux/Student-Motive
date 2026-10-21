@@ -34,11 +34,16 @@ export type SocialEvent = {
   friends_only: boolean;
   is_cancelled: boolean;
   going_count: number;
+  // Each person's share (a paid plan's total ÷ spaces), or a cost shown only.
   cost_pence: number | null;
+  // Paid plans: people pay their share in the app (see payments.ts, plan-payments.ts).
+  collect_payments: boolean;
+  total_cost_pence: number | null;
+  fee_mode: "added" | "absorbed";
 };
 
 export const SOCIAL_EVENT_FIELDS =
-  "id, host_id, title, category, description, starts_at, ends_at, area, lat, lng, spaces, is_private, friends_only, is_cancelled, going_count, cost_pence";
+  "id, host_id, title, category, description, starts_at, ends_at, area, lat, lng, spaces, is_private, friends_only, is_cancelled, going_count, cost_pence, collect_payments, total_cost_pence, fee_mode";
 
 // The host takes one space.
 export function spacesLeft(e: Pick<SocialEvent, "spaces" | "going_count">) {

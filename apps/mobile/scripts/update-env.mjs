@@ -12,6 +12,10 @@ import { dirname, join } from "node:path";
 
 // The settings the phone app needs. Without the first two the app stops
 // at launch (src/lib/supabase.ts), so an update must never go out without them.
+// Settings the app can run without: Stripe's publishable key (payments for
+// paid plans stay off until it's set). When set, it must be pk_….
+export const OPTIONAL_ENV = ["EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY"];
+
 export const REQUIRED_ENV = [
   "EXPO_PUBLIC_SUPABASE_URL",
   "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
@@ -45,6 +49,11 @@ export function productionEnv(easJsonText) {
   const key = env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (key && !key.startsWith("sb_publishable_")) {
     problems.push("EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY in eas.json must be the publishable key (sb_publishable_…), never the secret key.");
+  }
+  // Stripe: only ever the publishable key (pk_…) in the app; the secret key stays on the server.
+  const stripeKey = env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  if (stripeKey && !stripeKey.startsWith("pk_")) {
+    problems.push("EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY in eas.json must be Stripe's publishable key (pk_test_… or pk_live_…), never the secret key.");
   }
   return { env, problems };
 }
