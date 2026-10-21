@@ -90,8 +90,9 @@ export default function PersonScreen() {
               <Button variant="ghost" testID="edit-profile">Edit your profile</Button>
             </Link>
             <Link href={"/friends" as never} asChild>
-              <Button variant="ghost">
-                Friends{p.friendCount ? ` (${p.friendCount})` : ""}{p.incomingCount ? ` · ${p.incomingCount} new` : ""}
+              {/* One string, so the button shows it as its label (pieces of text side by side showed nothing). */}
+              <Button variant="ghost" testID="my-friends">
+                {`Friends${p.friendCount ? ` (${p.friendCount})` : ""}${p.incomingCount ? ` · ${p.incomingCount} new` : ""}`}
               </Button>
             </Link>
           </View>

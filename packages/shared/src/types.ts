@@ -22,10 +22,12 @@ export type Profile = {
   graduation_year: number | null;
   // Two-letter country code, optional (shown as a flag).
   country?: string | null;
+  // The profile photo (a round crop), or null for none.
+  avatar_url?: string | null;
 };
 
 // The columns the app reads for the logged-in person's own profile.
-export const PROFILE_COLUMNS = "id, email, display_name, is_admin, university, full_name, nickname, graduation_year, country";
+export const PROFILE_COLUMNS = "id, email, display_name, is_admin, university, full_name, nickname, graduation_year, country, avatar_url";
 
 // Accounts made before these fields existed (or who skipped them) are asked
 // to fill them in the next time they open the app.
