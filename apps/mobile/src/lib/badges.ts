@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { AppState } from "react-native";
-import { getNotificationTimes, getUnreadCount } from "@function/shared";
+import { countFriendRequests, getNotificationTimes, getUnreadCount } from "@function/shared";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
@@ -17,6 +17,14 @@ export function useUnreadMessages() {
   const { session } = useSession();
   const query = useQuery({ queryKey: ["unread", session?.user.id ?? null], queryFn: () => getUnreadCount(supabase), enabled: !!session, refetchInterval: 120_000 });
   useRefetchOnForeground(["unread"]);
+  return query.data ?? 0;
+}
+
+// Friend requests waiting for your answer: the number on Me → Friends.
+export function useFriendRequestCount() {
+  const { session } = useSession();
+  const query = useQuery({ queryKey: ["friend-request-count", session?.user.id ?? null], queryFn: () => countFriendRequests(supabase, session!.user.id), enabled: !!session, refetchInterval: 300_000 });
+  useRefetchOnForeground(["friend-request-count"]);
   return query.data ?? 0;
 }
 
