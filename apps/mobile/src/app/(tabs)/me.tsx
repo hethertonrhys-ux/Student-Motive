@@ -34,7 +34,6 @@ export default function MeScreen() {
 
   const rows: { href: string; icon: React.ComponentProps<typeof Icon>["name"]; title: string; detail: string; testID: string }[] = [
     { href: `/u/${session?.user.id}`, icon: "person-circle-outline", title: "My profile", detail: "How other students see you", testID: "my-profile" },
-    { href: "/account", icon: "create-outline", title: "Edit profile", detail: "Photos, prompts, name, nickname and course", testID: "edit-profile" },
     { href: "/account/security", icon: "lock-closed-outline", title: "Password & security", detail: "Set a password, two-factor authentication", testID: "security" },
     { href: "/account/notifications", icon: "notifications-circle-outline", title: "Notification settings", detail: "Choose what Function tells you about", testID: "notification-settings" },
     { href: "/friends", icon: "people-outline", title: "Friends", detail: "Requests, people you may know", testID: "friends" },
@@ -59,7 +58,7 @@ export default function MeScreen() {
         ) : profile ? (
           <>
             <Card className="mt-6 items-center gap-3">
-              <Avatar name={profile.display_name || "You"} size={88} />
+              <Avatar name={profile.display_name || "You"} url={profile.avatar_url} size={88} />
               <View className="items-center">
                 <View className="flex-row items-center gap-2">
                   <T variant="display" className="text-2xl">{profile.display_name || "Add your name"}</T>

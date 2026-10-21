@@ -2,7 +2,9 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { Tabs } from "expo-router";
 import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { TabAvatar } from "@/components/tab-avatar";
 import { useNewNotifications, useUnreadMessages } from "@/lib/badges";
+import { useProfile } from "@/lib/profile";
 import { useTheme } from "@/lib/theme";
 
 // The five tabs, the same as the website's bottom bar: Map, Societies,
@@ -28,6 +30,8 @@ export default function TabsLayout() {
   // Unread messages on Chats; new notifications on Me.
   const unread = useUnreadMessages();
   const fresh = useNewNotifications();
+  // Your photo stands in for the Me icon.
+  const { profile } = useProfile();
   const badge = (name: string) => (name === "chats" && unread > 0 ? unread : name === "me" && fresh > 0 ? fresh : undefined);
   return (
     <Tabs
@@ -48,7 +52,11 @@ export default function TabsLayout() {
             title: tab.title,
             tabBarBadge: badge(tab.name),
             tabBarBadgeStyle: { backgroundColor: colors.brand, color: "#fff", fontWeight: "700", fontSize: 11 },
-            tabBarIcon: ({ color, focused, size }) => <Ionicons name={focused ? tab.icon : (`${tab.icon}-outline` as const)} color={typeof color === "string" ? color : colors.muted} size={size} />,
+            tabBarIcon: ({ color, focused, size }) => {
+              const tint = typeof color === "string" ? color : colors.muted;
+              if (tab.name === "me") return <TabAvatar url={profile?.avatar_url} focused={focused} color={tint} size={size} />;
+              return <Ionicons name={focused ? tab.icon : (`${tab.icon}-outline` as const)} color={tint} size={size} />;
+            },
           }}
         />
       ))}
