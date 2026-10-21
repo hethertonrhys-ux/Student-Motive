@@ -2,6 +2,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { Tabs } from "expo-router";
 import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { PushWelcome } from "@/components/push-welcome";
 import { TabAvatar } from "@/components/tab-avatar";
 import { useNewNotifications, useUnreadMessages } from "@/lib/badges";
 import { useProfile } from "@/lib/profile";
@@ -34,6 +35,7 @@ export default function TabsLayout() {
   const { profile } = useProfile();
   const badge = (name: string) => (name === "chats" && unread > 0 ? unread : name === "me" && fresh > 0 ? fresh : undefined);
   return (
+    <>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -61,5 +63,8 @@ export default function TabsLayout() {
         />
       ))}
     </Tabs>
+    {/* "Don't miss what's on tonight": the notifications ask, once, on the map after sign-up. */}
+    <PushWelcome />
+    </>
   );
 }

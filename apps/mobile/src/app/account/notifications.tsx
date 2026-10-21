@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Linking, Platform, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { loadNotificationSettings, NOTIFICATION_KINDS, saveNotificationSettings, type NotificationKind, type NotificationSettings } from "@function/shared";
 import { BackButton } from "@/components/back-button";
@@ -54,7 +54,12 @@ export default function NotificationSettingsScreen() {
             <Card className="mt-6 gap-2" testID="push-device">
               <T variant="semibold">On this device</T>
               {status === "granted" && <Muted className="text-sm">Notifications are on. ✓</Muted>}
-              {status === "denied" && <Muted className="text-sm">Notifications are blocked for Function in your phone&apos;s or browser&apos;s settings. Turn them on there to get pushes.</Muted>}
+              {status === "denied" && (
+                <View className="gap-2" testID="push-denied">
+                  <Muted className="text-sm">{Platform.OS === "web" ? "Notifications are off for Function in this browser's settings. Turn them on there to get pushes." : "Notifications are off for Function. Turn them on in Settings → Function → Notifications."}</Muted>
+                  {Platform.OS !== "web" && <Button variant="ghost" className="self-start py-2" onPress={() => void Linking.openSettings()} testID="open-settings">Open Settings</Button>}
+                </View>
+              )}
               {status === "unsupported" && <Muted className="text-sm">This browser can&apos;t receive notifications. Add Function to your home screen (Me → Get the app) or use the Function app.</Muted>}
               {status === "undetermined" && (
                 <View className="flex-row flex-wrap items-center justify-between gap-3">

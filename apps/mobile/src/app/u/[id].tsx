@@ -8,6 +8,7 @@ import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { CompleteProfileCard } from "@/components/complete-profile-card";
 import { AvatarZoom, FriendButton, PhotoGallery, TwoTruthsGame } from "@/components/profile/people";
+import { PushPromptCard } from "@/components/push-prompt";
 import { MoreMenu } from "@/components/safety/more-menu";
 import { ReportSheet } from "@/components/safety/report-sheet";
 import { confirmAction } from "@/lib/confirm";
@@ -139,6 +140,7 @@ export default function PersonScreen() {
         ) : (
           <FriendButton id={id} relation={relation} onChanged={refresh} />
         )}
+        {relation === "outgoing" && myId && <PushPromptCard userId={myId} why="friend" className="w-full" />}
       </Card>
       {self && <CompleteProfileCard prompts={p.prompts.length} />}
 

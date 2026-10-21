@@ -8,6 +8,7 @@ import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { MediaPreview, MediaViewer } from "@/components/chat/media";
 import { SharedEventCard } from "@/components/chat/shared-event-card";
+import { PushPromptCard } from "@/components/push-prompt";
 import { ReportSheet } from "@/components/safety/report-sheet";
 import { HostPill, LinkButton } from "@/components/event/panels";
 import { Icon } from "@/components/icon";
@@ -49,6 +50,8 @@ export default function ChatScreen() {
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [reportFor, setReportFor] = useState<ChatMessage | null>(null);
   const [sending, setSending] = useState(false);
+  // After you send a message here: maybe ask to turn on notifications.
+  const [sentHere, setSentHere] = useState(false);
   // The ••• menu: closed, open, or asking "Leave this group?".
   const [groupMenu, setGroupMenu] = useState<"closed" | "open" | "confirm">("closed");
   const [busy, setBusy] = useState(false);
@@ -118,6 +121,7 @@ export default function ChatScreen() {
     if (result.error) setError(result.error);
     else {
       setDraft("");
+      setSentHere(true);
       merge(await fetchMessages(supabase, id, lastAt.current));
       void queryClient.invalidateQueries({ queryKey: ["threads"] });
     }
@@ -555,6 +559,7 @@ export default function ChatScreen() {
               </View>
             ) : (
             <>
+            {sentHere && myId && <PushPromptCard userId={myId} why="message" className="mb-2" />}
             {attachOpen && (
               <Card className="mb-2 p-0" testID="attach-menu">
                 <Pressable onPress={() => void attach("library")} className="min-h-12 flex-row items-center gap-3 px-4 active:opacity-80" accessibilityRole="button" testID="attach-library">

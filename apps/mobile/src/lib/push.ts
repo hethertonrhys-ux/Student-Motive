@@ -12,7 +12,8 @@ import { supabase } from "@/lib/supabase";
 // Web Push subscription, handled by public/sw.js. Either way the token is
 // saved against the account so the server knows where to send things.
 
-const ASKED_KEY = "fn-push-asked"; // we've asked (or they've answered) on this device
+const ASKED_KEY = "fn-push-asked"; // the phone's own question has been shown on this device
+const SOFT_KEY = "fn-push-soft"; // our own "turn on notifications?" asks: how many, and the last one
 const TOKEN_KEY = "fn-push-token"; // the token saved for this device
 const SAVED_AT_KEY = "fn-push-saved-at"; // when it was last saved
 const RESAVE_AFTER_MS = 24 * 60 * 60 * 1000;
@@ -115,16 +116,82 @@ export function usePushLifecycle(userId: string | null) {
   }, [userId]);
 }
 
-// Whether to show the "turn on notifications?" card: once, after the first
-// event they join, and only if they haven't been asked on this device.
-export function usePushPrompt() {
+// ---- When to ask ----
+// iPhones only let an app show their "Allow notifications?" question once,
+// and people say no by habit if it comes too early. So Function asks in its
+// own words first, and the phone's question only comes after "Turn on":
+// - the welcome: once, the first time someone reaches the map after
+//   finishing sign-up (PushWelcome);
+// - after "Not now", at a useful moment (joining an event, sending a friend
+//   request, sending a message): at most once a week and 3 times in all.
+// Nothing is asked once the phone's question has been answered.
+export const SOFT_ASK_LIMIT = 3;
+export const SOFT_ASK_GAP_MS = 7 * 24 * 60 * 60 * 1000;
+type SoftAsks = { count: number; last: number };
+
+async function softAsks(): Promise<SoftAsks> {
+  try {
+    const raw = await AsyncStorage.getItem(SOFT_KEY);
+    if (raw) {
+      const v = JSON.parse(raw) as Partial<SoftAsks>;
+      return { count: Number(v.count) || 0, last: Number(v.last) || 0 };
+    }
+    // Before this, "Not now" on the old card was saved as asked: count it as one ask.
+    if ((await AsyncStorage.getItem(ASKED_KEY)) === "1") return { count: 1, last: 0 };
+  } catch {}
+  return { count: 0, last: 0 };
+}
+
+async function recordSoftAsk() {
+  const now = await softAsks();
+  await AsyncStorage.setItem(SOFT_KEY, JSON.stringify({ count: now.count + 1, last: Date.now() })).catch(() => {});
+}
+
+// Whether our own ask may show now. "welcome" is the first one only.
+export async function maySoftAsk(kind: "welcome" | "moment"): Promise<boolean> {
+  if ((await getPushStatus()) !== "undetermined") return false;
+  const { count, last } = await softAsks();
+  if (kind === "welcome") return count === 0;
+  return count < SOFT_ASK_LIMIT && Date.now() - last >= SOFT_ASK_GAP_MS;
+}
+
+// The "turn on notifications?" card at a useful moment (when "when" is
+// true). Showing it counts as one ask, so it won't pop up again for a week.
+export function usePushPrompt(when = true) {
   const [show, setShow] = useState(false);
   useEffect(() => {
+    if (!when) return;
+    let live = true;
     void (async () => {
-      if (await pushAsked.get()) return;
-      const status = await getPushStatus();
-      setShow(status === "undetermined");
+      if (!(await maySoftAsk("moment")) || !live) return;
+      await recordSoftAsk();
+      if (live) setShow(true);
     })();
-  }, []);
-  return { show, dismiss: () => { setShow(false); void pushAsked.set(); } };
+    return () => {
+      live = false;
+    };
+  }, [when]);
+  return { show, dismiss: () => setShow(false) };
+}
+
+// The welcome ask: whether to show it, and recording that it was shown.
+export function usePushWelcome(ready: boolean) {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    if (!ready) return;
+    let live = true;
+    // A moment after the map appears, so they see what's on first.
+    const timer = setTimeout(() => {
+      void (async () => {
+        if (!(await maySoftAsk("welcome")) || !live) return;
+        await recordSoftAsk();
+        if (live) setShow(true);
+      })();
+    }, 1500);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [ready]);
+  return { show, close: () => setShow(false) };
 }
