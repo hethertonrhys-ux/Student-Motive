@@ -1,13 +1,15 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useIsFocused, useLocalSearchParams } from "expo-router";
+import { Link, useIsFocused, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { AppState, KeyboardAvoidingView, Platform, Pressable, ScrollView, View, type ScrollViewInstance } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { deleteMessage, fetchMessages, loadThreadInfo, reportMessage, sendMessage, type ChatMessage } from "@function/shared";
+import { deleteMessage, fetchMessages, leaveChat, loadThreadInfo, rejoinChat, reportMessage, sendMessage, type ChatMessage } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { HostPill, LinkButton } from "@/components/event/panels";
-import { Button, Heading, Input, Muted, T } from "@/components/ui";
+import { Icon } from "@/components/icon";
+import { Button, Card, Heading, Input, Muted, T } from "@/components/ui";
+import { useTheme } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
@@ -17,11 +19,15 @@ const time = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digi
 const day = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Europe/London" });
 
 // One chat: a private one with a friend, or an event's group chat. New
-// messages are checked for every few seconds while it's open.
+// messages are checked for every few seconds while it's open. A group chat
+// has a ••• menu with "Leave group"; someone who left sees "Rejoin" instead
+// of the message box (leaving never changes their place at the event).
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useSession();
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const { colors } = useTheme();
   const myId = session?.user.id ?? null;
   const info = useQuery({ queryKey: ["thread", id, myId], queryFn: () => loadThreadInfo(supabase, id, myId!), enabled: !!id && !!myId });
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
@@ -31,6 +37,9 @@ export default function ChatScreen() {
   const [reportFor, setReportFor] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState("Harassment or bullying");
   const [sending, setSending] = useState(false);
+  // The ••• menu: closed, open, or asking "Leave this group?".
+  const [groupMenu, setGroupMenu] = useState<"closed" | "open" | "confirm">("closed");
+  const [busy, setBusy] = useState(false);
   const lastAt = useRef<string | null>(null);
   // eslint-disable-next-line react-hooks/purity -- only the initial value is used; it marks when the chat was opened
   const lastActivity = useRef(Date.now());
@@ -94,6 +103,36 @@ export default function ChatScreen() {
     setSending(false);
   }
 
+  const refreshLists = () => Promise.all([queryClient.invalidateQueries({ queryKey: ["threads"] }), queryClient.invalidateQueries({ queryKey: ["unread"] })]);
+
+  async function leave() {
+    setBusy(true);
+    setError(null);
+    const result = await leaveChat(supabase, id);
+    if (result.error) {
+      setBusy(false);
+      return setError(result.error);
+    }
+    await refreshLists();
+    router.replace("/(tabs)/chats");
+  }
+
+  async function rejoin() {
+    setBusy(true);
+    setError(null);
+    const result = await rejoinChat(supabase, id);
+    if (result.error) {
+      setBusy(false);
+      return setError(result.error);
+    }
+    lastAt.current = null;
+    setMessages(null);
+    await info.refetch();
+    merge(await fetchMessages(supabase, id, null));
+    await refreshLists();
+    setBusy(false);
+  }
+
   const hidden = info.data?.hidden ?? new Set<string>();
   const visible = (messages ?? []).filter((m) => !m.sender_id || !hidden.has(m.sender_id));
   const header = info.data;
@@ -128,15 +167,61 @@ export default function ChatScreen() {
             ) : info.data === null ? (
               <Heading className="text-xl">Chat not found</Heading>
             ) : null}
+            {header?.isGroup && !header.left && (
+              <Pressable
+                onPress={() => setGroupMenu(groupMenu === "closed" ? "open" : "closed")}
+                accessibilityRole="button"
+                accessibilityLabel="Chat options"
+                hitSlop={8}
+                className="h-10 w-10 items-center justify-center rounded-full border border-line bg-surface active:opacity-80"
+                testID="chat-options"
+              >
+                <Icon name="ellipsis-horizontal" size={20} color={colors.ink} />
+              </Pressable>
+            )}
           </View>
+          {groupMenu === "open" && (
+            <Card className="mt-2 p-0" testID="chat-options-menu">
+              <Pressable onPress={() => setGroupMenu("confirm")} className="min-h-12 flex-row items-center gap-3 px-4 active:opacity-80" accessibilityRole="button" testID="leave-group">
+                <Icon name="exit-outline" size={20} color={colors.danger} />
+                <T variant="semibold" className="text-danger">Leave group</T>
+              </Pressable>
+            </Card>
+          )}
+          {groupMenu === "confirm" && (
+            <Card className="mt-2 gap-3" testID="leave-group-confirm">
+              <View>
+                <T variant="bold">Leave this group?</T>
+                <Muted className="text-sm">You won&apos;t get its messages any more. You&apos;re still going to the event.</Muted>
+              </View>
+              <View className="flex-row gap-2">
+                <Button onPress={() => void leave()} disabled={busy} testID="leave-group-yes">{busy ? "Leaving…" : "Leave group"}</Button>
+                <Button variant="ghost" onPress={() => setGroupMenu("closed")} disabled={busy} testID="leave-group-cancel">Cancel</Button>
+              </View>
+            </Card>
+          )}
 
           <ScrollView ref={scroll} className="flex-1" contentContainerClassName="py-4" keyboardShouldPersistTaps="handled" testID="messages">
-            {messages && visible.length === 0 && <Muted className="py-10 text-center text-sm">No messages yet. Say hi.</Muted>}
+            {header?.left ? (
+              <Muted className="py-10 text-center text-sm" testID="left-note">You left this group. Rejoin to see its messages.</Muted>
+            ) : (
+              messages && visible.length === 0 && <Muted className="py-10 text-center text-sm">No messages yet. Say hi.</Muted>
+            )}
             {visible.map((m, i) => {
               const mine = m.sender_id === myId;
               const prev = visible[i - 1];
               const newDay = !prev || new Date(prev.created_at).toDateString() !== new Date(m.created_at).toDateString();
-              const firstInRun = newDay || prev?.sender_id !== m.sender_id;
+              const firstInRun = newDay || prev?.sender_id !== m.sender_id || prev?.kind !== "message";
+              // "Rhys left" / "Rhys rejoined": a small note, not a bubble.
+              if (m.kind !== "message") {
+                const who = mine ? "You" : m.sender_name;
+                return (
+                  <View key={m.id}>
+                    {newDay && <Muted className="py-2 text-center text-xs font-sans-semibold">{day.format(new Date(m.created_at))}</Muted>}
+                    <Muted className="py-2 text-center text-xs" testID={`note-${m.id}`}>{who} {m.kind === "left" ? "left" : "rejoined"} · {time.format(new Date(m.created_at))}</Muted>
+                  </View>
+                );
+              }
               return (
                 <View key={m.id}>
                   {newDay && <Muted className="py-2 text-center text-xs font-sans-semibold">{day.format(new Date(m.created_at))}</Muted>}
@@ -219,6 +304,12 @@ export default function ChatScreen() {
 
           <View className="border-t border-line py-3">
             {error && <T variant="semibold" className="mb-2 text-sm text-danger">{error}</T>}
+            {header?.left ? (
+              <View className="flex-row flex-wrap items-center justify-between gap-3">
+                <Muted className="flex-1 text-sm">You won&apos;t get this group&apos;s messages.</Muted>
+                <Button onPress={() => void rejoin()} disabled={busy} testID="rejoin-group">{busy ? "Rejoining…" : "Rejoin group"}</Button>
+              </View>
+            ) : (
             <View className="flex-row items-end gap-2">
               <Input
                 value={draft}
@@ -239,6 +330,7 @@ export default function ChatScreen() {
               />
               <Button className="h-11 px-4" onPress={() => void send()} disabled={sending || !draft.trim()} testID="send">Send</Button>
             </View>
+            )}
           </View>
         </View>
       </KeyboardAvoidingView>

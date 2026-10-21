@@ -34,8 +34,13 @@ export async function loadThreads(supabase: SupabaseClient, myId: string): Promi
   return { threads: ((data ?? []) as Thread[]).map((t) => ({ ...t, unread: Number(t.unread) })), requests: count ?? 0 };
 }
 
+// "message" is what people write; "left" and "rejoined" are the notes a
+// group chat shows when someone leaves it or comes back ("Rhys left").
+export type MessageKind = "message" | "left" | "rejoined";
+
 export type ChatMessage = {
   id: string;
+  kind: MessageKind;
   body: string;
   created_at: string;
   sender_id: string | null;
@@ -47,10 +52,11 @@ export type ChatMessage = {
 // Messages in a chat, optionally only those after a time (for live updates). Opening marks it read.
 export async function fetchMessages(supabase: SupabaseClient, threadId: string, after: string | null): Promise<ChatMessage[]> {
   if (!UUID.test(threadId)) return [];
-  let query = supabase.from("messages").select("id, body, created_at, sender_id, deleted_at").eq("thread_id", threadId).order("created_at", { ascending: false }).limit(100);
+  // All columns, so this still works before the database has the "kind" column.
+  let query = supabase.from("messages").select("*").eq("thread_id", threadId).order("created_at", { ascending: false }).limit(100);
   if (after) query = query.gt("created_at", after);
   const { data } = await query;
-  const rows = (data ?? []).reverse() as { id: string; body: string; created_at: string; sender_id: string | null; deleted_at: string | null }[];
+  const rows = (data ?? []).reverse() as { id: string; kind?: MessageKind; body: string; created_at: string; sender_id: string | null; deleted_at: string | null }[];
   // Who sent them, and (on opening, or when something new arrived) mark the chat read: both at once.
   const [cards] = await Promise.all([
     getCards(supabase, rows.map((r) => r.sender_id).filter((x): x is string => !!x)),
@@ -58,6 +64,7 @@ export async function fetchMessages(supabase: SupabaseClient, threadId: string, 
   ]);
   return rows.map((r) => ({
     id: r.id,
+    kind: r.kind ?? "message",
     body: r.deleted_at ? "" : r.body,
     created_at: r.created_at,
     sender_id: r.sender_id,
@@ -74,6 +81,10 @@ export type ThreadInfo = {
   hidden: Set<string>;
   // Who gets the Host badge: the student hosting, or the society's committee.
   hostIds: Set<string>;
+  // An event's chat (anyone in it can leave), not a private one.
+  isGroup: boolean;
+  // You left this group chat (you can rejoin while you're going).
+  left: boolean;
 };
 
 // Who the chat is with: an event (society or Social) or one other person.
@@ -82,16 +93,19 @@ export async function loadThreadInfo(supabase: SupabaseClient, threadId: string,
   const { data: thread } = await supabase.from("threads").select("id, event_id, social_event_id, user_a, user_b").eq("id", threadId).maybeSingle<{ id: string; event_id: string | null; social_event_id: string | null; user_a: string | null; user_b: string | null }>();
   if (!thread) return null;
   const otherId = thread.event_id || thread.social_event_id ? null : thread.user_a === myId ? thread.user_b : thread.user_a;
-  const [cards, hidden, { data: event }, { data: socialEvent }, hosts] = await Promise.all([
+  const isGroup = !!(thread.event_id || thread.social_event_id);
+  const [cards, hidden, { data: event }, { data: socialEvent }, hosts, { data: leave }] = await Promise.all([
     getCards(supabase, otherId ? [otherId] : []),
     getHiddenPeople(supabase),
     thread.event_id ? supabase.from("events").select("id, title, going_count").eq("id", thread.event_id).maybeSingle() : Promise.resolve({ data: null }),
     thread.social_event_id ? supabase.from("social_events").select("id, title, host_id, going_count").eq("id", thread.social_event_id).maybeSingle() : Promise.resolve({ data: null }),
     thread.event_id ? loadEventHosts(supabase, thread.event_id) : Promise.resolve(new Set<string>()),
+    // Only your own row is readable. Before the database change there's no table: not left.
+    isGroup ? supabase.from("thread_leaves").select("thread_id").eq("thread_id", threadId).eq("user_id", myId).maybeSingle() : Promise.resolve({ data: null }),
   ]);
   const social = socialEvent as (ThreadInfo["socialEvent"] & { host_id: string }) | null;
   const hostIds = thread.event_id ? hosts : new Set(social ? [social.host_id] : []);
-  return { event: (event as ThreadInfo["event"]) ?? null, socialEvent: social ? { id: social.id, title: social.title, going_count: social.going_count } : null, other: otherId ? (cards.get(otherId) ?? null) : null, hidden, hostIds };
+  return { event: (event as ThreadInfo["event"]) ?? null, socialEvent: social ? { id: social.id, title: social.title, going_count: social.going_count } : null, other: otherId ? (cards.get(otherId) ?? null) : null, hidden, hostIds, isGroup, left: !!leave };
 }
 
 export async function sendMessage(supabase: SupabaseClient, threadId: string, body: string): Promise<Result> {
@@ -100,6 +114,20 @@ export async function sendMessage(supabase: SupabaseClient, threadId: string, bo
   if (text.length > 2000) return { error: "That message is too long." };
   const { error } = await supabase.rpc("send_message", { tid: threadId, body: text });
   return error ? { error: error.message.replace(/^.*?: /, "") || "Couldn't send. Try again." } : {};
+}
+
+// Leave a group chat: it goes from your Chats, you stop getting its
+// messages and pushes, and the others see "<name> left". Your place at the
+// event stays as it is.
+export async function leaveChat(supabase: SupabaseClient, threadId: string): Promise<Result> {
+  const { error } = await supabase.rpc("leave_thread", { tid: threadId });
+  return error ? { error: "Couldn't leave the group. Try again." } : {};
+}
+
+// Back into a group chat you left (only while you're still going).
+export async function rejoinChat(supabase: SupabaseClient, threadId: string): Promise<Result> {
+  const { error } = await supabase.rpc("rejoin_thread", { tid: threadId });
+  return error ? { error: /going/.test(error.message) ? "Only people going can join this chat." : "Couldn't rejoin. Try again." } : {};
 }
 
 export async function deleteMessage(supabase: SupabaseClient, messageId: string) {
