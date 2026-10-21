@@ -26,6 +26,7 @@ export * from "./event-actions";
 export * from "./social-actions";
 export * from "./profile";
 export * from "./chats";
+export * from "./chat-media";
 export * from "./committee";
 export * from "./admin";
 export * from "./push";

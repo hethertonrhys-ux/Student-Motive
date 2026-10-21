@@ -3,13 +3,15 @@ import { Link, useIsFocused, useLocalSearchParams, useRouter } from "expo-router
 import { useEffect, useRef, useState } from "react";
 import { AppState, KeyboardAvoidingView, Platform, Pressable, ScrollView, Switch, View, type ScrollViewInstance } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { deleteMessage, fetchMessages, leaveChat, loadSharedEvents, loadThreadInfo, rejoinChat, reportMessage, sendMessage, setMembersCanShareEvents, type ChatMessage } from "@function/shared";
+import { chatMediaPath, chatMediaUrls, deleteMessage, fetchMessages, leaveChat, loadSharedEvents, loadThreadInfo, rejoinChat, reportMessage, sendMedia, sendMessage, setMembersCanShareEvents, type ChatMessage, type MediaKind } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
+import { MediaPreview, MediaViewer } from "@/components/chat/media";
 import { SharedEventCard } from "@/components/chat/shared-event-card";
 import { HostPill, LinkButton } from "@/components/event/panels";
 import { Icon } from "@/components/icon";
 import { Button, Card, Heading, Input, Muted, T } from "@/components/ui";
+import { pickChatMedia, uploadChatMedia, type PickedMedia, type Upload } from "@/lib/chat-media";
 import { useTheme } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
@@ -17,6 +19,9 @@ import { useSession } from "@/providers/session";
 const POLL_MS = 4000; // right after a message
 const QUIET_AFTER_MS = 60_000; // then every fourth check (16 s) once the chat has been quiet for a minute
 const time = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
+// An id for a photo or video while it uploads, and the time (outside render).
+const uploadId = () => `${Date.now()}-${Math.random()}`;
+const now = () => Date.now();
 const day = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Europe/London" });
 
 // One chat: a private one with a friend, or an event's group chat. New
@@ -24,7 +29,8 @@ const day = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric",
 // has a ••• menu with "Leave group"; someone who left sees "Rejoin" instead
 // of the message box (leaving never changes their place at the event).
 // Shared events show as cards; a group chat's admins can let only admins
-// share events (in the ••• menu).
+// share events (in the ••• menu). Photos and videos (the + button) upload
+// with a progress bar, show as previews and open full screen.
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useSession();
@@ -43,6 +49,11 @@ export default function ChatScreen() {
   // The ••• menu: closed, open, or asking "Leave this group?".
   const [groupMenu, setGroupMenu] = useState<"closed" | "open" | "confirm">("closed");
   const [busy, setBusy] = useState(false);
+  // Photos and videos on their way up, shown at the end of the chat with their progress.
+  const [uploads, setUploads] = useState<(PickedMedia & { localId: string; progress: number; error: string | null })[]>([]);
+  const uploading = useRef(new Map<string, Upload>());
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [viewer, setViewer] = useState<{ kind: MediaKind; url: string } | null>(null);
   const lastAt = useRef<string | null>(null);
   // eslint-disable-next-line react-hooks/purity -- only the initial value is used; it marks when the chat was opened
   const lastActivity = useRef(Date.now());
@@ -136,6 +147,49 @@ export default function ChatScreen() {
     setBusy(false);
   }
 
+  // Pick (or take) a photo or video, then upload and post it.
+  async function attach(source: "library" | "camera") {
+    setAttachOpen(false);
+    setError(null);
+    let picked: PickedMedia | null;
+    try {
+      picked = await pickChatMedia(source);
+    } catch (e) {
+      return setError(e instanceof Error ? e.message : "Couldn't open your photos.");
+    }
+    if (!picked) return;
+    const item = { ...picked, localId: uploadId(), progress: 0, error: null };
+    setUploads((cur) => [...cur, item]);
+    void upload(item);
+  }
+
+  async function upload(item: PickedMedia & { localId: string }) {
+    if (!myId) return;
+    const update = (changes: Partial<{ progress: number; error: string | null }>) => setUploads((cur) => cur.map((u) => (u.localId === item.localId ? { ...u, ...changes } : u)));
+    update({ progress: 0, error: null });
+    lastActivity.current = now();
+    const path = chatMediaPath(id, myId, item.ext);
+    const job = uploadChatMedia(path, item, (fraction) => update({ progress: fraction }));
+    uploading.current.set(item.localId, job);
+    try {
+      await job.promise;
+      const result = await sendMedia(supabase, id, item.kind, path, item);
+      if (result.error) throw new Error(result.error);
+      setUploads((cur) => cur.filter((u) => u.localId !== item.localId));
+      merge(await fetchMessages(supabase, id, lastAt.current));
+      void queryClient.invalidateQueries({ queryKey: ["threads"] });
+    } catch (e) {
+      update({ error: e instanceof Error ? e.message : "Couldn't send. Try again." });
+    } finally {
+      uploading.current.delete(item.localId);
+    }
+  }
+
+  function dropUpload(localId: string) {
+    uploading.current.get(localId)?.abort();
+    setUploads((cur) => cur.filter((u) => u.localId !== localId));
+  }
+
   async function toggleSharing(allowed: boolean) {
     setBusy(true);
     setError(null);
@@ -154,6 +208,21 @@ export default function ChatScreen() {
     enabled: eventIds.length + socialIds.length > 0,
     queryFn: () => loadSharedEvents(supabase, eventIds, socialIds),
   });
+  // Links to this chat's photos and videos (each lasts an hour).
+  const mediaPaths = (messages ?? []).map((m) => m.media_path).filter((x): x is string => !!x).sort();
+  const media = useQuery({
+    queryKey: ["chat-media", id, mediaPaths.join(",")],
+    enabled: mediaPaths.length > 0,
+    staleTime: 45 * 60_000,
+    queryFn: () => chatMediaUrls(supabase, mediaPaths),
+  });
+
+  // A photo or video starting to upload, or failing: show it (and its progress or error).
+  const uploadState = uploads.map((u) => `${u.localId}:${u.error ? "x" : ""}`).join(",");
+  useEffect(() => {
+    if (uploadState) scroll.current?.scrollToEnd({ animated: true });
+  }, [uploadState]);
+
   // Cards are taller than their placeholder once loaded: keep the newest message in view.
   useEffect(() => {
     if (shared.data) scroll.current?.scrollToEnd({ animated: false });
@@ -284,7 +353,24 @@ export default function ChatScreen() {
                           {!!m.sender_id && header?.hostIds.has(m.sender_id) && <HostPill testID={`host-pill-${m.id}`} />}
                         </View>
                       )}
-                      {m.kind === "event" && !m.deleted ? (
+                      {(m.kind === "photo" || m.kind === "video") && !m.deleted ? (
+                        <View className={mine ? "items-end" : "items-start"}>
+                          <MediaPreview
+                            kind={m.kind}
+                            url={m.media_path ? (media.data?.get(m.media_path) ?? null) : null}
+                            width={m.media_width}
+                            height={m.media_height}
+                            durationMs={m.media_duration_ms}
+                            onOpen={() => {
+                              const url = m.media_path ? media.data?.get(m.media_path) : null;
+                              if (url && (m.kind === "photo" || m.kind === "video")) setViewer({ kind: m.kind, url });
+                            }}
+                            onLongPress={() => setMenuFor(menuFor === m.id ? null : m.id)}
+                            testID={`media-${m.id}`}
+                          />
+                          <Muted className="mt-0.5 px-1 text-[10px]">{time.format(new Date(m.created_at))}</Muted>
+                        </View>
+                      ) : m.kind === "event" && !m.deleted ? (
                         <View className={mine ? "items-end" : "items-start"}>
                           <SharedEventCard event={shared.data?.get((m.event_id ?? m.social_event_id)!) ?? (shared.isPending ? undefined : null)} onLongPress={() => setMenuFor(menuFor === m.id ? null : m.id)} testID={`shared-event-${m.id}`} />
                           <Muted className="mt-0.5 px-1 text-[10px]">{time.format(new Date(m.created_at))}</Muted>
@@ -343,7 +429,33 @@ export default function ChatScreen() {
                 </View>
               );
             })}
+            {/* Photos and videos still uploading. */}
+            {uploads.map((u) => (
+              <View key={u.localId} className="mt-2 items-end" testID="upload">
+                <MediaPreview kind={u.kind} url={u.kind === "photo" ? u.uri : null} width={u.width} height={u.height} durationMs={u.durationMs} dim />
+                {u.error ? (
+                  <View className="mt-1 items-end gap-1">
+                    <T variant="semibold" className="text-xs text-danger" testID="upload-error">{u.error}</T>
+                    <View className="flex-row gap-4">
+                      <LinkButton onPress={() => void upload(u)} testID="upload-retry">Try again</LinkButton>
+                      <LinkButton onPress={() => dropUpload(u.localId)} danger testID="upload-remove">Remove</LinkButton>
+                    </View>
+                  </View>
+                ) : (
+                  <View className="mt-1 w-40 items-end gap-1">
+                    <View className="h-1.5 w-full overflow-hidden rounded-full bg-line">
+                      <View className="h-full rounded-full bg-brand" style={{ width: `${Math.round(u.progress * 100)}%` }} />
+                    </View>
+                    <View className="flex-row items-center gap-3">
+                      <Muted className="text-xs" testID="upload-progress">{u.progress >= 1 ? "Sending…" : `Uploading ${Math.round(u.progress * 100)}%`}</Muted>
+                      <LinkButton onPress={() => dropUpload(u.localId)} testID="upload-cancel">Cancel</LinkButton>
+                    </View>
+                  </View>
+                )}
+              </View>
+            ))}
           </ScrollView>
+          <MediaViewer media={viewer} onClose={() => setViewer(null)} />
 
           <View className="border-t border-line py-3">
             {error && <T variant="semibold" className="mb-2 text-sm text-danger">{error}</T>}
@@ -353,7 +465,33 @@ export default function ChatScreen() {
                 <Button onPress={() => void rejoin()} disabled={busy} testID="rejoin-group">{busy ? "Rejoining…" : "Rejoin group"}</Button>
               </View>
             ) : (
+            <>
+            {attachOpen && (
+              <Card className="mb-2 p-0" testID="attach-menu">
+                <Pressable onPress={() => void attach("library")} className="min-h-12 flex-row items-center gap-3 px-4 active:opacity-80" accessibilityRole="button" testID="attach-library">
+                  <Icon name="images-outline" size={20} color={colors.ink} />
+                  <T variant="semibold">Photo or video</T>
+                </Pressable>
+                {Platform.OS !== "web" && (
+                  <Pressable onPress={() => void attach("camera")} className="min-h-12 flex-row items-center gap-3 border-t border-line px-4 active:opacity-80" accessibilityRole="button" testID="attach-camera">
+                    <Icon name="camera-outline" size={20} color={colors.ink} />
+                    <T variant="semibold">Take a photo or video</T>
+                  </Pressable>
+                )}
+                <Muted className="border-t border-line px-4 py-2 text-xs">Videos can be up to a minute long.</Muted>
+              </Card>
+            )}
             <View className="flex-row items-end gap-2">
+              <Pressable
+                onPress={() => setAttachOpen(!attachOpen)}
+                accessibilityRole="button"
+                accessibilityLabel="Send a photo or video"
+                hitSlop={6}
+                className="h-11 w-11 items-center justify-center rounded-full border border-line bg-surface active:opacity-80"
+                testID="attach"
+              >
+                <Icon name={attachOpen ? "close" : "add"} size={24} color={colors.ink} />
+              </Pressable>
               <Input
                 value={draft}
                 onChangeText={setDraft}
@@ -373,6 +511,7 @@ export default function ChatScreen() {
               />
               <Button className="h-11 px-4" onPress={() => void send()} disabled={sending || !draft.trim()} testID="send">Send</Button>
             </View>
+            </>
             )}
           </View>
         </View>

@@ -35,9 +35,10 @@ export async function loadThreads(supabase: SupabaseClient, myId: string): Promi
 }
 
 // "message" is what people write; "event" is an event someone shared (shown
-// as a card); "left" and "rejoined" are the notes a group chat shows when
-// someone leaves it or comes back ("Rhys left").
-export type MessageKind = "message" | "event" | "left" | "rejoined";
+// as a card); "photo" and "video" are files sent in the chat; "left" and
+// "rejoined" are the notes a group chat shows when someone leaves it or
+// comes back ("Rhys left").
+export type MessageKind = "message" | "event" | "photo" | "video" | "left" | "rejoined";
 
 export type ChatMessage = {
   id: string;
@@ -45,6 +46,11 @@ export type ChatMessage = {
   // The shared event (kind "event"): a society event or a Social plan.
   event_id: string | null;
   social_event_id: string | null;
+  // A photo or video (kinds "photo" and "video"): where it's stored, its size and length.
+  media_path: string | null;
+  media_width: number | null;
+  media_height: number | null;
+  media_duration_ms: number | null;
   body: string;
   created_at: string;
   sender_id: string | null;
@@ -60,7 +66,7 @@ export async function fetchMessages(supabase: SupabaseClient, threadId: string, 
   let query = supabase.from("messages").select("*").eq("thread_id", threadId).order("created_at", { ascending: false }).limit(100);
   if (after) query = query.gt("created_at", after);
   const { data } = await query;
-  const rows = (data ?? []).reverse() as { id: string; kind?: MessageKind; event_id?: string | null; social_event_id?: string | null; body: string; created_at: string; sender_id: string | null; deleted_at: string | null }[];
+  const rows = (data ?? []).reverse() as { id: string; kind?: MessageKind; event_id?: string | null; social_event_id?: string | null; media_path?: string | null; media_width?: number | null; media_height?: number | null; media_duration_ms?: number | null; body: string; created_at: string; sender_id: string | null; deleted_at: string | null }[];
   // Who sent them, and (on opening, or when something new arrived) mark the chat read: both at once.
   const [cards] = await Promise.all([
     getCards(supabase, rows.map((r) => r.sender_id).filter((x): x is string => !!x)),
@@ -71,6 +77,10 @@ export async function fetchMessages(supabase: SupabaseClient, threadId: string, 
     kind: r.kind ?? "message",
     event_id: r.event_id ?? null,
     social_event_id: r.social_event_id ?? null,
+    media_path: r.deleted_at ? null : (r.media_path ?? null),
+    media_width: r.media_width ?? null,
+    media_height: r.media_height ?? null,
+    media_duration_ms: r.media_duration_ms ?? null,
     body: r.deleted_at ? "" : r.body,
     created_at: r.created_at,
     sender_id: r.sender_id,

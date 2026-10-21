@@ -11,6 +11,10 @@ const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const key = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 if (!url || !key) throw new Error("Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY (see .env.example).");
 
+// For uploads that need their own request (chat photos and videos, with progress).
+export const SUPABASE_URL = url;
+export const SUPABASE_KEY = key;
+
 export const supabase = createClient(url, key, {
   auth: {
     storage: sessionStorage,

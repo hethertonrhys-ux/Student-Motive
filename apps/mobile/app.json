@@ -2,7 +2,7 @@
   "expo": {
     "name": "Function",
     "slug": "function",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -113,9 +113,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Function uses your photos for your profile picture and your 5 photos.",
-          "cameraPermission": false,
-          "microphonePermission": false
+          "photosPermission": "Function uses your photos for your profile picture, your 5 photos and the photos and videos you send in chats.",
+          "cameraPermission": "Function uses the camera to take photos and videos to send in chats.",
+          "microphonePermission": "Function uses the microphone to record sound for videos you send in chats."
         }
       ],
       [
@@ -125,7 +125,8 @@
           "color": "#DA291C",
           "defaultChannel": "default"
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,
