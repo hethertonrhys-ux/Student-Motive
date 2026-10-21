@@ -11,9 +11,9 @@ import {
   eventStatus,
   howFar,
   inWindow,
-  isDark,
   isPersonalFiltering,
   loadMapEvents,
+  mapLand,
   mapsLink,
   matchesPersonalFilters,
   normalise,
@@ -30,17 +30,18 @@ import {
 import { EventSheet, FilterPanel, RoundButton, SearchBar } from "@/components/map/controls";
 import { LiveMap } from "@/components/map/Map";
 import type { MapHandle } from "@/components/map/types";
-import { Muted, T } from "@/components/ui";
+import { Frosted, Muted, T } from "@/components/ui";
 import { WhatsOnList } from "@/components/whats-on-list";
 import { useFilterContext } from "@/lib/filter-context";
+import { buttonTap, selectionTap } from "@/lib/haptics";
 import { whereAmI } from "@/lib/location";
 import { isFiltering, useSavedCategories } from "@/lib/map-prefs";
 import { usePersonalFilters } from "@/lib/personal-filters";
 import { useRefetchOnFocus } from "@/lib/use-refetch-on-focus";
 import { useIsFocused } from "expo-router";
 import { useProfile } from "@/lib/profile";
-import { useMounted } from "@/lib/use-mounted";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "@/lib/theme";
 import { useSession } from "@/providers/session";
 
 type WalkInfo = { walk: Walk; title: string; note: string | null; maps: string };
@@ -73,10 +74,9 @@ export default function MapScreen() {
   }, [focused]);
   const events = data.data?.events ?? [];
   const windows = data.data?.windows;
-  // Night colours from sunset to sunrise. The page is built in daylight, so
-  // the switch waits until the screen is on (the web build is pre-rendered).
-  const mounted = useMounted();
-  const look: Look = mounted && isDark(new Date(now)) ? "night" : "day";
+  // The light or dark map, following the phone's light or dark mode.
+  const { dark } = useTheme();
+  const look: Look = dark ? "night" : "day";
 
   const [when, setWhen] = useState<When>("tonight");
   const [categories, setCategories] = useSavedCategories();
@@ -175,7 +175,7 @@ export default function MapScreen() {
   }
 
   return (
-    <View className="flex-1 overflow-hidden" style={{ backgroundColor: look === "night" ? "#171C27" : "#F7F6F2" }}>
+    <View className="flex-1 overflow-hidden" style={{ backgroundColor: mapLand(look) }}>
       <LiveMap
         ref={map}
         events={visible}
@@ -185,6 +185,7 @@ export default function MapScreen() {
         me={me}
         walk={walk?.walk ?? null}
         onSelect={(picked) => {
+          selectionTap();
           setDirectionsError(null);
           setSelected(picked);
         }}
@@ -207,17 +208,29 @@ export default function MapScreen() {
             }}
           />
         ) : (
-          <View className="flex-row items-center justify-center gap-2">
-            <View className="flex-row rounded-full border border-line bg-surface p-1 shadow-lg">
-              {WHEN_OPTIONS.map((option) => {
-                const on = when === option.value;
-                return (
-                  <Pressable key={option.value} onPress={() => setWhen(option.value)} accessibilityRole="button" accessibilityState={{ selected: on }} testID={`when-${option.value}`} className={`flex-row items-center rounded-full px-3 py-1.5 ${on ? "bg-brand" : ""}`}>
-                    {option.value === "now" && <View className="mr-1.5 h-2 w-2 rounded-full bg-live" />}
-                    <T variant="bold" className={`text-sm ${on ? "text-brand-ink" : "text-muted"}`}>{option.label}</T>
-                  </Pressable>
-                );
-              })}
+          <View className="flex-row items-center justify-center gap-1.5">
+            <View className="rounded-full shadow-soft">
+              <Frosted className="h-10 flex-row items-center rounded-full p-1">
+                {WHEN_OPTIONS.map((option) => {
+                  const on = when === option.value;
+                  return (
+                    <Pressable
+                      key={option.value}
+                      onPress={() => {
+                        if (!on) selectionTap();
+                        setWhen(option.value);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: on }}
+                      testID={`when-${option.value}`}
+                      className={`h-8 flex-row items-center rounded-full px-2.5 ${on ? "bg-brand" : ""}`}
+                    >
+                      {option.value === "now" && <View className={`mr-1 h-1.5 w-1.5 rounded-full ${on ? "bg-brand-ink" : "bg-live"}`} />}
+                      <T className={`text-[14px] leading-[18px] font-sans-semibold ${on ? "text-brand-ink" : "text-ink"}`}>{option.label}</T>
+                    </Pressable>
+                  );
+                })}
+              </Frosted>
             </View>
             <View>
               <RoundButton icon="options-outline" label={filtering ? `Filter events, ${filterCount} selected` : "Filter events"} active={filterOpen || filtering} onPress={() => setFilterOpen((o) => !o)} testID="filter" />
@@ -243,7 +256,8 @@ export default function MapScreen() {
 
         {/* Search results, as you type */}
         {searchOpen && words.length > 0 && showResults && (
-          <ScrollView className="mt-2 max-h-[45vh] rounded-2xl border border-line bg-surface shadow-xl" keyboardShouldPersistTaps="handled" testID="search-results">
+          <Frosted className="mt-2 rounded-2xl">
+          <ScrollView className="max-h-[45vh]" keyboardShouldPersistTaps="handled" testID="search-results">
             {visible.slice(0, 20).map((e, i) => (
               <Pressable
                 key={e.id}
@@ -257,12 +271,12 @@ export default function MapScreen() {
                 <View className="flex-row items-center gap-2">
                   {eventStatus(e, now) === "live" && (
                     <View className="rounded-full bg-live px-1.5">
-                      <T variant="bold" className="text-[10px] text-white">LIVE</T>
+                      <T variant="caption2" className="text-white">LIVE</T>
                     </View>
                   )}
-                  <T variant="semibold" numberOfLines={1} className="flex-1">{e.title}</T>
+                  <T variant="headline" numberOfLines={1} className="flex-1">{e.title}</T>
                 </View>
-                <Muted className="text-xs" numberOfLines={1}>{[e.society, timeFormat.format(new Date(e.startsAt)), e.place].filter(Boolean).join(" · ")}</Muted>
+                <T variant="footnote" className="text-muted" numberOfLines={1}>{[e.society, timeFormat.format(new Date(e.startsAt)), e.place].filter(Boolean).join(" · ")}</T>
               </Pressable>
             ))}
             {visible.length === 0 && (
@@ -271,71 +285,83 @@ export default function MapScreen() {
               </Muted>
             )}
           </ScrollView>
+          </Frosted>
         )}
       </View>
 
       {/* Bottom: the count (or the walking route), and the uni / London buttons. */}
       {!selected && (
-        <View className="absolute inset-x-0 bottom-0 z-10 flex-row items-end justify-between gap-2 p-3 web:pb-8" pointerEvents="box-none">
+        <View className="absolute inset-x-0 bottom-0 z-10 gap-2 p-3 web:pb-8" pointerEvents="box-none">
+          {/* Your uni and all of London, on their own row like Snap Map's location buttons. */}
+          <View className="mr-12 flex-row justify-end gap-2" pointerEvents="box-none">
+            <PlaceButton label={home.short} onPress={() => map.current?.flyTo(campusView(home.centre))} testID="go-uni" />
+            <PlaceButton label="London" onPress={() => map.current?.flyTo(LONDON_VIEW)} testID="go-london" />
+          </View>
           {walk ? (
-            <View className="max-w-[19rem] rounded-2xl border border-line bg-surface px-4 py-2.5 shadow-lg" testID="walk-bar">
-              <Muted className="text-xs font-sans-semibold" numberOfLines={1}>Walking to {walk.title}</Muted>
-              <T variant="display-bold" className="text-base">{walkText(walk.walk)}</T>
-              {walk.note && <Muted className="text-xs">{walk.note}</Muted>}
+            <View className="mr-12 self-start rounded-2xl shadow-soft">
+            <Frosted className="rounded-2xl px-4 py-3" testID="walk-bar">
+              <T variant="footnote" className="font-sans-semibold text-muted" numberOfLines={1}>Walking to {walk.title}</T>
+              <T variant="headline">{walkText(walk.walk)}</T>
+              {walk.note && <T variant="footnote" className="text-muted">{walk.note}</T>}
               <View className="mt-1 flex-row gap-4">
                 <Pressable onPress={() => Linking.openURL(walk.maps)}>
-                  <T variant="bold" className="text-sm text-brand">Open in Maps</T>
+                  <T variant="subhead" className="font-sans-semibold text-brand">Open in Maps</T>
                 </Pressable>
                 <Pressable onPress={() => setWalk(null)} testID="clear-route">
-                  <T variant="bold" className="text-sm text-muted">Clear route</T>
+                  <T variant="subhead" className="font-sans-semibold text-muted">Clear route</T>
                 </Pressable>
               </View>
+            </Frosted>
             </View>
           ) : (
-            <View className="rounded-2xl border border-line bg-surface px-4 py-2.5 shadow-lg" testID="status">
-              <T variant="bold" className="text-sm">
-                {data.isPending ? "Loading…" : `${visible.length} ${visible.length === 1 ? "event" : "events"}`}
-                {liveCount > 0 && <T variant="bold" className="text-sm text-live"> · {liveCount} live</T>}
+            <View className="mr-12 self-start rounded-2xl shadow-soft">
+            <Frosted className="rounded-2xl px-4 py-3" testID="status">
+              <T variant="headline">
+                {data.isPending ? "Loading…" : `${visible.length} ${visible.length === 1 ? "event" : "events"} ${whenLabel}`}
+                {liveCount > 0 && <T variant="headline" className="text-live"> · {liveCount} live</T>}
               </T>
-              {data.isError && <T variant="semibold" className="text-xs text-danger">Couldn&apos;t load events. Check your connection.</T>}
+              {data.isError && <T variant="footnote" className="font-sans-semibold text-danger">Couldn&apos;t load events. Check your connection.</T>}
               {data.data && visible.length === 0 && (
-                <Muted className="text-xs">
+                <Muted className="text-[13px] leading-[18px]">
                   {words.length ? "Nothing matches your search." : personalOn ? "Nothing matches your filters. Untick a box to see more." : filtering ? "Nothing in your chosen categories. Change the filter." : when === "now" ? "Nothing on right now. Try Tonight." : "Nothing posted yet. Check back soon."}
                 </Muted>
               )}
               {nearest ? (
                 <Pressable onPress={() => goTo(nearest.event)} className="mt-0.5 max-w-52" testID="nearest">
-                  <Muted className="text-xs">
-                    Nearest: <T variant="semibold" className="text-xs text-brand">{nearest.event.title}</T> · {howFar(nearest.metres)}
+                  <Muted className="text-[13px] leading-[18px]">
+                    Nearest: <T variant="footnote" className="font-sans-semibold text-brand">{nearest.event.title}</T> · {howFar(nearest.metres)}
                   </Muted>
                 </Pressable>
               ) : (
                 !me && (
-                  <Pressable onPress={findMe} disabled={locating} className="mt-0.5" testID="find-me">
-                    <T variant="semibold" className="text-xs text-brand">{locating ? "Finding you…" : "Show what's near me"}</T>
+                  <Pressable
+                    onPress={() => {
+                      buttonTap();
+                      void findMe();
+                    }}
+                    disabled={locating}
+                    className="mt-0.5"
+                    testID="find-me"
+                  >
+                    <T variant="footnote" className="font-sans-semibold text-brand">{locating ? "Finding you…" : "Show what's near me"}</T>
                   </Pressable>
                 )
               )}
-              {locationError && <T className="mt-1 max-w-52 text-xs text-danger">{locationError}</T>}
+              {locationError && <T variant="footnote" className="mt-1 max-w-52 text-danger">{locationError}</T>}
+            </Frosted>
             </View>
           )}
-          <View className="mr-12 flex-row gap-2">
-            <Pressable onPress={() => map.current?.flyTo(campusView(home.centre))} className="rounded-xl border border-line bg-surface px-3 py-2 shadow-lg" testID="go-uni">
-              <T variant="bold" className="text-sm">{home.short}</T>
-            </Pressable>
-            <Pressable onPress={() => map.current?.flyTo(LONDON_VIEW)} className="rounded-xl border border-line bg-surface px-3 py-2 shadow-lg" testID="go-london">
-              <T variant="bold" className="text-sm">London</T>
-            </Pressable>
-          </View>
         </View>
       )}
 
       {selected && <EventSheet events={selected} now={now} me={me} onClose={() => setSelected(null)} onDirections={directions} directionsState={directionsState} error={directionsError} />}
 
       {mapError && (
-        <View className="absolute inset-x-0 top-1/2 mx-auto -translate-y-1/2 items-center self-center rounded-2xl border border-line bg-surface px-5 py-4 shadow-lg">
-          <T variant="bold">The map couldn&apos;t load</T>
-          <Muted className="text-sm">Check your internet connection and try again.</Muted>
+        <View className="absolute inset-x-0 top-1/2 -translate-y-1/2 items-center">
+          <Frosted className="items-center rounded-2xl px-5 py-4">
+            <T variant="headline">The map couldn&apos;t load</T>
+            <T variant="footnote" className="text-muted">Check your internet connection and try again.</T>
+          </Frosted>
         </View>
       )}
       {!ready && !mapError && data.isPending && (
@@ -350,8 +376,37 @@ export default function MapScreen() {
 // Switch between the map and the list.
 function ModeButton({ mode, onPress }: { mode: "map" | "list"; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" testID={`show-${mode}`} className="h-10 flex-row items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 shadow-lg">
-      <T variant="bold" className="text-sm">{mode === "map" ? "Map" : "List"}</T>
+    <Pressable
+      onPress={() => {
+        buttonTap();
+        onPress();
+      }}
+      accessibilityRole="button"
+      testID={`show-${mode}`}
+      className="rounded-full shadow-soft active:opacity-80"
+    >
+      <Frosted className="h-10 flex-row items-center rounded-full px-3.5">
+        <T className="text-[14px] leading-[18px] font-sans-semibold">{mode === "map" ? "Map" : "List"}</T>
+      </Frosted>
+    </Pressable>
+  );
+}
+
+// Jump to your uni or all of London.
+function PlaceButton({ label, onPress, testID }: { label: string; onPress: () => void; testID: string }) {
+  return (
+    <Pressable
+      onPress={() => {
+        buttonTap();
+        onPress();
+      }}
+      accessibilityRole="button"
+      testID={testID}
+      className="rounded-full shadow-soft active:opacity-80"
+    >
+      <Frosted className="h-10 justify-center rounded-full px-4">
+        <T className="text-[14px] leading-[18px] font-sans-semibold">{label}</T>
+      </Frosted>
     </Pressable>
   );
 }

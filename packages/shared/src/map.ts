@@ -1,4 +1,4 @@
-// The live map's shared logic: the map style (day and night), category
+// The live map's shared logic: the map style (light and dark), category
 // colours and icons, which events show for Now / Tonight / Tomorrow, and
 // walking directions. Pure TypeScript: the website and the app each draw
 // it with their own map library.
@@ -6,6 +6,7 @@
 import type { MapCategory } from "./map-categories";
 import { distanceMetres } from "./map-style";
 
+// "day" is the light map, "night" the dark one (the app follows the phone's light or dark mode).
 export type Look = "day" | "night";
 
 // ---- Colours and icons -------------------------------------------------
@@ -68,30 +69,35 @@ export const normalise = (text: string) =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
-// Zoomed in at a campus, the map tilts slightly so buildings look 3D.
-export const campusView = (centre: [number, number]) => ({ center: centre, zoom: 16.2, pitch: 35 });
+// Zoomed in at a campus. The map is flat (2D), like Snap Map.
+export const campusView = (centre: [number, number]) => ({ center: centre, zoom: 16.2, pitch: 0 });
 export const LONDON_VIEW = { center: [-0.145, 51.512] as [number, number], zoom: 11.6, pitch: 0 };
 
 export const timeFormat = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
 // ---- The map style ------------------------------------------------------
 
-// Function's own map style ("Clear Day"), drawn from OpenFreeMap's free map
-// data. Only the colours and which labels show are ours.
+// Function's own map style, drawn from OpenFreeMap's free map data: flat and
+// quiet, in neutral greys (Apple's own greys in dark mode), so the event
+// pins are the colourful thing on the map. Only the colours and which
+// labels show are ours.
 const PALETTES = {
   day: {
-    land: "#F7F6F2", park: "#CDEBC4", water: "#A8D8FF", waterText: "#3B6E9E",
-    road: "#FFFFFF", roadCase: "#E2DED5", major: "#FFF0B3", majorCase: "#EFD37A", path: "#D9D5CC", pedestrian: "#F1EEE6", rail: "#C9C5BD",
-    building: "#ECE9E2", buildingSide: "#DAD5CA", campus: "#FFF0EF", lse: "#FFC9C5", lseSide: "#F5A39D",
-    text: "#5A5E68", textStrong: "#2F333B", halo: "#F7F6F2", lseText: "#DA291C", station: "#B4233C", place: "#8A8E98",
+    land: "#F4F4F2", park: "#DCEBD3", water: "#BCDDF3", waterText: "#4A7398",
+    road: "#FFFFFF", roadCase: "#E2E2DF", major: "#FFFFFF", majorCase: "#D6D6D2", path: "#D9D9D5", pedestrian: "#EEEEEB", rail: "#D0D0CC",
+    building: "#E7E7E4", buildingEdge: "#DADAD6", campus: "#EFEFEC",
+    text: "#6E6E73", textStrong: "#3A3A3C", halo: "#F4F4F2", station: "#6E6E73", place: "#8E8E93", parkText: "#4E7A47",
   },
   night: {
-    land: "#171C27", park: "#1B3226", water: "#0E2036", waterText: "#7FA6CC",
-    road: "#2A3241", roadCase: "#1D2330", major: "#3F4658", majorCase: "#2C3242", path: "#323A4A", pedestrian: "#1E2430", rail: "#3A4150",
-    building: "#232A38", buildingSide: "#12161F", campus: "#2A1D22", lse: "#6B2A2A", lseSide: "#4A1C1C",
-    text: "#AEB6C4", textStrong: "#DDE3EE", halo: "#171C27", lseText: "#FF8A80", station: "#FF8FA3", place: "#7D8596",
+    land: "#1C1C1E", park: "#1E2A20", water: "#11202D", waterText: "#7E9DB8",
+    road: "#3A3A3C", roadCase: "#2C2C2E", major: "#48484A", majorCase: "#3A3A3C", path: "#38383A", pedestrian: "#242426", rail: "#3A3A3C",
+    building: "#2A2A2D", buildingEdge: "#232326", campus: "#222224",
+    text: "#98989F", textStrong: "#D1D1D6", halo: "#1C1C1E", station: "#98989F", place: "#8E8E93", parkText: "#7FA886",
   },
 } as const;
+
+// The map's background colour, for behind the map while it loads.
+export const mapLand = (look: Look) => PALETTES[look].land;
 
 const REGULAR = ["Noto Sans Regular"];
 const BOLD = ["Noto Sans Bold"];
@@ -102,17 +108,13 @@ const MEDIUM = ["secondary", "tertiary"];
 const MINOR = ["minor", "service", "track"];
 const notTunnel = ["!=", ["get", "brunnel"], "tunnel"];
 const lineClass = (classes: string[]) => ["all", ["==", ["geometry-type"], "LineString"], ["in", ["get", "class"], ["literal", classes]], notTunnel];
-const isCampusBuilding = ["==", ["get", "kind"], "building"];
-
-// campus: where the LSE building outlines come from (a URL, or the GeoJSON itself).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function mapStyle(look: Look, campus: string | object, tiles = "https://tiles.openfreemap.org/planet"): any {
+export function mapStyle(look: Look, tiles = "https://tiles.openfreemap.org/planet"): any {
   const p = PALETTES[look];
   return {
     version: 8,
     glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
     sources: {
-      lse: { type: "geojson", data: campus },
       omt: { type: "vector", url: tiles, attribution: '<a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' },
     },
     layers: [
@@ -132,46 +134,19 @@ export function mapStyle(look: Look, campus: string | object, tiles = "https://t
       { id: "minor", type: "line", source: "omt", "source-layer": "transportation", filter: lineClass(MINOR), minzoom: 13, layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": p.road, "line-width": width([[13, 1], [16, 4.5], [19, 19]]) } },
       { id: "medium", type: "line", source: "omt", "source-layer": "transportation", filter: lineClass(MEDIUM), layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": p.road, "line-width": width([[10, 0.5], [13, 1.5], [16, 8], [19, 26]]) } },
       { id: "major", type: "line", source: "omt", "source-layer": "transportation", filter: lineClass(MAJOR), layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": p.major, "line-width": width([[8, 0.6], [12, 1.6], [16, 10.5], [19, 32]]) } },
-      { id: "building", type: "fill", source: "omt", "source-layer": "building", minzoom: 13, maxzoom: 15.5, paint: { "fill-color": p.building, "fill-outline-color": p.buildingSide } },
-      { id: "lse-building", type: "fill", source: "lse", filter: isCampusBuilding, minzoom: 13, maxzoom: 15.5, paint: { "fill-color": p.lse, "fill-outline-color": p.lseSide } },
-      {
-        id: "building-3d", type: "fill-extrusion", source: "omt", "source-layer": "building", minzoom: 15.5,
-        paint: {
-          "fill-extrusion-color": p.building,
-          "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 15, 0, 16, ["coalesce", ["get", "render_height"], 6]],
-          "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
-          // Fully opaque: translucent 3D is drawn twice and shows stripes on phones.
-          "fill-extrusion-opacity": 1,
-          "fill-extrusion-vertical-gradient": true,
-        },
-      },
-      {
-        id: "lse-building-3d", type: "fill-extrusion", source: "lse", filter: isCampusBuilding, minzoom: 15.5,
-        paint: {
-          "fill-extrusion-color": p.lse,
-          "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 15, 0, 16, ["get", "height"]],
-          "fill-extrusion-base": ["get", "base"],
-          "fill-extrusion-opacity": 1,
-          "fill-extrusion-vertical-gradient": true,
-        },
-      },
+      // Buildings are flat shapes, the same neutral grey everywhere.
+      { id: "building", type: "fill", source: "omt", "source-layer": "building", minzoom: 14, paint: { "fill-color": p.building, "fill-outline-color": p.buildingEdge } },
       { id: "water-name", type: "symbol", source: "omt", "source-layer": "water_name", filter: ["==", ["geometry-type"], "Point"], layout: { "text-field": ["get", "name:latin"], "text-font": ITALIC, "text-size": 13 }, paint: { "text-color": p.waterText, "text-halo-color": p.water, "text-halo-width": 1 } },
       { id: "water-name-line", type: "symbol", source: "omt", "source-layer": "water_name", filter: ["==", ["geometry-type"], "LineString"], layout: { "text-field": ["get", "name:latin"], "text-font": ITALIC, "text-size": 13, "symbol-placement": "line" }, paint: { "text-color": p.waterText, "text-halo-color": p.water, "text-halo-width": 1 } },
       { id: "waterway-name", type: "symbol", source: "omt", "source-layer": "waterway", minzoom: 13, layout: { "text-field": ["get", "name:latin"], "text-font": ITALIC, "text-size": 13, "symbol-placement": "line", "text-letter-spacing": 0.1 }, paint: { "text-color": p.waterText, "text-halo-color": p.water, "text-halo-width": 1 } },
       { id: "path-name", type: "symbol", source: "omt", "source-layer": "transportation_name", minzoom: 16.5, filter: ["==", ["get", "class"], "path"], layout: { "text-field": ["get", "name:latin"], "text-font": REGULAR, "text-size": 11, "symbol-placement": "line" }, paint: { "text-color": p.text, "text-halo-color": p.halo, "text-halo-width": 1.5 } },
       { id: "road-name", type: "symbol", source: "omt", "source-layer": "transportation_name", minzoom: 14, filter: ["in", ["get", "class"], ["literal", [...MAJOR, ...MEDIUM, "minor"]]], layout: { "text-field": ["get", "name:latin"], "text-font": REGULAR, "text-size": ["interpolate", ["linear"], ["zoom"], 14, 10, 18, 13], "symbol-placement": "line", "text-letter-spacing": 0.02 }, paint: { "text-color": p.text, "text-halo-color": p.halo, "text-halo-width": 1.6 } },
-      { id: "park-name", type: "symbol", source: "omt", "source-layer": "park", minzoom: 14, filter: ["==", ["geometry-type"], "Point"], layout: { "text-field": ["get", "name:latin"], "text-font": ITALIC, "text-size": 12, "text-max-width": 8 }, paint: { "text-color": look === "day" ? "#3F7A3A" : "#8CCB95", "text-halo-color": p.halo, "text-halo-width": 1.5 } },
+      { id: "park-name", type: "symbol", source: "omt", "source-layer": "park", minzoom: 14, filter: ["==", ["geometry-type"], "Point"], layout: { "text-field": ["get", "name:latin"], "text-font": ITALIC, "text-size": 12, "text-max-width": 8 }, paint: { "text-color": p.parkText, "text-halo-color": p.halo, "text-halo-width": 1.5 } },
       {
         id: "landmark", type: "symbol", source: "omt", "source-layer": "poi", minzoom: 15,
         filter: ["any", ["in", ["get", "class"], ["literal", ["college", "theatre", "museum", "attraction", "town_hall"]]], ["==", ["get", "subclass"], "library"]],
         layout: { "text-field": ["get", "name:latin"], "text-font": ITALIC, "text-size": 11.5, "text-max-width": 9, "symbol-sort-key": ["get", "rank"] },
         paint: { "text-color": p.textStrong, "text-halo-color": p.halo, "text-halo-width": 1.6 },
-      },
-      {
-        id: "lse-name", type: "symbol", source: "lse", minzoom: 15.5,
-        filter: ["all", ["==", ["get", "kind"], "label"], ["<=", ["get", "rank"], ["step", ["zoom"], 1, 16.3, 2, 16.8, 3, 17.3, 4]]],
-        layout: { "text-field": ["get", "name"], "text-font": BOLD, "text-size": ["interpolate", ["linear"], ["zoom"], 15.5, 11, 18, 13], "text-max-width": 7, "symbol-sort-key": ["get", "rank"] },
-        paint: { "text-color": p.lseText, "text-halo-color": p.halo, "text-halo-width": 1.8 },
       },
       {
         id: "station", type: "symbol", source: "omt", "source-layer": "poi", minzoom: 13,
@@ -195,10 +170,11 @@ export function mapStyle(look: Look, campus: string | object, tiles = "https://t
   };
 }
 
-// Colours for the "busy area" glow (a heatmap), from quiet to busy.
+// Colours for the "busy area" shading (a heatmap) when zoomed out, from
+// quiet to busy: a faint wash of Function red, no glow.
 export function heatColours(look: Look) {
-  const strength = look === "day" ? 1 : 1.4;
-  return ["interpolate", ["linear"], ["heatmap-density"], 0, "rgba(249,115,22,0)", 0.2, `rgba(251,146,60,${0.3 * strength})`, 0.55, `rgba(249,115,22,${0.45 * strength})`, 1, `rgba(244,63,94,${0.55 * strength})`];
+  const strength = look === "day" ? 1 : 1.3;
+  return ["interpolate", ["linear"], ["heatmap-density"], 0, "rgba(218,41,28,0)", 0.3, `rgba(218,41,28,${0.1 * strength})`, 1, `rgba(218,41,28,${0.24 * strength})`];
 }
 
 // Is it dark in London? Uses the standard sunrise/sunset formula.

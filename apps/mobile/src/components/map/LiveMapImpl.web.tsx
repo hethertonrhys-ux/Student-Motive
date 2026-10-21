@@ -1,8 +1,8 @@
 import { useEffect, useImperativeHandle, useRef } from "react";
 import maplibre, { type GeoJSONSource, type Map as MapLibreMap, type Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { CATEGORY_ORDER, CATEGORY_STYLE, eventStatus, heatColours, mapCategoryLabel, mapStyle, walkGeoJson, type Look, type MapEvent } from "@function/shared";
-import campus from "@/assets/map/lse-campus.json";
+import { CATEGORY_ORDER, CATEGORY_STYLE, eventStatus, heatColours, mapCategoryLabel, mapLand, mapStyle, timeFormat, walkGeoJson, type Look, type MapEvent } from "@function/shared";
+import { DARK, LIGHT } from "@/lib/theme";
 import { ME_COLOUR, WALK_COLOUR, type MapProps } from "./types";
 
 // The live map on the web, drawn by maplibre-gl: a port of the website's
@@ -34,87 +34,84 @@ function div(className: string) {
   return node;
 }
 
-// A "lollipop" pin: a round head with the category icon on a short stem.
+// A pin, like Snap Map's (the same as the phone's, Map.native.tsx): the
+// category icon in a round bubble with a white edge, a red ring while it's
+// on, a red badge with how many are going, and its name and start time
+// underneath. The bubble is the middle of the pin, over the event's spot.
 function pinElement(event: MapEvent, live: boolean) {
   const { colour, icon } = CATEGORY_STYLE[event.category];
-  const root = div("fn-pin");
+  const when = live ? "On now" : timeFormat.format(new Date(event.startsAt));
+  const root = div(`fn-pin${live ? " fn-live" : ""}`);
   root.style.setProperty("--c", colour);
   root.setAttribute("role", "button");
-  root.setAttribute("aria-label", `${event.title}, ${mapCategoryLabel(event.category)}`);
+  root.setAttribute("aria-label", `${event.title}, ${mapCategoryLabel(event.category)}, ${when}, ${event.going} going`);
   root.setAttribute("data-testid", `pin-${event.id}`);
   root.tabIndex = 0;
   const inner = div("fn-pin-inner");
-  if (live) inner.append(div("fn-pin-pulse"));
-  const head = div("fn-pin-head");
-  head.append(iconSvg(icon, 19, "#fff"));
-  inner.append(div("fn-pin-stem"), div("fn-pin-foot"), head);
-  if (live) {
-    const tag = div("fn-pin-live");
-    tag.textContent = "LIVE";
-    inner.append(tag);
+  const ring = div("fn-pin-ring");
+  const bubble = div("fn-pin-bubble");
+  bubble.append(iconSvg(icon, 20, "#fff"));
+  ring.append(bubble);
+  inner.append(ring);
+  if (event.going > 0) {
+    const badge = div("fn-pin-badge");
+    badge.textContent = event.going > 99 ? "99+" : String(event.going);
+    inner.append(badge);
   }
+  const label = div("fn-pin-label");
+  label.textContent = `${event.title} · ${when}`;
+  inner.append(label);
   root.append(inner);
   return root;
 }
 
-// A group of nearby events: the number, with a ring split by category.
-function clusterElement(count: number, perCategory: Record<string, number>, live: boolean) {
-  const total = Object.values(perCategory).reduce((a, b) => a + b, 0) || 1;
-  let at = 0;
-  const ring = CATEGORY_ORDER.filter((c) => perCategory[c] > 0).map((c) => {
-    const from = at;
-    at += (perCategory[c] / total) * 360;
-    return `${CATEGORY_STYLE[c].colour} ${from}deg ${at}deg`;
-  });
+// A group of nearby events: a white (or dark grey) bubble with the number
+// and a Function red edge, and a red dot if one of them is on now.
+function clusterElement(count: number, live: boolean) {
   const root = div("fn-cluster");
   root.setAttribute("role", "button");
   root.setAttribute("aria-label", `${count} events here. Tap to zoom in.`);
   root.setAttribute("data-testid", "cluster");
   root.tabIndex = 0;
   const inner = div("fn-cluster-inner");
-  inner.style.background = `conic-gradient(${ring.join(",") || `${WALK_COLOUR} 0deg 360deg`})`;
-  const size = count >= 20 ? 54 : count >= 6 ? 48 : 42;
+  const size = count >= 20 ? 54 : count >= 6 ? 48 : 44;
   inner.style.width = inner.style.height = `${size}px`;
-  const num = div("fn-cluster-num");
-  num.textContent = count > 99 ? "99+" : String(count);
-  inner.append(num);
+  inner.textContent = count > 99 ? "99+" : String(count);
   if (live) inner.append(div("fn-cluster-live"));
   root.append(inner);
   return root;
 }
 
 // The pins' styles (from the website's globals.css), added to the page once.
+const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif';
 const PIN_CSS = `
-.fn-map .maplibregl-ctrl-attrib { font-size: 10px; }
+.fn-map .maplibregl-ctrl-attrib { font: 10px ${FONT}; }
 @media (prefers-color-scheme: dark) {
-  .fn-map .maplibregl-ctrl-group { background: #17162c; box-shadow: 0 0 0 1px #2b2a48; }
-  .fn-map .maplibregl-ctrl-group button + button { border-top-color: #2b2a48; }
-  .fn-map .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(1) hue-rotate(180deg); }
-  .fn-map .maplibregl-ctrl-attrib { background: rgba(23, 22, 44, 0.8); color: #a3a2c2; }
-  .fn-map .maplibregl-ctrl-attrib a { color: #f2f1fb; }
+  .fn-map .maplibregl-ctrl-group { background: ${DARK.surface}; box-shadow: 0 0 0 1px ${DARK.line}; }
+  .fn-map .maplibregl-ctrl-group button + button { border-top-color: ${DARK.line}; }
+  .fn-map .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(1); }
+  .fn-map .maplibregl-ctrl-attrib { background: rgba(28, 28, 30, 0.8); color: ${DARK.muted}; }
+  .fn-map .maplibregl-ctrl-attrib a { color: ${DARK.ink}; }
 }
-.fn-pin, .fn-cluster { cursor: pointer; }
-.fn-pin-inner { position: relative; width: 40px; height: 56px; transform-origin: 50% 100%; animation: fn-pop 0.24s cubic-bezier(0.3, 1.5, 0.6, 1) both; }
-.fn-pin-head { position: absolute; left: 2px; top: 2px; width: 36px; height: 36px; border-radius: 50%; background: var(--c); border: 2.5px solid #fff; display: grid; place-items: center; box-shadow: 0 3px 8px rgb(0 0 0 / 0.25); transition: transform 0.15s; }
-.fn-pin:hover .fn-pin-head, .fn-pin:focus-visible .fn-pin-head { transform: scale(1.08); }
-.fn-pin-stem { position: absolute; left: 18.75px; top: 34px; width: 2.5px; height: 18px; border-radius: 2px; background: #475569; }
-.fn-pin-foot { position: absolute; left: 15.5px; top: 51px; width: 9px; height: 5px; border-radius: 50%; background: rgb(0 0 0 / 0.25); }
-.fn-pin-live { position: absolute; left: 50%; top: -12px; transform: translateX(-50%); background: #f43f5e; color: #fff; font: 800 9px/1 Figtree_800ExtraBold, Figtree_700Bold, sans-serif; letter-spacing: 0.04em; padding: 3px 5px; border-radius: 999px; border: 1.5px solid #fff; }
-.fn-pin-pulse { position: absolute; left: 20px; top: 20px; width: 36px; height: 36px; margin: -18px 0 0 -18px; border-radius: 50%; background: var(--c); animation: fn-pulse 1.8s ease-out infinite; }
-.fn-cluster-inner { position: relative; border-radius: 50%; display: grid; place-items: center; box-shadow: 0 3px 8px rgb(0 0 0 / 0.22); animation: fn-pop 0.24s cubic-bezier(0.3, 1.5, 0.6, 1) both; transition: transform 0.15s; }
+.fn-pin, .fn-cluster { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.fn-pin-inner { position: relative; width: 160px; padding-top: 24px; display: flex; flex-direction: column; align-items: center; animation: fn-pop 0.22s cubic-bezier(0.3, 1.4, 0.6, 1) both; }
+.fn-pin-ring { width: 52px; height: 52px; box-sizing: border-box; border-radius: 50%; border: 2.5px solid transparent; display: grid; place-items: center; transition: transform 0.15s; }
+.fn-live .fn-pin-ring { border-color: ${LIGHT.brand}; }
+.fn-pin-bubble { width: 44px; height: 44px; box-sizing: border-box; border-radius: 50%; background: var(--c); border: 3px solid #fff; display: grid; place-items: center; box-shadow: 0 2px 6px rgb(0 0 0 / 0.18); }
+.fn-pin:hover .fn-pin-ring, .fn-pin:focus-visible .fn-pin-ring { transform: scale(1.06); }
+.fn-pin-badge { position: absolute; top: 22px; left: 98px; min-width: 20px; height: 20px; box-sizing: border-box; padding: 0 5px; border-radius: 10px; border: 2px solid #fff; background: ${LIGHT.brand}; color: #fff; font: 700 11px/16px ${FONT}; text-align: center; }
+.fn-pin-label { margin-top: 2px; max-width: 160px; height: 22px; box-sizing: border-box; padding: 0 8px; border-radius: 11px; background: #fff; color: ${LIGHT.ink}; font: 600 12px/22px ${FONT}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 6px rgb(0 0 0 / 0.18); }
+.fn-cluster-inner { position: relative; box-sizing: border-box; border-radius: 50%; border: 3px solid ${LIGHT.brand}; background: #fff; color: ${LIGHT.ink}; display: grid; place-items: center; font: 700 16px/1 ${FONT}; box-shadow: 0 2px 6px rgb(0 0 0 / 0.18); animation: fn-pop 0.22s cubic-bezier(0.3, 1.4, 0.6, 1) both; transition: transform 0.15s; }
 .fn-cluster:hover .fn-cluster-inner { transform: scale(1.06); }
-.fn-cluster-num { width: calc(100% - 9px); height: calc(100% - 9px); border-radius: 50%; background: #fff; color: #1f2937; display: grid; place-items: center; font: 800 16px/1 Figtree_700Bold, sans-serif; }
-.fn-cluster-live { position: absolute; right: 0; top: 0; width: 12px; height: 12px; border-radius: 50%; background: #f43f5e; border: 2px solid #fff; }
+.fn-cluster-live { position: absolute; right: -2px; top: -2px; width: 12px; height: 12px; box-sizing: border-box; border-radius: 50%; background: ${LIGHT.brand}; border: 2px solid #fff; }
 .fn-me { width: 18px; height: 18px; border-radius: 50%; background: ${ME_COLOUR}; border: 3px solid #fff; box-shadow: 0 0 0 2px rgb(37 99 235 / 0.35), 0 2px 6px rgb(0 0 0 / 0.3); }
-.fn-night .fn-pin-head { box-shadow: 0 0 14px 2px var(--c), 0 0 4px var(--c); }
-.fn-night .fn-pin-stem { background: #cbd5e1; }
-.fn-night .fn-cluster-inner { box-shadow: 0 0 16px 2px rgb(249 115 22 / 0.6); }
-.fn-night .fn-cluster-num { background: #1f2533; color: #fff; }
-@keyframes fn-pop { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-@keyframes fn-pulse { from { transform: scale(0.9); opacity: 0.55; } to { transform: scale(2.3); opacity: 0; } }
+.fn-night .fn-live .fn-pin-ring, .fn-night .fn-cluster-inner { border-color: ${DARK.brand}; }
+.fn-night .fn-pin-badge, .fn-night .fn-cluster-live { background: ${DARK.brand}; }
+.fn-night .fn-pin-label { background: #2C2C2E; color: #fff; }
+.fn-night .fn-cluster-inner { background: #2C2C2E; color: #fff; }
+@keyframes fn-pop { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   .fn-pin-inner, .fn-cluster-inner { animation: none; }
-  .fn-pin-pulse { animation: none; transform: scale(1.6); opacity: 0.25; }
 }
 `;
 function addPinCss() {
@@ -125,9 +122,9 @@ function addPinCss() {
   document.head.append(style);
 }
 
-// Only the colours change between day and night, so swap them in place.
+// Only the colours change between light and dark, so swap them in place.
 function applyLook(map: MapLibreMap, look: Look) {
-  for (const layer of mapStyle(look, campus).layers as { id: string; paint?: Record<string, unknown> }[]) {
+  for (const layer of mapStyle(look).layers as { id: string; paint?: Record<string, unknown> }[]) {
     if (!layer.paint || !map.getLayer(layer.id)) continue;
     for (const [key, value] of Object.entries(layer.paint)) map.setPaintProperty(layer.id, key as never, value as never);
   }
@@ -175,16 +172,21 @@ export function LiveMapImpl({ events, now, look, home, me, walk, onSelect, onRea
     if (phone) (maplibre as unknown as { setWorkerCount?: (n: number) => void }).setWorkerCount?.(1);
     const map = new maplibre.Map({
       container: container.current,
-      style: mapStyle(lookRef.current, campus),
+      style: mapStyle(lookRef.current),
       center: home,
       zoom: 16.2,
-      pitch: 35,
+      // Flat and north-up, like Snap Map: no tilting or turning.
+      pitch: 0,
+      maxPitch: 0,
+      dragRotate: false,
+      pitchWithRotate: false,
       minZoom: 9,
       maxZoom: 18,
       pixelRatio: Math.min(typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1, 2),
       attributionControl: { compact: true },
     });
     mapRef.current = map;
+    map.touchZoomRotate.disableRotation();
     map.addControl(new maplibre.NavigationControl({ showCompass: false }), "bottom-right");
     map.on("error", (e) => {
       if (String(e.error?.message ?? "").toLowerCase().includes("style")) onError?.();
@@ -258,8 +260,7 @@ export function LiveMapImpl({ events, now, look, home, me, walk, onSelect, onRea
           if (markers.has(key)) continue;
           let element: HTMLElement;
           if (p.cluster) {
-            const counts = Object.fromEntries(CATEGORY_ORDER.map((c) => [c, Number(p[c] ?? 0)]));
-            element = clusterElement(p.point_count, counts, p.liveCount > 0);
+            element = clusterElement(p.point_count, p.liveCount > 0);
             element.addEventListener("click", (e) => {
               e.stopPropagation();
               void openGroup(p.cluster_id, at);
@@ -281,7 +282,7 @@ export function LiveMapImpl({ events, now, look, home, me, walk, onSelect, onRea
           });
           // Pins further south sit in front, so two at the same spot never hide each other's label.
           element.style.zIndex = String(Math.round((100 - at[1]) * 100000));
-          markers.set(key, new maplibre.Marker({ element, anchor: p.cluster ? "center" : "bottom" }).setLngLat(at).addTo(map));
+          markers.set(key, new maplibre.Marker({ element, anchor: "center" }).setLngLat(at).addTo(map));
         }
         for (const [key, marker] of markers) {
           if (!seen.has(key)) {
@@ -297,7 +298,7 @@ export function LiveMapImpl({ events, now, look, home, me, walk, onSelect, onRea
         if (e.sourceId === "events" && e.isSourceLoaded) syncMarkers();
       });
       loaded.current = true;
-      // Night may have fallen while the map was loading.
+      // The phone may have switched between light and dark while the map was loading.
       if (appliedLook.current !== lookRef.current) {
         appliedLook.current = lookRef.current;
         applyLook(map, lookRef.current);
@@ -338,7 +339,7 @@ export function LiveMapImpl({ events, now, look, home, me, walk, onSelect, onRea
     else map.once("load", push);
   }, [events, now]);
 
-  // Night colours after sunset (and back in the morning).
+  // Light or dark map, following the phone's setting.
   useEffect(() => {
     lookRef.current = look;
     const map = mapRef.current;
@@ -370,7 +371,7 @@ export function LiveMapImpl({ events, now, look, home, me, walk, onSelect, onRea
   }, [me]);
 
   return (
-    <div className={`fn-map ${look === "night" ? "fn-night" : ""}`} style={{ position: "absolute", inset: 0, background: look === "night" ? "#171C27" : "#F7F6F2" }} data-testid="map">
+    <div className={`fn-map ${look === "night" ? "fn-night" : ""}`} style={{ position: "absolute", inset: 0, background: mapLand(look) }} data-testid="map">
       <div ref={container} style={{ width: "100%", height: "100%" }} />
     </div>
   );
