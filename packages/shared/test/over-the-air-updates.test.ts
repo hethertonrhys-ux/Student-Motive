@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 // The send-update script's decisions (apps/mobile/scripts/update-env.mjs).
-import { bundleEnv, npxCommand, parseArgs, productionEnv, quoteForCmd, quoteForSh, REQUIRED_ENV } from "../../../apps/mobile/scripts/update-env.mjs";
+import { bundleEnv, npxCommand, parseArgs, productionEnv, quoteForCmd, quoteForSh, OPTIONAL_ENV, REQUIRED_ENV } from "../../../apps/mobile/scripts/update-env.mjs";
 
 // Over-the-air updates for the phone app (EAS Update): app.json and eas.json
 // point builds at the right update channel, an update only reaches builds of
@@ -62,7 +62,15 @@ describe("eas.json", () => {
     }
     used.delete("EXPO_PUBLIC_VAPID_PUBLIC_KEY");
     expect(used.size).toBeGreaterThanOrEqual(5);
-    for (const key of used) expect(REQUIRED_ENV, key).toContain(key);
+    for (const key of used) expect([...REQUIRED_ENV, ...OPTIONAL_ENV], key).toContain(key);
+  });
+
+  it("only ever puts Stripe's publishable key in the app, never the secret key", () => {
+    const withStripe = (key: string) => easText.replace(/"EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "[^"]*"/g, `"EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "${key}"`);
+    expect(productionEnv(withStripe("")).problems).toEqual([]);
+    expect(productionEnv(withStripe("pk_test_abc")).problems).toEqual([]);
+    expect(productionEnv(withStripe("sk_test_abc")).problems.join(" ")).toMatch(/never the secret key/);
+    expect(productionEnv(withStripe("rk_live_abc")).problems.join(" ")).toMatch(/never the secret key/);
   });
 });
 

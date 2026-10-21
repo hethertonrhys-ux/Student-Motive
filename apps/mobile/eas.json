@@ -13,7 +13,8 @@
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_hjMuaTI3n4A4YQwscZIazQ_6W9hwukK",
         "EXPO_PUBLIC_SITE_URL": "https://studentfunction.com",
         "EXPO_PUBLIC_SUPPORT_EMAIL": "help@studentfunction.com",
-        "EXPO_PUBLIC_CONTACT_EMAIL": "management@studentfunction.com"
+        "EXPO_PUBLIC_CONTACT_EMAIL": "management@studentfunction.com",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": ""
       }
     },
     "preview": {
@@ -24,7 +25,8 @@
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_hjMuaTI3n4A4YQwscZIazQ_6W9hwukK",
         "EXPO_PUBLIC_SITE_URL": "https://studentfunction.com",
         "EXPO_PUBLIC_SUPPORT_EMAIL": "help@studentfunction.com",
-        "EXPO_PUBLIC_CONTACT_EMAIL": "management@studentfunction.com"
+        "EXPO_PUBLIC_CONTACT_EMAIL": "management@studentfunction.com",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": ""
       }
     },
     "production": {
@@ -35,7 +37,8 @@
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_hjMuaTI3n4A4YQwscZIazQ_6W9hwukK",
         "EXPO_PUBLIC_SITE_URL": "https://studentfunction.com",
         "EXPO_PUBLIC_SUPPORT_EMAIL": "help@studentfunction.com",
-        "EXPO_PUBLIC_CONTACT_EMAIL": "management@studentfunction.com"
+        "EXPO_PUBLIC_CONTACT_EMAIL": "management@studentfunction.com",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": ""
       }
     }
   },
