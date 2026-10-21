@@ -10,7 +10,7 @@ import { useSession } from "@/providers/session";
 // 2. have their account details (full name, graduation year): accounts made
 //    before those existed are sent to /welcome to fill them in.
 // Public pages (landing, legal, install, login) are never gated.
-const OPEN = new Set(["/", "/login", "/welcome", "/mfa", "/privacy", "/terms", "/support", "/install", "/lse", "/ucl", "/kings", "/imperial"]);
+const OPEN = new Set(["/", "/login", "/welcome", "/mfa", "/privacy", "/terms", "/guidelines", "/legal", "/support", "/install", "/lse", "/ucl", "/kings", "/imperial"]);
 
 export function AccountGate() {
   const { session } = useSession();
