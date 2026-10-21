@@ -3,17 +3,28 @@ import { Link, useIsFocused } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { RECOMMEND_LIMIT, filterContextKey, isPersonalFiltering, loadSocialRecommendations, loadSocialTab, matchesDiscover, matchesPersonalFilters, nowMs, type DiscoverFilters, type SocialEvent, type SocialTab } from "@function/shared";
+import { RECOMMEND_LIMIT, filterContextKey, isLive, isPersonalFiltering, loadSocialRecommendations, loadSocialTab, matchesDiscover, matchesPersonalFilters, nowMs, type DiscoverFilters, type SocialEvent, type SocialTab } from "@function/shared";
 import { EMPTY_RECOMMENDED_SOCIAL, ListModeSwitch, RECOMMEND_ERROR, type ListMode } from "@/components/recommended-events";
 import { SocialEventCard } from "@/components/social/event-card";
 import { EMPTY_FILTERS, Filters } from "@/components/social/filters";
-import { Button, Card, Heading, Muted, T } from "@/components/ui";
+import { Button, Card, Muted, T } from "@/components/ui";
+import { selectionTap } from "@/lib/haptics";
 import { useFilterContext } from "@/lib/filter-context";
 import { usePersonalFilters } from "@/lib/personal-filters";
 import { useProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { usePullToRefresh, useRefetchOnFocus } from "@/lib/use-refetch-on-focus";
 import { useSession } from "@/providers/session";
+
+// The day a time falls on in London, as a number of days, so two can be compared.
+const londonDay = (ms: number) => Date.parse(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date(ms))) / 864e5;
+const GROUPS = ["Happening now", "Today", "Tomorrow", "This week", "Later", "Earlier"] as const;
+// Which heading a plan goes under in the list.
+function whenGroup(e: SocialEvent, now: number): (typeof GROUPS)[number] {
+  if (isLive(e.starts_at, e.ends_at, now)) return "Happening now";
+  const days = londonDay(Date.parse(e.starts_at)) - londonDay(now);
+  return days < 0 ? "Earlier" : days === 0 ? "Today" : days === 1 ? "Tomorrow" : days < 7 ? "This week" : "Later";
+}
 
 // The Social tab: plans hosted by students. Discover, what you're hosting
 // and what you're going to.
@@ -46,6 +57,11 @@ export default function SocialScreen() {
     return d && tab === "discover" ? d.events.filter(keep) : (d?.events ?? []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [d, tab, filters, now, recommending, recs.data, personalOn, who, personal]);
+  // Under date headings, like an events app. Recommended plans keep their order (best first).
+  const sections = useMemo(() => {
+    if (recommending) return [{ title: null, events: shown }];
+    return GROUPS.map((title) => ({ title, events: shown.filter((e) => whenGroup(e, now) === title) })).filter((g) => g.events.length);
+  }, [shown, recommending, now]);
   const notes = useMemo(() => new Map((recs.data?.items ?? []).map((r) => [r.event.id, r.reasons.join(" · ")])), [recs.data]);
   const hostOf = (hostId: string) => (recommending ? recs.data?.hosts.get(hostId) : d?.hosts.get(hostId));
   const hostingBadge = d?.hostingBadge ?? 0;
@@ -56,17 +72,17 @@ export default function SocialScreen() {
     <SafeAreaView className="flex-1 bg-bg">
       <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-4" keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={() => void pull.onRefresh()} />}>
         <View className="flex-row items-center justify-between gap-3">
-          <Heading className="text-2xl">Social</Heading>
+          <T variant="largeTitle" accessibilityRole="header">Social</T>
           <Link href={hostHref as never} asChild>
-            <Button className="py-2" testID="host">+ Host</Button>
+            <Button className="min-h-9 rounded-full px-4 py-1.5" testID="host">+ Host</Button>
           </Link>
         </View>
 
-        {/* Tabs: right at the top, under your thumb. */}
-        <View className="mt-3 flex-row rounded-2xl border border-line bg-surface p-1">
+        {/* Tabs: right at the top, under your thumb. An iPhone-style segmented control. */}
+        <View className="mt-3 flex-row rounded-[10px] bg-line/70 p-0.5">
           {(["discover", "hosting", "going"] as const).map((t) => (
-            <Pressable key={t} onPress={() => setTab(t)} accessibilityRole="tab" accessibilityState={{ selected: tab === t }} testID={`tab-${t}`} className={`relative flex-1 items-center rounded-xl py-2.5 ${tab === t ? "bg-brand" : ""}`}>
-              <T variant="bold" className={`text-sm ${tab === t ? "text-brand-ink" : "text-muted"}`}>{t === "discover" ? "Discover" : t === "hosting" ? "Hosting" : "Going"}</T>
+            <Pressable key={t} onPress={() => { if (t !== tab) selectionTap(); setTab(t); }} accessibilityRole="tab" accessibilityState={{ selected: tab === t }} testID={`tab-${t}`} className={`relative flex-1 items-center rounded-lg py-1.5 ${tab === t ? "bg-surface shadow-soft" : ""}`}>
+              <T variant={tab === t ? "semibold" : "normal"} className={`text-[14px] ${tab === t ? "text-ink" : "text-muted"}`}>{t === "discover" ? "Discover" : t === "hosting" ? "Hosting" : "Going"}</T>
               {t === "hosting" && hostingBadge > 0 && (
                 <View className="absolute right-2 top-1 min-w-[18px] items-center rounded-full bg-live px-1" testID="hosting-badge">
                   <T variant="bold" className="text-[10px] leading-[18px] text-white">{hostingBadge}</T>
@@ -78,7 +94,7 @@ export default function SocialScreen() {
 
         {tab === "discover" && (
           <View className="mt-3">
-            <Muted className="mb-3 text-sm">Plans hosted by students. Join one or start your own.</Muted>
+            <Muted className="mb-3 text-[15px]">Plans hosted by students. Join one or start your own.</Muted>
             <Filters filters={filters} onChange={setFilters} personal={myId ? personal : undefined} onPersonalChange={myId ? setPersonal : undefined} />
             {myId && (
               <View className="mt-3">
@@ -102,8 +118,13 @@ export default function SocialScreen() {
         <View className="mt-5 gap-3" testID="social-list">
           {(recommending ? recs.isPending && !recsFailed : data.isPending) && <Muted>{recommending ? "Finding plans for you…" : "Loading…"}</Muted>}
           {(recommending ? recsFailed : data.isError) && <T variant="semibold" className="text-sm text-danger">{recommending ? RECOMMEND_ERROR : "Couldn't load events. Pull down to try again."}</T>}
-          {shown.map((e) => (
-            <SocialEventCard key={e.id} event={e} host={tab === "hosting" ? null : hostOf(e.host_id)} status={d?.status[e.id]} pending={d?.pending[e.id]} note={recommending ? notes.get(e.id) : undefined} />
+          {sections.map((g) => (
+            <View key={g.title ?? "all"} className="gap-3">
+              {g.title && <T variant="title3" className="mt-2" accessibilityRole="header">{g.title}</T>}
+              {g.events.map((e) => (
+                <SocialEventCard key={e.id} event={e} host={tab === "hosting" ? null : hostOf(e.host_id)} status={d?.status[e.id]} pending={d?.pending[e.id]} note={recommending ? notes.get(e.id) : undefined} />
+              ))}
+            </View>
           ))}
           {(recommending ? !!recs.data : !!d) && shown.length === 0 && (tab === "discover" || myId) && (
             <Card className="items-center py-10">
