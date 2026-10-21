@@ -7,15 +7,16 @@ import { formatDuration, type MediaKind } from "@function/shared";
 import { Icon } from "@/components/icon";
 import { Muted, T } from "@/components/ui";
 
-const MAX_W = 240;
-const MAX_H = 320;
+// Previews are kept small in the chat; tap one to see it full screen.
+const MAX_W = 190;
+const MAX_H = 240;
 
 // The size a photo or video preview takes in the chat, keeping its shape.
 export function previewSize(width: number | null, height: number | null) {
   const w = width && width > 0 ? width : 4;
   const h = height && height > 0 ? height : 3;
   const scale = Math.min(MAX_W / w, MAX_H / h);
-  return { width: Math.max(140, Math.round(w * scale)), height: Math.max(100, Math.round(h * scale)) };
+  return { width: Math.max(120, Math.round(w * scale)), height: Math.max(90, Math.round(h * scale)) };
 }
 
 // A photo or video in the chat. Photos show as themselves; videos as a dark
