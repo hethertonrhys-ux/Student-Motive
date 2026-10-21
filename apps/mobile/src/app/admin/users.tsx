@@ -7,7 +7,6 @@ import { adminSearchUsers, adminUserDetail, countryByCode, uniShort } from "@fun
 import { AdminTabs } from "@/components/admin-tabs";
 import { Avatar } from "@/components/avatar";
 import { BackButton } from "@/components/back-button";
-import { Flag } from "@/components/flag";
 import { Card, Heading, Input, Muted, T } from "@/components/ui";
 import { useProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
@@ -50,7 +49,6 @@ export default function AdminUsersScreen() {
                   <View className="min-w-0 flex-1">
                     <View className="flex-row items-center gap-1.5">
                       <T variant="semibold" className="shrink" numberOfLines={1}>{u.name}</T>
-                      <Flag code={u.country} size={14} />
                     </View>
                     <Muted className="text-xs" numberOfLines={1}>{u.email} · {uniShort(u.university)} · joined {when(u.created_at)}</Muted>
                   </View>
@@ -84,7 +82,6 @@ function UserDetail({ d }: { d: NonNullable<Awaited<ReturnType<typeof adminUserD
         <View className="min-w-0 flex-1">
           <View className="flex-row items-center gap-2">
             <T variant="display-bold" className="shrink text-lg" numberOfLines={1}>{d.name}</T>
-            <Flag code={d.country} size={16} />
           </View>
           <Link href={`/u/${d.id}` as never} asChild><Pressable><T variant="semibold" className="text-sm text-brand">Open public profile →</T></Pressable></Link>
         </View>

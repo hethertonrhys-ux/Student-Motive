@@ -4,7 +4,6 @@ import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { countMyManagedSocieties, countOpenReports, uniShort } from "@function/shared";
 import { Avatar } from "@/components/avatar";
-import { Flag } from "@/components/flag";
 import { Icon } from "@/components/icon";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
 import { useProfile } from "@/lib/profile";
@@ -63,7 +62,6 @@ export default function MeScreen() {
               <View className="items-center">
                 <View className="flex-row items-center gap-2">
                   <T variant="display" className="text-2xl">{profile.display_name || "Add your name"}</T>
-                  <Flag code={profile.country} size={20} />
                 </View>
                 <Muted>{uniShort(profile.university)} · {profile.email}</Muted>
               </View>

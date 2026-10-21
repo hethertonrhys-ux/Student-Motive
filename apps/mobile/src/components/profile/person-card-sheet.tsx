@@ -4,7 +4,6 @@ import { Modal, Pressable, View } from "react-native";
 import { getCards, getProfileSocieties, loadPokerStats } from "@function/shared";
 import { Avatar } from "@/components/avatar";
 import { HostPill } from "@/components/event/panels";
-import { Flag } from "@/components/flag";
 import { Button, Muted, T } from "@/components/ui";
 import { UniTag } from "@/components/uni-tag";
 import { supabase } from "@/lib/supabase";
@@ -42,7 +41,6 @@ export function PersonCardSheet({ userId, host = false, onClose }: { userId: str
                 <View className="min-w-0 flex-1">
                   <View className="flex-row items-center gap-2">
                     <T variant="display-bold" className="shrink text-xl" numberOfLines={1}>{d.card.name}</T>
-                    <Flag code={d.card.country} size={18} />
                     {host && <HostPill testID="person-card-host" />}
                   </View>
                   <View className="mt-1 flex-row flex-wrap items-center gap-2">

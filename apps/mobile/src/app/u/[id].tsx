@@ -8,7 +8,6 @@ import { Avatar } from "@/components/avatar";
 import { CompleteProfileCard } from "@/components/complete-profile-card";
 import { AvatarZoom, FriendButton, PhotoGallery, ProfileMenu, TwoTruthsGame } from "@/components/profile/people";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
-import { Flag } from "@/components/flag";
 import { UniTag } from "@/components/uni-tag";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
@@ -54,7 +53,6 @@ export default function PersonScreen() {
         <View className="items-center gap-1">
           <View className="flex-row items-center gap-2">
             <T variant="display-bold" className="text-2xl">{person.name}</T>
-            <Flag code={person.country} size={22} testID="profile-flag" />
           </View>
           {person.nickname && person.full_name && person.full_name !== person.name && <Muted testID="full-name">{person.full_name}</Muted>}
           <View className="flex-row flex-wrap items-center justify-center gap-2">
