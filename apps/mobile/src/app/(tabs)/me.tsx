@@ -41,17 +41,20 @@ export default function MeScreen() {
     router.replace("/");
   }
 
-  const rows: { href: string; icon: React.ComponentProps<typeof Icon>["name"]; title: string; detail: string; testID: string; count?: number }[] = [
+  const rows: Row[] = [
     { href: `/u/${session?.user.id}`, icon: "person-circle-outline", title: "My profile", detail: "How other students see you", testID: "my-profile" },
     { href: "/account/security", icon: "lock-closed-outline", title: "Password & security", detail: "Set a password, two-factor authentication", testID: "security" },
     { href: "/account/privacy", icon: "hand-left-outline", title: "Privacy", detail: "People you've blocked", testID: "privacy-settings" },
     { href: "/account/notifications", icon: "notifications-circle-outline", title: "Notification settings", detail: "Choose what Function tells you about", testID: "notification-settings" },
     { href: "/friends", icon: "people-outline", title: "Friends", detail: requests.data ? `${requests.data} ${requests.data === 1 ? "request" : "requests"} waiting` : "Requests, people you may know", testID: "friends", count: requests.data },
     { href: "/notifications", icon: "notifications-outline", title: "Notifications", detail: fresh ? `${fresh} new` : "What's happened lately", testID: "notifications", count: fresh },
-    { href: "/support", icon: "help-circle-outline", title: "Help & support", detail: "Email us, report a problem", testID: "support" },
-    { href: "/privacy", icon: "document-text-outline", title: "Privacy & terms", detail: "How Function uses your data", testID: "privacy" },
     ...(managed.data ? [{ href: "/hub", icon: "briefcase-outline" as const, title: "Society Hub", detail: managed.data === 1 ? "Run your society: setup, features, committee" : `Run your ${managed.data} societies: setup, features, committee`, testID: "society-hub" }] : []),
     ...(profile?.is_admin ? [{ href: "/admin", icon: "shield-checkmark-outline" as const, title: "Admin panel", detail: openReports.data ? `${openReports.data} ${openReports.data === 1 ? "report" : "reports"} waiting` : "Function team: users, events, reports", testID: "admin-panel" }] : []),
+  ];
+  // "More info and support": its own section under the main menu.
+  const supportRows: Row[] = [
+    { href: "/support", icon: "help-circle-outline", title: "Help", detail: "Email us, report a problem", testID: "support" },
+    { href: "/legal", icon: "document-text-outline", title: "Terms and policies", detail: "Community Guidelines, Terms of Service, Privacy Policy", testID: "terms-and-policies" },
   ];
 
   return (
@@ -80,25 +83,9 @@ export default function MeScreen() {
                 <Muted>{uniShort(profile.university)} · {profile.email}</Muted>
               </View>
             </Card>
-            <View className="mt-4 overflow-hidden rounded-2xl border border-line bg-surface">
-              {rows.map((row, i) => (
-                <Link key={row.href} href={row.href as never} asChild>
-                  <Pressable className={`flex-row items-center gap-3 px-4 py-3.5 ${i > 0 ? "border-t border-line" : ""}`} testID={row.testID}>
-                    <Icon name={row.icon} size={24} color="#DA291C" />
-                    <View className="flex-1">
-                      <T variant="semibold">{row.title}</T>
-                      <Muted className="text-xs">{row.detail}</Muted>
-                    </View>
-                    {!!row.count && (
-                      <View className="min-w-6 items-center rounded-full bg-live px-1.5" accessibilityLabel={`${row.count} new`} testID={`${row.testID}-badge`}>
-                        <T variant="bold" className="text-xs leading-6 text-white">{row.count}</T>
-                      </View>
-                    )}
-                    <Icon name="chevron-forward" size={18} color="#5e5d78" />
-                  </Pressable>
-                </Link>
-              ))}
-            </View>
+            <MenuCard rows={rows} className="mt-4" />
+            <T variant="footnote" className="mt-6 px-1 font-sans-semibold uppercase tracking-wide text-muted" accessibilityRole="header" testID="support-section">More info and support</T>
+            <MenuCard rows={supportRows} className="mt-2" />
             <Button variant="ghost" className="mt-6" onPress={logOut} testID="log-out">Log out</Button>
             <QrSheet visible={qrOpen} onClose={() => setQrOpen(false)} me={{ id: profile.id, name: profile.display_name || "You", avatarUrl: profile.avatar_url ?? null }} />
           </>
@@ -109,5 +96,33 @@ export default function MeScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+type Row = { href: string; icon: React.ComponentProps<typeof Icon>["name"]; title: string; detail: string; testID: string; count?: number };
+
+// A white rounded card of menu rows: icon, title, detail, a red number if
+// there's something new, and an arrow.
+function MenuCard({ rows, className = "" }: { rows: Row[]; className?: string }) {
+  return (
+    <View className={`overflow-hidden rounded-2xl border border-line bg-surface ${className}`}>
+      {rows.map((row, i) => (
+        <Link key={row.href} href={row.href as never} asChild>
+          <Pressable className={`flex-row items-center gap-3 px-4 py-3.5 ${i > 0 ? "border-t border-line" : ""}`} testID={row.testID}>
+            <Icon name={row.icon} size={24} color="#DA291C" />
+            <View className="flex-1">
+              <T variant="semibold">{row.title}</T>
+              <Muted className="text-xs">{row.detail}</Muted>
+            </View>
+            {!!row.count && (
+              <View className="min-w-6 items-center rounded-full bg-live px-1.5" accessibilityLabel={`${row.count} new`} testID={`${row.testID}-badge`}>
+                <T variant="bold" className="text-xs leading-6 text-white">{row.count}</T>
+              </View>
+            )}
+            <Icon name="chevron-forward" size={18} color="#5e5d78" />
+          </Pressable>
+        </Link>
+      ))}
+    </View>
   );
 }
