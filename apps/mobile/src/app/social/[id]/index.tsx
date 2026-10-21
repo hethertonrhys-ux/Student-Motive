@@ -177,6 +177,12 @@ export default function SocialEventScreen() {
 
       <View className="mt-8 flex-row flex-wrap items-center gap-4">
         <ShareButton url={`${SITE_URL}/social/${id}`} title={event.title} />
+        {/* Into one of your chats, as a card (people still join or ask to join here). */}
+        {myId && !event.is_cancelled && (
+          <Link href={`/share?social=${id}` as never} asChild>
+            <Button variant="ghost" testID="send-in-chat">Send in a chat</Button>
+          </Link>
+        )}
         {myId && !isHost && <ReportLink send={(reason) => reportSocialEvent(supabase, id, reason)} />}
       </View>
     </Screen>

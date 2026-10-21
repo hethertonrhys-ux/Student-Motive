@@ -34,13 +34,17 @@ export async function loadThreads(supabase: SupabaseClient, myId: string): Promi
   return { threads: ((data ?? []) as Thread[]).map((t) => ({ ...t, unread: Number(t.unread) })), requests: count ?? 0 };
 }
 
-// "message" is what people write; "left" and "rejoined" are the notes a
-// group chat shows when someone leaves it or comes back ("Rhys left").
-export type MessageKind = "message" | "left" | "rejoined";
+// "message" is what people write; "event" is an event someone shared (shown
+// as a card); "left" and "rejoined" are the notes a group chat shows when
+// someone leaves it or comes back ("Rhys left").
+export type MessageKind = "message" | "event" | "left" | "rejoined";
 
 export type ChatMessage = {
   id: string;
   kind: MessageKind;
+  // The shared event (kind "event"): a society event or a Social plan.
+  event_id: string | null;
+  social_event_id: string | null;
   body: string;
   created_at: string;
   sender_id: string | null;
@@ -56,7 +60,7 @@ export async function fetchMessages(supabase: SupabaseClient, threadId: string, 
   let query = supabase.from("messages").select("*").eq("thread_id", threadId).order("created_at", { ascending: false }).limit(100);
   if (after) query = query.gt("created_at", after);
   const { data } = await query;
-  const rows = (data ?? []).reverse() as { id: string; kind?: MessageKind; body: string; created_at: string; sender_id: string | null; deleted_at: string | null }[];
+  const rows = (data ?? []).reverse() as { id: string; kind?: MessageKind; event_id?: string | null; social_event_id?: string | null; body: string; created_at: string; sender_id: string | null; deleted_at: string | null }[];
   // Who sent them, and (on opening, or when something new arrived) mark the chat read: both at once.
   const [cards] = await Promise.all([
     getCards(supabase, rows.map((r) => r.sender_id).filter((x): x is string => !!x)),
@@ -65,6 +69,8 @@ export async function fetchMessages(supabase: SupabaseClient, threadId: string, 
   return rows.map((r) => ({
     id: r.id,
     kind: r.kind ?? "message",
+    event_id: r.event_id ?? null,
+    social_event_id: r.social_event_id ?? null,
     body: r.deleted_at ? "" : r.body,
     created_at: r.created_at,
     sender_id: r.sender_id,
@@ -85,16 +91,21 @@ export type ThreadInfo = {
   isGroup: boolean;
   // You left this group chat (you can rejoin while you're going).
   left: boolean;
+  // You run this group chat (the event's host or committee, or the plan's host).
+  isAdmin: boolean;
+  // Everyone in the chat may share events (admins can switch it off).
+  membersCanShare: boolean;
 };
 
 // Who the chat is with: an event (society or Social) or one other person.
 export async function loadThreadInfo(supabase: SupabaseClient, threadId: string, myId: string): Promise<ThreadInfo | null> {
   if (!UUID.test(threadId)) return null;
-  const { data: thread } = await supabase.from("threads").select("id, event_id, social_event_id, user_a, user_b").eq("id", threadId).maybeSingle<{ id: string; event_id: string | null; social_event_id: string | null; user_a: string | null; user_b: string | null }>();
+  // All columns, so this still works before the database has members_can_share_events.
+  const { data: thread } = await supabase.from("threads").select("*").eq("id", threadId).maybeSingle<{ id: string; event_id: string | null; social_event_id: string | null; user_a: string | null; user_b: string | null; members_can_share_events?: boolean }>();
   if (!thread) return null;
   const otherId = thread.event_id || thread.social_event_id ? null : thread.user_a === myId ? thread.user_b : thread.user_a;
   const isGroup = !!(thread.event_id || thread.social_event_id);
-  const [cards, hidden, { data: event }, { data: socialEvent }, hosts, { data: leave }] = await Promise.all([
+  const [cards, hidden, { data: event }, { data: socialEvent }, hosts, { data: leave }, { data: admin }] = await Promise.all([
     getCards(supabase, otherId ? [otherId] : []),
     getHiddenPeople(supabase),
     thread.event_id ? supabase.from("events").select("id, title, going_count").eq("id", thread.event_id).maybeSingle() : Promise.resolve({ data: null }),
@@ -102,10 +113,11 @@ export async function loadThreadInfo(supabase: SupabaseClient, threadId: string,
     thread.event_id ? loadEventHosts(supabase, thread.event_id) : Promise.resolve(new Set<string>()),
     // Only your own row is readable. Before the database change there's no table: not left.
     isGroup ? supabase.from("thread_leaves").select("thread_id").eq("thread_id", threadId).eq("user_id", myId).maybeSingle() : Promise.resolve({ data: null }),
+    isGroup ? supabase.rpc("is_thread_admin", { tid: threadId }) : Promise.resolve({ data: false }),
   ]);
   const social = socialEvent as (ThreadInfo["socialEvent"] & { host_id: string }) | null;
   const hostIds = thread.event_id ? hosts : new Set(social ? [social.host_id] : []);
-  return { event: (event as ThreadInfo["event"]) ?? null, socialEvent: social ? { id: social.id, title: social.title, going_count: social.going_count } : null, other: otherId ? (cards.get(otherId) ?? null) : null, hidden, hostIds, isGroup, left: !!leave };
+  return { event: (event as ThreadInfo["event"]) ?? null, socialEvent: social ? { id: social.id, title: social.title, going_count: social.going_count } : null, other: otherId ? (cards.get(otherId) ?? null) : null, hidden, hostIds, isGroup, left: !!leave, isAdmin: admin === true, membersCanShare: thread.members_can_share_events !== false };
 }
 
 export async function sendMessage(supabase: SupabaseClient, threadId: string, body: string): Promise<Result> {
@@ -114,6 +126,85 @@ export async function sendMessage(supabase: SupabaseClient, threadId: string, bo
   if (text.length > 2000) return { error: "That message is too long." };
   const { error } = await supabase.rpc("send_message", { tid: threadId, body: text });
   return error ? { error: error.message.replace(/^.*?: /, "") || "Couldn't send. Try again." } : {};
+}
+
+// ---- Shared events ----
+
+// What a shared event's card shows. Loaded with the viewer's own rights, so
+// an event they can't see (friends only, removed) just isn't in the map.
+export type SharedEvent = {
+  id: string;
+  kind: "event" | "social";
+  title: string;
+  starts_at: string;
+  ends_at: string;
+  place: string | null;
+  going: number;
+  image_url: string | null;
+  is_cancelled: boolean;
+  is_private: boolean;
+  friends_only: boolean;
+  href: string;
+};
+
+export async function loadSharedEvents(supabase: SupabaseClient, eventIds: string[], socialIds: string[]): Promise<Map<string, SharedEvent>> {
+  const ev = [...new Set(eventIds)].filter((x) => UUID.test(x));
+  const so = [...new Set(socialIds)].filter((x) => UUID.test(x));
+  const [{ data: events }, { data: plans }] = await Promise.all([
+    ev.length ? supabase.from("events").select("id, title, starts_at, ends_at, going_count, image_url, is_cancelled, location_note, venues(name)").in("id", ev) : Promise.resolve({ data: [] }),
+    so.length ? supabase.from("social_events").select("id, title, starts_at, ends_at, going_count, area, is_cancelled, is_private, friends_only").in("id", so) : Promise.resolve({ data: [] }),
+  ]);
+  const out = new Map<string, SharedEvent>();
+  for (const e of (events ?? []) as { id: string; title: string; starts_at: string; ends_at: string; going_count: number; image_url: string | null; is_cancelled: boolean; location_note: string | null; venues: { name: string } | { name: string }[] | null }[]) {
+    const venue = Array.isArray(e.venues) ? e.venues[0] : e.venues;
+    out.set(e.id, { id: e.id, kind: "event", title: e.title, starts_at: e.starts_at, ends_at: e.ends_at, place: venue?.name ?? e.location_note ?? null, going: e.going_count, image_url: e.image_url, is_cancelled: e.is_cancelled, is_private: false, friends_only: false, href: `/e/${e.id}` });
+  }
+  for (const s of (plans ?? []) as { id: string; title: string; starts_at: string; ends_at: string; going_count: number; area: string; is_cancelled: boolean; is_private: boolean; friends_only: boolean }[]) {
+    // The host counts too.
+    out.set(s.id, { id: s.id, kind: "social", title: s.title, starts_at: s.starts_at, ends_at: s.ends_at, place: s.area, going: s.going_count + 1, image_url: null, is_cancelled: s.is_cancelled, is_private: s.is_private, friends_only: s.friends_only, href: `/social/${s.id}` });
+  }
+  return out;
+}
+
+export type ShareTarget = { id: string; title: string; isGroup: boolean; otherAvatar: string | null; allowed: boolean };
+
+// The chats you can send an event to, newest first. A group chat whose
+// admins switched sharing off is listed but not allowed (unless you're one
+// of its admins).
+export async function loadShareTargets(supabase: SupabaseClient): Promise<ShareTarget[]> {
+  const { data } = await supabase.rpc("my_threads");
+  const threads = (data ?? []) as Thread[];
+  const groups = threads.filter((t) => t.event_id || t.social_event_id).map((t) => t.id);
+  const { data: settings } = groups.length ? await supabase.from("threads").select("*").in("id", groups) : { data: [] };
+  const off = ((settings ?? []) as { id: string; members_can_share_events?: boolean }[]).filter((t) => t.members_can_share_events === false).map((t) => t.id);
+  const admin = new Set<string>();
+  await Promise.all(off.map(async (id) => {
+    const { data: yes } = await supabase.rpc("is_thread_admin", { tid: id });
+    if (yes === true) admin.add(id);
+  }));
+  return threads.map((t) => ({ id: t.id, title: t.title, isGroup: !!(t.event_id || t.social_event_id), otherAvatar: t.other_avatar, allowed: !off.includes(t.id) || admin.has(t.id) }));
+}
+
+// Send an event into a chat. The database checks you're in the chat, may
+// share there and can see the event; it writes the text itself.
+export async function shareEventToChat(supabase: SupabaseClient, threadId: string, myId: string, target: { eventId: string } | { socialEventId: string }): Promise<Result> {
+  if (!UUID.test(threadId)) return { error: "Chat not found." };
+  const { error } = await supabase.from("messages").insert({
+    thread_id: threadId,
+    sender_id: myId,
+    kind: "event",
+    body: "Shared an event",
+    event_id: "eventId" in target ? target.eventId : null,
+    social_event_id: "socialEventId" in target ? target.socialEventId : null,
+  });
+  if (!error) return {};
+  return { error: /row-level security|violates/i.test(error.message) ? "You can't share this event in that chat. In some group chats only the admins can share events." : "Couldn't send. Try again." };
+}
+
+// Group chat admins: let everyone share events, or only admins.
+export async function setMembersCanShareEvents(supabase: SupabaseClient, threadId: string, allowed: boolean): Promise<Result> {
+  const { error } = await supabase.rpc("set_members_can_share_events", { tid: threadId, allowed });
+  return error ? { error: "Couldn't change the setting. Try again." } : {};
 }
 
 // Leave a group chat: it goes from your Chats, you stop getting its

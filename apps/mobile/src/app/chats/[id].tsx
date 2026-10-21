@@ -1,11 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useIsFocused, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { AppState, KeyboardAvoidingView, Platform, Pressable, ScrollView, View, type ScrollViewInstance } from "react-native";
+import { AppState, KeyboardAvoidingView, Platform, Pressable, ScrollView, Switch, View, type ScrollViewInstance } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { deleteMessage, fetchMessages, leaveChat, loadThreadInfo, rejoinChat, reportMessage, sendMessage, type ChatMessage } from "@function/shared";
+import { deleteMessage, fetchMessages, leaveChat, loadSharedEvents, loadThreadInfo, rejoinChat, reportMessage, sendMessage, setMembersCanShareEvents, type ChatMessage } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
+import { SharedEventCard } from "@/components/chat/shared-event-card";
 import { HostPill, LinkButton } from "@/components/event/panels";
 import { Icon } from "@/components/icon";
 import { Button, Card, Heading, Input, Muted, T } from "@/components/ui";
@@ -22,6 +23,8 @@ const day = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric",
 // messages are checked for every few seconds while it's open. A group chat
 // has a ••• menu with "Leave group"; someone who left sees "Rejoin" instead
 // of the message box (leaving never changes their place at the event).
+// Shared events show as cards; a group chat's admins can let only admins
+// share events (in the ••• menu).
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useSession();
@@ -133,6 +136,29 @@ export default function ChatScreen() {
     setBusy(false);
   }
 
+  async function toggleSharing(allowed: boolean) {
+    setBusy(true);
+    setError(null);
+    const result = await setMembersCanShareEvents(supabase, id, allowed);
+    if (result.error) setError(result.error);
+    await info.refetch();
+    setBusy(false);
+  }
+
+  // The events shared in this chat, loaded with your own rights.
+  const sharedIds = (messages ?? []).filter((m) => m.kind === "event" && !m.deleted);
+  const eventIds = sharedIds.map((m) => m.event_id).filter((x): x is string => !!x).sort();
+  const socialIds = sharedIds.map((m) => m.social_event_id).filter((x): x is string => !!x).sort();
+  const shared = useQuery({
+    queryKey: ["shared-events", id, eventIds.join(","), socialIds.join(",")],
+    enabled: eventIds.length + socialIds.length > 0,
+    queryFn: () => loadSharedEvents(supabase, eventIds, socialIds),
+  });
+  // Cards are taller than their placeholder once loaded: keep the newest message in view.
+  useEffect(() => {
+    if (shared.data) scroll.current?.scrollToEnd({ animated: false });
+  }, [shared.data]);
+
   const hidden = info.data?.hidden ?? new Set<string>();
   const visible = (messages ?? []).filter((m) => !m.sender_id || !hidden.has(m.sender_id));
   const header = info.data;
@@ -182,6 +208,16 @@ export default function ChatScreen() {
           </View>
           {groupMenu === "open" && (
             <Card className="mt-2 p-0" testID="chat-options-menu">
+              {header?.isAdmin && (
+                <View className="min-h-14 flex-row items-center gap-3 border-b border-line px-4 py-2">
+                  <Icon name="calendar-outline" size={20} color={colors.ink} />
+                  <View className="flex-1">
+                    <T variant="semibold">Allow members to share events</T>
+                    <Muted className="text-xs">{header.membersCanShare ? "Everyone in the chat can share events." : "Only admins can share events."}</Muted>
+                  </View>
+                  <Switch value={header.membersCanShare} onValueChange={(v) => void toggleSharing(v)} disabled={busy} trackColor={{ true: colors.brand }} accessibilityLabel="Allow members to share events" testID="share-setting" />
+                </View>
+              )}
               <Pressable onPress={() => setGroupMenu("confirm")} className="min-h-12 flex-row items-center gap-3 px-4 active:opacity-80" accessibilityRole="button" testID="leave-group">
                 <Icon name="exit-outline" size={20} color={colors.danger} />
                 <T variant="semibold" className="text-danger">Leave group</T>
@@ -211,9 +247,9 @@ export default function ChatScreen() {
               const mine = m.sender_id === myId;
               const prev = visible[i - 1];
               const newDay = !prev || new Date(prev.created_at).toDateString() !== new Date(m.created_at).toDateString();
-              const firstInRun = newDay || prev?.sender_id !== m.sender_id || prev?.kind !== "message";
+              const firstInRun = newDay || prev?.sender_id !== m.sender_id || prev?.kind === "left" || prev?.kind === "rejoined";
               // "Rhys left" / "Rhys rejoined": a small note, not a bubble.
-              if (m.kind !== "message") {
+              if (m.kind === "left" || m.kind === "rejoined") {
                 const who = mine ? "You" : m.sender_name;
                 return (
                   <View key={m.id}>
@@ -248,12 +284,19 @@ export default function ChatScreen() {
                           {!!m.sender_id && header?.hostIds.has(m.sender_id) && <HostPill testID={`host-pill-${m.id}`} />}
                         </View>
                       )}
+                      {m.kind === "event" && !m.deleted ? (
+                        <View className={mine ? "items-end" : "items-start"}>
+                          <SharedEventCard event={shared.data?.get((m.event_id ?? m.social_event_id)!) ?? (shared.isPending ? undefined : null)} onLongPress={() => setMenuFor(menuFor === m.id ? null : m.id)} testID={`shared-event-${m.id}`} />
+                          <Muted className="mt-0.5 px-1 text-[10px]">{time.format(new Date(m.created_at))}</Muted>
+                        </View>
+                      ) : (
                       <Pressable onPress={() => setMenuFor(menuFor === m.id ? null : m.id)} className={`rounded-2xl px-3.5 py-2 ${m.deleted ? "border border-dashed border-line" : mine ? "bg-brand" : "border border-line bg-surface"}`} testID={`message-${m.id}`}>
                         <T className={m.deleted ? "text-sm italic text-muted" : mine ? "text-brand-ink" : ""}>
                           {m.deleted ? "Message deleted" : m.body}
                           <T className={`text-[10px] ${mine ? "text-brand-ink" : "text-muted"}`}>  {time.format(new Date(m.created_at))}</T>
                         </T>
                       </Pressable>
+                      )}
                       {menuFor === m.id && !m.deleted && (
                         <View className="mt-1 flex-row gap-3">
                           {mine ? (
