@@ -11,6 +11,7 @@ import { needsSecondFactor } from "@/lib/mfa";
 import { needsAccountDetails } from "@/lib/profile";
 import { arrivalUni, loginPending } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
+import { SUPPORT_EMAIL } from "@/lib/site";
 import { useSession } from "@/providers/session";
 
 type Mode = "login" | "signup";
@@ -123,6 +124,7 @@ export default function LoginScreen() {
       verifying.current = false;
       setBusy(false);
       // Supabase says "expired" for a mistyped code too, so this covers both.
+      if (error?.code === "user_banned") return showError(SUSPENDED);
       return showError("That code didn't work or has expired. Check it, or send a new one.");
     }
     await loginPending.set(null);
@@ -238,10 +240,11 @@ export default function LoginScreen() {
                     {errorLine}
                     <Button onPress={() => void sendCode("signup")} disabled={busy} testID="send-code">{busy ? "Sending…" : "Email me a code"}</Button>
                     <View className="flex-row flex-wrap items-center gap-x-1" testID="agree">
-                      <Muted className="text-xs">By continuing you agree to Function&apos;s</Muted>
+                      <Muted className="text-xs">By signing up you agree to Function&apos;s</Muted>
                       <Link href="/terms" asChild><Pressable testID="agree-terms"><Muted className="text-xs underline">Terms of use</Muted></Pressable></Link>
                       <Muted className="text-xs">and</Muted>
                       <Link href="/privacy" asChild><Pressable testID="agree-privacy"><Muted className="text-xs underline">Privacy policy.</Muted></Pressable></Link>
+                      <Muted className="text-xs">Abusive or objectionable content isn&apos;t tolerated.</Muted>
                     </View>
                   </>
                 )}
@@ -373,7 +376,11 @@ function codeErrorText(error: AuthError, address: string, mode: Mode): [string, 
   return ["We couldn't send the email. Please try again.", false];
 }
 
+// The Function team has suspended or banned the account (Admin → Users).
+const SUSPENDED = `This account has been suspended. If you think it's a mistake, email ${SUPPORT_EMAIL}.`;
+
 function passwordErrorText(error: AuthError | null) {
+  if (error?.code === "user_banned") return SUSPENDED;
   if (error?.status === 429 || error?.code === "over_request_rate_limit") return "Too many attempts. Wait a few minutes and try again.";
   if (error?.code === "email_not_confirmed") return "That email isn't verified yet. Tap \"Log in with a code instead\" to verify it.";
   if (error?.code === "invalid_credentials" || error?.status === 400) return "Wrong email or password. If you've never set a password, log in with a code instead.";

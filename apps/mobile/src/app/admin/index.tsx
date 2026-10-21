@@ -6,6 +6,7 @@ import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { addSociety, allowEmail, approveClaim, DEFAULT_UNI, deleteReportedMessage, dismissPhotoReports, dismissReport, dismissSocialReport, hideReportedEvent, hideReportedSocialEvent, loadAdmin, loadSocialReports, rejectClaim, removeAllowedEmail, removeReportedPhoto, SOCIETY_KINDS, UNIVERSITIES } from "@function/shared";
 import { AdminTabs } from "@/components/admin-tabs";
+import { MediaPreview, MediaViewer } from "@/components/chat/media";
 import { BackButton } from "@/components/back-button";
 import { LinkButton } from "@/components/event/panels";
 import { Select } from "@/components/select";
@@ -15,7 +16,8 @@ import { supabase } from "@/lib/supabase";
 
 // The Function team's panel, reached from the Me tab. Overview: requests to
 // manage societies, reports (society events, messages, people and Social
-// plans), reported photos, who can join, adding societies, every society.
+// plans, each also emailed to help@studentfunction.com), reported photos, who
+// can join, adding societies, every society.
 // Users and Events have their own sections. The database refuses anyone
 // who isn't an admin, so this screen being hidden is only a courtesy.
 export default function AdminScreen() {
@@ -24,6 +26,7 @@ export default function AdminScreen() {
   const data = useQuery({ queryKey: ["admin"], queryFn: () => loadAdmin(supabase), enabled: !!profile?.is_admin });
   const socialReports = useQuery({ queryKey: ["admin", "social-reports"], queryFn: () => loadSocialReports(supabase), enabled: !!profile?.is_admin });
   const refresh = () => void queryClient.invalidateQueries({ queryKey: ["admin"] });
+  const [viewer, setViewer] = useState<{ kind: "photo" | "video"; url: string } | null>(null);
   const d = data.data;
   const personName = (id: string | null | undefined) => (id ? (d?.people.get(id)?.name ?? "Member") : "someone");
 
@@ -71,6 +74,12 @@ export default function AdminScreen() {
                       <T variant="bold">{r.societies?.name}</T>
                     )}
                     {r.messages && <T className="mt-1 rounded-lg bg-bg px-3 py-2 text-sm italic">{r.messages.deleted_at ? "(already deleted)" : `“${r.messages.body}”`}</T>}
+                    {/* A reported chat photo or video: see it before deciding. */}
+                    {r.messages?.media_path && !r.messages.deleted_at && (r.messages.kind === "photo" || r.messages.kind === "video") && (
+                      <View className="mt-2">
+                        <MediaPreview kind={r.messages.kind} url={d.mediaUrls.get(r.messages.media_path) ?? null} width={null} height={null} durationMs={null} onOpen={() => { const url = d.mediaUrls.get(r.messages!.media_path!); if (url) setViewer({ kind: r.messages!.kind as "photo" | "video", url }); }} testID={`admin-media-${r.id}`} />
+                      </View>
+                    )}
                     <T className="text-sm">{r.reason}</T>
                     {r.details && <Muted className="mt-1 text-sm">{r.details}</Muted>}
                   </View>
@@ -79,9 +88,16 @@ export default function AdminScreen() {
                     {r.message_id && !r.messages?.deleted_at && <Button className="py-2" onPress={() => void deleteReportedMessage(supabase, r.id, r.message_id!).then(refresh)} testID="delete-reported-message">Delete message</Button>}
                     <Button variant="ghost" className="py-2" onPress={() => void dismissReport(supabase, r.id).then(refresh)} testID="dismiss-report">Dismiss</Button>
                   </View>
+                  {(r.reported_user_id ?? r.messages?.sender_id) && (
+                    <Link href={`/admin/users?user=${r.reported_user_id ?? r.messages?.sender_id}` as never} asChild>
+                      <Pressable className="self-start" testID="report-to-user"><T variant="semibold" className="text-sm text-brand">Suspend or ban {personName(r.reported_user_id ?? r.messages?.sender_id)} →</T></Pressable>
+                    </Link>
+                  )}
                 </Card>
               ))}
             </Section>
+
+            <MediaViewer media={viewer} onClose={() => setViewer(null)} />
 
             <Section title={`Reported Social plans (${socialReports.data?.length ?? 0})`} empty={!socialReports.data?.length ? "No open reports." : undefined}>
               {(socialReports.data ?? []).map((r) => (

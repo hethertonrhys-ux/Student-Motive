@@ -4,13 +4,14 @@ import { Link, useIsFocused, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Linking, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { audienceLabel, bankEditorRows, categoryLabel, eventAdminAvailable, type EventWithDetails, featureSubject, formatCost, formatEventTime, getCards, hasEnded, hasFeature, isLive, loadEvent, loadEventAdmin, loadEventChat, loadEventHosts, loadParticipation, nowMs, type Participation, type PersonCard, publishEvent, reportEvent, setSuApproved, uniShort } from "@function/shared";
+import { audienceLabel, bankEditorRows, categoryLabel, eventAdminAvailable, type EventWithDetails, featureSubject, formatCost, formatEventTime, getCards, hasEnded, hasFeature, isLive, loadEvent, loadEventAdmin, loadEventChat, loadEventHosts, loadParticipation, nowMs, type Participation, type PersonCard, publishEvent, setSuApproved, uniShort } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { CompleteProfileCard } from "@/components/complete-profile-card";
 import { Icon } from "@/components/icon";
 import { PushPromptCard } from "@/components/push-prompt";
-import { ReportLink } from "@/components/report-link";
+import { MoreMenu } from "@/components/safety/more-menu";
+import { ReportSheet } from "@/components/safety/report-sheet";
 import { BankLedger, MyBankLine } from "@/components/event/bank-ledger";
 import { MyResults } from "@/components/event/my-results";
 import { EntryPanel, GoingPanel, HostedJoinCard, NameForm, PeopleSection, PersonRow, WhosComing, type HostedStatus, type Tap } from "@/components/event/panels";
@@ -75,6 +76,7 @@ export default function EventScreen() {
   });
 
   const [busy, setBusy] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [seatConfirmed, setSeatConfirmed] = useState(false);
   const refresh = () =>
@@ -123,7 +125,10 @@ export default function EventScreen() {
   const mapsUrl = pin && (!hosted || exact) ? `https://www.google.com/maps/search/?api=1&query=${pin.lat},${pin.lng}` : null;
 
   return (
-    <Screen>
+    <Screen menu={userId && ev.host_user_id !== userId && !chat.data?.hostIds.has(userId) ? (
+      <MoreMenu label="Event options" items={[{ label: "Report this event", icon: "alert-circle-outline", onPress: () => setReporting(true), testID: "report-event" }]} />
+    ) : null}>
+      <ReportSheet target={reporting ? { kind: "event", id: ev.id } : null} what="this event" onClose={() => setReporting(false)} />
       {ev.is_draft && <DraftBanner event={ev} onPublished={refresh} />}
       {ev.image_url && <Image source={{ uri: ev.image_url }} style={{ width: "100%", aspectRatio: 16 / 9, borderRadius: 16, marginBottom: 24 }} contentFit="cover" />}
       <View className="flex-row flex-wrap items-center gap-2">
@@ -207,11 +212,6 @@ export default function EventScreen() {
           </Link>
         )}
       </View>
-      {userId && ev.host_user_id !== userId && !chat.data?.hostIds.has(userId) && (
-        <View className="mt-4">
-          <ReportLink send={(reason) => reportEvent(supabase, ev.id, reason)} />
-        </View>
-      )}
 
       <Card className="mt-10 bg-brand-soft">
         <T variant="display-bold" className="text-lg">See what&apos;s on in London tonight</T>
@@ -449,11 +449,14 @@ function HostedPart({ event, info, userId, displayName, finished, tap, busy, onN
   );
 }
 
-function Screen({ children }: { children: React.ReactNode }) {
+function Screen({ children, menu }: { children: React.ReactNode; menu?: React.ReactNode }) {
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10" keyboardShouldPersistTaps="handled">
-        <BackButton fallback="/(tabs)/map" className="mb-4" />
+        <View className="z-10 mb-4 flex-row items-start justify-between">
+          <BackButton fallback="/(tabs)/map" />
+          {menu}
+        </View>
         {children}
       </ScrollView>
     </SafeAreaView>

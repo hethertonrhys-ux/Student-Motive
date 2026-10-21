@@ -3,12 +3,13 @@ import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { Linking, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { categoryInfo, formatCost, formatWhen, loadSocialEvent, nowMs, openHostChat, removeSocialGuest, reportSocialEvent, respondToRequest, spacesLeft, timeFormat } from "@function/shared";
+import { categoryInfo, formatCost, formatWhen, loadSocialEvent, nowMs, openHostChat, removeSocialGuest, respondToRequest, spacesLeft, timeFormat } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { CompleteProfileCard } from "@/components/complete-profile-card";
 import { PushPromptCard } from "@/components/push-prompt";
-import { ReportLink } from "@/components/report-link";
+import { MoreMenu } from "@/components/safety/more-menu";
+import { ReportSheet } from "@/components/safety/report-sheet";
 import { LinkButton, PeopleSection, PersonRow, type Tap } from "@/components/event/panels";
 import { ShareButton } from "@/components/share-button";
 import { Attendees } from "@/components/social/attendees";
@@ -29,6 +30,7 @@ export default function SocialEventScreen() {
   const myId = session?.user.id ?? null;
   const page = useQuery({ queryKey: ["social-event", id, myId], queryFn: () => loadSocialEvent(supabase, id, myId), enabled: !!id });
   const [busy, setBusy] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const refresh = () => Promise.all([queryClient.invalidateQueries({ queryKey: ["social-event", id] }), queryClient.invalidateQueries({ queryKey: ["social-tab"] }), queryClient.invalidateQueries({ queryKey: ["map-events"] }), queryClient.invalidateQueries({ queryKey: ["feed"] }), queryClient.invalidateQueries({ queryKey: ["recommended"] })]);
   const tap: Tap = async (run) => {
@@ -72,7 +74,11 @@ export default function SocialEventScreen() {
 
   return (
     <Screen>
-      <BackButton fallback={"/(tabs)/social"} />
+      <View className="z-10 flex-row items-start justify-between">
+        <BackButton fallback={"/(tabs)/social"} />
+        {myId && !isHost && <MoreMenu label="Plan options" items={[{ label: "Report this plan", icon: "alert-circle-outline", onPress: () => setReporting(true), testID: "report-event" }]} />}
+      </View>
+      <ReportSheet target={reporting ? { kind: "social", id } : null} what="this plan" onClose={() => setReporting(false)} />
       <View className="mt-4 flex-row flex-wrap items-center gap-2">
         <Pill>{cat.label}</Pill>
         <Pill box={event.is_private ? "bg-ink" : "bg-brand-soft"} text={event.is_private ? "text-bg" : "text-brand"}>{event.is_private ? "Private" : "Open"}</Pill>
@@ -183,7 +189,6 @@ export default function SocialEventScreen() {
             <Button variant="ghost" testID="send-in-chat">Send in a chat</Button>
           </Link>
         )}
-        {myId && !isHost && <ReportLink send={(reason) => reportSocialEvent(supabase, id, reason)} />}
       </View>
     </Screen>
   );

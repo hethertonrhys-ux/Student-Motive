@@ -94,16 +94,11 @@ export const blockUser = async (supabase: SupabaseClient, id: string): Promise<R
   const { error } = await supabase.rpc("block_user", { target: id });
   return error ? { error: friendly(error.message) } : {};
 };
-export const unblockUser = async (supabase: SupabaseClient, myId: string, id: string): Promise<Result> => {
-  const { error } = await supabase.from("user_blocks").delete().eq("blocker_id", myId).eq("blocked_id", id);
+// Only removes your own block (someone who blocked you stays blocked).
+export const unblockUser = async (supabase: SupabaseClient, _myId: string, id: string): Promise<Result> => {
+  const { error } = await supabase.rpc("unblock_user", { target: id });
   return error ? { error: friendly(error.message) } : {};
 };
-export const REPORT_REASONS = ["Harassment or bullying", "Spam or fake account", "Inappropriate content", "Safety concern", "Something else"];
-export async function reportUser(supabase: SupabaseClient, id: string, reason: string, details: string): Promise<Result> {
-  if (!REPORT_REASONS.includes(reason)) return { error: "Choose a reason." };
-  const { error } = await supabase.from("reports").insert({ reported_user_id: id, reason, details: details.trim().slice(0, 2000) || null });
-  return error ? { error: "Couldn't send the report. Please try again." } : {};
-}
 // A private chat with a friend. Returns the chat's id.
 export async function openFriendChat(supabase: SupabaseClient, id: string): Promise<string | null> {
   const { data, error } = await supabase.rpc("open_dm", { other: id });

@@ -3,14 +3,16 @@ import { Link, useIsFocused, useLocalSearchParams, useRouter } from "expo-router
 import { useEffect, useRef, useState } from "react";
 import { AppState, KeyboardAvoidingView, Platform, Pressable, ScrollView, Switch, View, type ScrollViewInstance } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { chatMediaPath, chatMediaUrls, deleteMessage, fetchMessage, fetchMessages, fetchMessagesFrom, isNote, leaveChat, loadSharedEvents, loadThreadInfo, messagePreview, pinMessage, rejoinChat, reportMessage, sendMedia, sendMessage, setMembersCanShareEvents, unpinMessage, type ChatMessage, type MediaKind } from "@function/shared";
+import { blockUser, chatMediaPath, chatMediaUrls, deleteMessage, fetchMessage, fetchMessages, fetchMessagesFrom, isNote, leaveChat, loadSharedEvents, loadThreadInfo, messagePreview, pinMessage, rejoinChat, sendMedia, sendMessage, setMembersCanShareEvents, unpinMessage, type ChatMessage, type MediaKind } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { MediaPreview, MediaViewer } from "@/components/chat/media";
 import { SharedEventCard } from "@/components/chat/shared-event-card";
+import { ReportSheet } from "@/components/safety/report-sheet";
 import { HostPill, LinkButton } from "@/components/event/panels";
 import { Icon } from "@/components/icon";
 import { Button, Card, Heading, Input, Muted, T } from "@/components/ui";
+import { confirmAction } from "@/lib/confirm";
 import { pickChatMedia, uploadChatMedia, type PickedMedia, type Upload } from "@/lib/chat-media";
 import { useTheme } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
@@ -45,8 +47,7 @@ export default function ChatScreen() {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
-  const [reportFor, setReportFor] = useState<string | null>(null);
-  const [reportReason, setReportReason] = useState("Harassment or bullying");
+  const [reportFor, setReportFor] = useState<ChatMessage | null>(null);
   const [sending, setSending] = useState(false);
   // The ••• menu: closed, open, or asking "Leave this group?".
   const [groupMenu, setGroupMenu] = useState<"closed" | "open" | "confirm">("closed");
@@ -216,6 +217,17 @@ export default function ChatScreen() {
       });
     }
     setJumpTo(pid);
+  }
+
+  // Block whoever sent a message: their messages disappear from here at once.
+  async function block(userId: string, name: string) {
+    setMenuFor(null);
+    if (!(await confirmAction(`Block ${name}?`, "You won't see each other's messages or profiles, and they can't add or message you. They aren't told.", "Block"))) return;
+    const result = await blockUser(supabase, userId);
+    if (result.error) return setError(result.error);
+    setMessages((cur) => (cur ?? []).filter((x) => x.sender_id !== userId));
+    void info.refetch();
+    void queryClient.invalidateQueries({ queryKey: ["threads"] });
   }
 
   async function toggleSharing(allowed: boolean) {
@@ -464,7 +476,7 @@ export default function ChatScreen() {
                           <Muted className="mt-0.5 px-1 text-[10px]">{time.format(new Date(m.created_at))}</Muted>
                         </View>
                       ) : (
-                      <Pressable onPress={() => setMenuFor(menuFor === m.id ? null : m.id)} className={`rounded-2xl px-3.5 py-2 ${m.deleted ? "border border-dashed border-line" : mine ? "bg-brand" : "border border-line bg-surface"}`} testID={`message-${m.id}`}>
+                      <Pressable onPress={() => setMenuFor(menuFor === m.id ? null : m.id)} onLongPress={() => setMenuFor(m.id)} className={`rounded-2xl px-3.5 py-2 ${m.deleted ? "border border-dashed border-line" : mine ? "bg-brand" : "border border-line bg-surface"}`} testID={`message-${m.id}`}>
                         <T className={m.deleted ? "text-sm italic text-muted" : mine ? "text-brand-ink" : ""}>
                           {m.deleted ? "Message deleted" : m.body}
                           <T className={`text-[10px] ${mine ? "text-brand-ink" : "text-muted"}`}>  {time.format(new Date(m.created_at))}</T>
@@ -472,47 +484,28 @@ export default function ChatScreen() {
                       </Pressable>
                       )}
                       {menuFor === m.id && !m.deleted && (
-                        <View className="mt-1 flex-row gap-3">
+                        <View className="mt-1 flex-row flex-wrap gap-4" testID="message-menu">
                           {header?.canPin && (
                             <LinkButton onPress={() => void pin(m, pinnedId !== m.id)} testID="pin-message">{pinnedId === m.id ? "Unpin" : "Pin"}</LinkButton>
                           )}
-                          {mine ? (
+                          {/* Your own messages, or anyone's if you run this group chat. */}
+                          {(mine || (header?.isGroup && header.isAdmin)) && (
                             <LinkButton
                               onPress={() =>
                                 void deleteMessage(supabase, m.id).then(() => {
-                                  setMessages((cur) => (cur ?? []).map((x) => (x.id === m.id ? { ...x, deleted: true, body: "" } : x)));
+                                  setMessages((cur) => (cur ?? []).map((x) => (x.id === m.id ? { ...x, deleted: true, body: "", media_path: null } : x)));
                                   setMenuFor(null);
                                 })
                               }
-                              confirmText="Delete this message for everyone?"
+                              confirmText={mine ? "Delete this message for everyone?" : `Delete ${m.sender_name}'s message for everyone?`}
                               danger
                               testID="delete-message"
                             >
                               Delete
                             </LinkButton>
-                          ) : (
-                            <LinkButton onPress={() => setReportFor(m.id)} danger testID="report-message">Report</LinkButton>
                           )}
-                        </View>
-                      )}
-                      {reportFor === m.id && (
-                        <View className="mt-1 w-64 gap-2">
-                          <Input value={reportReason} onChangeText={setReportReason} className="py-2" testID="report-message-reason" />
-                          <View className="flex-row gap-2">
-                            <Button
-                              className="py-1.5"
-                              onPress={async () => {
-                                const r = await reportMessage(supabase, m.id, reportReason);
-                                setError(r.error ?? null);
-                                setReportFor(null);
-                                setMenuFor(null);
-                              }}
-                              testID="send-message-report"
-                            >
-                              Send report
-                            </Button>
-                            <Button variant="ghost" className="py-1.5" onPress={() => setReportFor(null)}>Cancel</Button>
-                          </View>
+                          {!mine && <LinkButton onPress={() => { setReportFor(m); setMenuFor(null); }} danger testID="report-message">Report</LinkButton>}
+                          {!mine && m.sender_id && <LinkButton onPress={() => void block(m.sender_id!, m.sender_name)} danger testID="block-sender">{`Block ${m.sender_name}`}</LinkButton>}
                         </View>
                       )}
                     </View>
@@ -547,6 +540,11 @@ export default function ChatScreen() {
             ))}
           </ScrollView>
           <MediaViewer media={viewer} onClose={() => setViewer(null)} />
+          <ReportSheet
+            target={reportFor ? { kind: "message", id: reportFor.id } : null}
+            what={reportFor?.kind === "photo" ? "this photo" : reportFor?.kind === "video" ? "this video" : reportFor?.kind === "event" ? "this shared event" : "this message"}
+            onClose={() => setReportFor(null)}
+          />
 
           <View className="border-t border-line py-3">
             {error && <T variant="semibold" className="mb-2 text-sm text-danger">{error}</T>}
