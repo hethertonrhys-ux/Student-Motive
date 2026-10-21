@@ -41,3 +41,6 @@ example
 # generated native folders
 /ios
 /android
+
+# The website QR decoder, copied from node_modules on install (scripts/copy-qr-decoder.mjs)
+public/zxing_reader.wasm

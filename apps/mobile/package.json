@@ -16,6 +16,7 @@
     "aes-js": "^3.1.2",
     "expo": "~58.0.14",
     "expo-blur": "~58.0.4",
+    "expo-camera": "~58.0.10",
     "expo-clipboard": "~58.0.3",
     "expo-constants": "~58.0.12",
     "expo-crypto": "~58.0.7",
@@ -41,6 +42,7 @@
     "expo-web-browser": "~58.0.6",
     "maplibre-gl": "^5.24.0",
     "nativewind": "^4.2.7",
+    "qrcode-generator": "^1.4.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.0",
@@ -68,7 +70,8 @@
     "export:web": "expo export --platform web",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
-    "send-update": "node scripts/send-update.mjs"
+    "send-update": "node scripts/send-update.mjs",
+    "postinstall": "node scripts/copy-qr-decoder.mjs"
   },
   "private": true
 }
