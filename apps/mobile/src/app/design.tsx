@@ -5,7 +5,7 @@ import { EventCard } from "@/components/event-card";
 import { Icon } from "@/components/icon";
 import { Button, Card, DetailRow, Heading, Input, Label, Muted, Pill, Screen, SectionTitle, T } from "@/components/ui";
 import { useProfile } from "@/lib/profile";
-import { LIGHT, useTheme } from "@/lib/theme";
+import { LIGHT, useTheme, type TextStyle } from "@/lib/theme";
 import { useMounted } from "@/lib/use-mounted";
 import { useSession } from "@/providers/session";
 import NotFound from "./+not-found";
@@ -36,7 +36,20 @@ const SWATCHES: { key: keyof typeof LIGHT; className: string; use: string }[] = 
   { key: "ok", className: "bg-ok", use: "Success" },
 ];
 
-const SIZES = ["text-xs", "text-sm", "text-base", "text-lg", "text-xl", "text-2xl", "text-3xl", "text-5xl"];
+// Each iOS text style with a line it would really be used for.
+const TEXT_SAMPLES: [TextStyle, string][] = [
+  ["largeTitle", "Societies"],
+  ["title", "Poker Night"],
+  ["title2", "Events coming up"],
+  ["title3", "Chess Club Open Night"],
+  ["headline", "LSE Poker Society"],
+  ["body", "Join the weekly tournament."],
+  ["callout", "Saw Swee Hock Centre"],
+  ["subhead", "UCL Chess Society"],
+  ["footnote", "Tonight 19:00 · 42 going"],
+  ["caption", "ABACUS Freshers Social · 8pm"],
+  ["caption2", "LIVE"],
+];
 // Tailwind's spacing steps: each is 4px (p-4 is 16px).
 const SPACING = [1, 2, 3, 4, 5, 6, 8, 12];
 const RADII = [
@@ -100,22 +113,13 @@ export default function DesignPage() {
         </Card>
       </Section>
 
-      <Section title="Fonts">
+      <Section title="Text">
+        <Muted className="text-sm">The phone&apos;s own font (SF Pro on iPhone), in Apple&apos;s standard iOS text styles.</Muted>
         <Card className="gap-2 p-4">
-          <T variant="display" className="text-3xl">Bricolage Grotesque</T>
-          <Muted className="text-sm">Headings and event titles (display, display-bold)</Muted>
-          <T variant="display-bold" className="mt-2 text-xl">Display bold: event titles</T>
-          <T className="mt-4 text-xl">Figtree</T>
-          <Muted className="text-sm">Everything else (normal, semibold, bold)</Muted>
-          <T className="mt-2">Normal: body text</T>
-          <T variant="semibold">Semibold: labels, buttons</T>
-          <T variant="bold">Bold: badges, emphasis</T>
-        </Card>
-        <Card className="gap-1 p-4">
-          {SIZES.map((size) => (
-            <View key={size} className="flex-row items-baseline gap-3">
-              <Muted className="w-20 text-xs">{size.replace("text-", "")}</Muted>
-              <T className={`flex-1 ${size}`} numberOfLines={1}>Tonight</T>
+          {TEXT_SAMPLES.map(([style, sample]) => (
+            <View key={style} className="flex-row items-baseline gap-3">
+              <Muted className="w-20 text-xs">{style}</Muted>
+              <T variant={style} className="flex-1" numberOfLines={1}>{sample}</T>
             </View>
           ))}
         </Card>

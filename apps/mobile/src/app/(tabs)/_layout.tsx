@@ -37,7 +37,7 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: tone("muted", colors.muted),
         // 49 is the bar's usual height; the inset is added on top so the icons and labels keep their room.
         tabBarStyle: { backgroundColor: tone("surface", colors.surface), borderTopColor: tone("line", colors.line), height: 49 + bottom, paddingBottom: bottom },
-        tabBarLabelStyle: { fontFamily: "Figtree_600SemiBold", fontSize: 11 },
+        tabBarLabelStyle: { fontWeight: "600", fontSize: 11 },
       }}
     >
       {TABS.map((tab) => (
@@ -47,7 +47,7 @@ export default function TabsLayout() {
           options={{
             title: tab.title,
             tabBarBadge: badge(tab.name),
-            tabBarBadgeStyle: { backgroundColor: "#f43f5e", color: "#fff", fontFamily: "Figtree_700Bold", fontSize: 11 },
+            tabBarBadgeStyle: { backgroundColor: colors.brand, color: "#fff", fontWeight: "700", fontSize: 11 },
             tabBarIcon: ({ color, focused, size }) => <Ionicons name={focused ? tab.icon : (`${tab.icon}-outline` as const)} color={typeof color === "string" ? color : colors.muted} size={size} />,
           }}
         />

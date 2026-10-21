@@ -2,6 +2,13 @@
 // the brand in Function red. Colours are CSS variables (see src/global.css)
 // so light and dark mode work the same way as on the site. The classes use
 // each colour's -rgb version so a fade like bg-danger/10 (10% red) works.
+//
+// Text uses the phone's own font (SF Pro on iPhone, Roboto on Android, the
+// system font on the web), so no font family is ever set: the font-* classes
+// only choose a weight. The old names (font-sans-semibold, font-display...)
+// keep working on every screen; src/lib/theme.ts has the text styles.
+const plugin = require("tailwindcss/plugin");
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ["./src/**/*.{js,jsx,ts,tsx}", "../../packages/shared/src/**/*.{ts,tsx}"],
@@ -29,14 +36,19 @@ module.exports = {
       elevation: {
         soft: "2",
       },
-      fontFamily: {
-        sans: ["Figtree_400Regular"],
-        "sans-semibold": ["Figtree_600SemiBold"],
-        "sans-bold": ["Figtree_700Bold"],
-        display: ["BricolageGrotesque_800ExtraBold"],
-        "display-bold": ["BricolageGrotesque_700Bold"],
-      },
     },
   },
-  plugins: [],
+  // No font families: the system font is the default everywhere.
+  corePlugins: { fontFamily: false },
+  plugins: [
+    plugin(({ addUtilities }) =>
+      addUtilities({
+        ".font-sans": { fontWeight: "400" },
+        ".font-sans-semibold": { fontWeight: "600" },
+        ".font-sans-bold": { fontWeight: "700" },
+        ".font-display": { fontWeight: "700" },
+        ".font-display-bold": { fontWeight: "700" },
+      }),
+    ),
+  ],
 };

@@ -25,7 +25,11 @@ scan the QR code that `npm start` shows.
   components.
 - `src/lib/supabase.ts`: the Supabase client. The session lives in secure
   storage on phones and local storage on the web.
-- `src/global.css` and `tailwind.config.js`: the design tokens, with the brand in Function red `#DA291C`.
+- `src/lib/theme.ts`: the design system every screen uses: the iOS text styles, spacing,
+  corners, shadow, the one icon set (Ionicons) and light/dark colours (`src/lib/colors.ts`, kept
+  in step with `src/global.css` and `tailwind.config.js` by a test). Text is the phone's own font
+  (SF Pro on iPhone); the brand is Function red `#DA291C`. `<Frosted>` (ui.tsx) is the iOS
+  frosted-glass blur and `src/lib/haptics.ts` the taps you feel.
 - `/design` (`src/app/design.tsx`): the style guide, with every colour, font and shared component
   on one page. Not linked from anywhere; open it to check a design change in light and dark.
   Admins only on the live site and store app; open to anyone in preview mode (`npm start`, a development build).

@@ -10,54 +10,54 @@
    use so faded versions like bg-danger/10 work. */
 :root {
   color-scheme: light;
-  --bg: #f7f7fb;
-  --bg-rgb: 247 247 251;
-  --surface: #ffffff;
+  --bg: #F2F2F7;
+  --bg-rgb: 242 242 247;
+  --surface: #FFFFFF;
   --surface-rgb: 255 255 255;
-  --ink: #15142b;
-  --ink-rgb: 21 20 43;
-  --muted: #5e5d78;
-  --muted-rgb: 94 93 120;
-  --line: #e3e2ef;
-  --line-rgb: 227 226 239;
+  --ink: #0A0A0A;
+  --ink-rgb: 10 10 10;
+  --muted: #6C6C70;
+  --muted-rgb: 108 108 112;
+  --line: #E5E5EA;
+  --line-rgb: 229 229 234;
   --brand: #DA291C;
   --brand-rgb: 218 41 28;
-  --brand-ink: #ffffff;
+  --brand-ink: #FFFFFF;
   --brand-ink-rgb: 255 255 255;
-  --brand-soft: #fdeceb;
+  --brand-soft: #FDECEB;
   --brand-soft-rgb: 253 236 235;
-  --live: #f43f5e;
-  --live-rgb: 244 63 94;
-  --danger: #be123c;
-  --danger-rgb: 190 18 60;
-  --ok: #047857;
-  --ok-rgb: 4 120 87;
+  --live: #DA291C;
+  --live-rgb: 218 41 28;
+  --danger: #D70015;
+  --danger-rgb: 215 0 21;
+  --ok: #248A3D;
+  --ok-rgb: 36 138 61;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --bg: #0d0c1d;
-    --bg-rgb: 13 12 29;
-    --surface: #17162c;
-    --surface-rgb: 23 22 44;
-    --ink: #f2f1fb;
-    --ink-rgb: 242 241 251;
-    --muted: #a3a2c2;
-    --muted-rgb: 163 162 194;
-    --line: #2b2a48;
-    --line-rgb: 43 42 72;
-    --brand: #f0564a;
+    --bg: #000000;
+    --bg-rgb: 0 0 0;
+    --surface: #1C1C1E;
+    --surface-rgb: 28 28 30;
+    --ink: #FFFFFF;
+    --ink-rgb: 255 255 255;
+    --muted: #98989F;
+    --muted-rgb: 152 152 159;
+    --line: #38383A;
+    --line-rgb: 56 56 58;
+    --brand: #F0564A;
     --brand-rgb: 240 86 74;
-    --brand-ink: #ffffff;
+    --brand-ink: #FFFFFF;
     --brand-ink-rgb: 255 255 255;
-    --brand-soft: #3a1512;
+    --brand-soft: #3A1512;
     --brand-soft-rgb: 58 21 18;
-    --live: #fb7185;
-    --live-rgb: 251 113 133;
-    --danger: #fb7185;
-    --danger-rgb: 251 113 133;
-    --ok: #34d399;
-    --ok-rgb: 52 211 153;
+    --live: #F0564A;
+    --live-rgb: 240 86 74;
+    --danger: #FF6961;
+    --danger-rgb: 255 105 97;
+    --ok: #30D158;
+    --ok-rgb: 48 209 88;
   }
 }
