@@ -2,7 +2,7 @@ import { Image } from "expo-image";
 import { Link } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import type { ReactNode } from "react";
-import { Linking, Platform, Pressable, ScrollView, View, type PressableProps } from "react-native";
+import { Linking, Platform, Pressable, ScrollView, useWindowDimensions, View, type PressableProps } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { University } from "@function/shared";
 import { Muted, T } from "@/components/ui";
@@ -50,6 +50,12 @@ function WelcomeButton({ children, primary = false, ...props }: Omit<PressablePr
 // headline and full-width buttons.
 export function Landing({ uni }: { uni?: University }) {
   const insets = useSafeAreaInsets();
+  // Phones get each photo's size in points: a percentage width with an
+  // aspect ratio left the photos blank on iPhone. (The website keeps the
+  // percentage, as its page is drawn before the screen width is known.)
+  const { width } = useWindowDimensions();
+  const tile = Math.floor(Math.min(width, 672) / 2);
+  const photoStyle = Platform.OS === "web" ? { width: "50%" as const, aspectRatio: 1 } : { width: tile, height: tile };
   const steps = [
     { title: uni ? `Log in with your ${uni.short} email` : "Log in with your uni email", body: "No password needed. We email you a code." },
     { title: "Claim your society's page", body: "We check you're on the committee, usually within a day." },
@@ -63,7 +69,7 @@ export function Landing({ uni }: { uni?: University }) {
         <View>
           <View className="flex-row flex-wrap">
             {PHOTOS.map((photo, i) => (
-              <Image key={i} source={photo} contentFit="cover" style={{ width: "50%", aspectRatio: 1 }} accessibilityIgnoresInvertColors />
+              <Image key={i} source={photo} contentFit="cover" style={[photoStyle, { backgroundColor: "#1c1c1e" }]} accessibilityIgnoresInvertColors testID="landing-photo" />
             ))}
           </View>
           {/* A darker band behind the top bar, and the fade into the page (stacked layers: no gradient library needed). */}
