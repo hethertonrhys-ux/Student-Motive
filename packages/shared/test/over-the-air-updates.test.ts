@@ -66,7 +66,13 @@ describe("eas.json", () => {
   });
 
   it("only ever puts Stripe's publishable key in the app, never the secret key", () => {
-    const withStripe = (key: string) => easText.replace(/"EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "[^"]*"/g, `"EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "${key}"`);
+    // EAS refuses an empty value, so the setting is left out until there's a key.
+    for (const profile of Object.values(eas.build)) expect(profile.env?.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY, "no empty Stripe key").not.toBe("");
+    const withStripe = (key: string) => {
+      const copy = structuredClone(eas);
+      copy.build.production.env!.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY = key;
+      return JSON.stringify(copy);
+    };
     expect(productionEnv(withStripe("")).problems).toEqual([]);
     expect(productionEnv(withStripe("pk_test_abc")).problems).toEqual([]);
     expect(productionEnv(withStripe("sk_test_abc")).problems.join(" ")).toMatch(/never the secret key/);
