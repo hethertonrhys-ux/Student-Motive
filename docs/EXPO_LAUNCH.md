@@ -476,10 +476,15 @@ or a one-off command; none changes existing data.
 4. Open `supabase/RUN_ONCE_push_cron.sql`, replace
    `<PUSH_SECRET>`, and run it in the SQL Editor (Database → Extensions
    must have `pg_cron` and `pg_net` on; the file turns them on too).
-5. In Vercel (the function-app project) add the environment variable
+5. Instant sending (otherwise notifications wait for the once-a-minute
+   timer): run `supabase/migrations/20261201000000_instant_push.sql`, then
+   open `supabase/RUN_ONCE_instant_push.sql`, replace `<PUSH_SECRET>` with
+   the same PUSH_SECRET as step 3 (in the SQL Editor only, never saved in
+   the file), and run it. It stores the secret in Supabase Vault.
+6. In Vercel (the function-app project) add the environment variable
    `EXPO_PUBLIC_VAPID_PUBLIC_KEY` = the public key, and redeploy. Also add
    `EXPO_PUBLIC_SUPPORT_EMAIL` = `help@studentfunction.com`.
-6. Phones: pushes to the iPhone/Android apps need the Expo project id from
+7. Phones: pushes to the iPhone/Android apps need the Expo project id from
    `eas init` (part 3) and an EAS build; they don't work in Expo Go.
 
 ## 6. After launch
