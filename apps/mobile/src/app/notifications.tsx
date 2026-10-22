@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "expo-router";
+import { Link, useRouter } from "expo-router";
+import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ago, dayWord, initialOf, loadNotifications, twoTruthsLine } from "@function/shared";
+import { ago, dayWord, initialOf, loadNotifications, twoTruthsLine, type TwoTruthsDay } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { FriendButton } from "@/components/profile/people";
@@ -11,7 +12,8 @@ import { useMarkNotificationsSeen } from "@/lib/badges";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
-// What's happened lately: people playing your Two truths, seats opening
+// What's happened lately: people playing your Two truths (by name, so you
+// can tap through to them), seats opening
 // up, friend requests, and new events from societies you're a member of.
 export default function NotificationsScreen() {
   const { session } = useSession();
@@ -40,19 +42,9 @@ export default function NotificationsScreen() {
           <>
             {n.plays.length > 0 && (
               <List>
-                {n.plays.map((d, i) => {
-                  const line = twoTruthsLine(d);
-                  return (
-                    <Link key={d.day} href={`/u/${myId}` as never} asChild>
-                      <Pressable className={`flex-row items-start gap-3 px-4 py-3 ${i > 0 ? "border-t border-line" : ""}`}>
-                        <View className="h-10 w-10 items-center justify-center rounded-full bg-brand-soft">
-                          <T variant="display-bold" className="text-sm text-brand">2+1</T>
-                        </View>
-                        <T className="flex-1 text-sm"><T variant="bold" className="text-sm">{line.played}</T> {dayWord(d.day)}. {line.right}</T>
-                      </Pressable>
-                    </Link>
-                  );
-                })}
+                {n.plays.map((d, i) => (
+                  <TwoTruthsRow key={d.day} d={d} myId={myId} first={i === 0} />
+                ))}
               </List>
             )}
             {n.moves.length > 0 && (
@@ -137,4 +129,62 @@ export default function NotificationsScreen() {
 
 function List({ children, tight = false }: { children: React.ReactNode; tight?: boolean }) {
   return <View className={`${tight ? "" : "mt-6 "}overflow-hidden rounded-2xl border border-line bg-surface`}>{children}</View>;
+}
+
+// One day of people playing your Two truths and a lie. Each name opens that
+// person's profile; with more than three, "See all" lists everyone and
+// whether they spotted the lie.
+function TwoTruthsRow({ d, myId, first }: { d: TwoTruthsDay; myId: string; first: boolean }) {
+  const router = useRouter();
+  const [all, setAll] = useState(false);
+  const line = twoTruthsLine(d);
+  const open = (id: string) => router.push(`/u/${id}` as never);
+  const badge = (
+    <View className="h-10 w-10 items-center justify-center rounded-full bg-brand-soft">
+      <T variant="display-bold" className="text-sm text-brand">2+1</T>
+    </View>
+  );
+  // The older counts-only version (before the names migration has run).
+  if (line.shown.length === 0) {
+    return (
+      <Link href={`/u/${myId}` as never} asChild>
+        <Pressable className={`flex-row items-start gap-3 px-4 py-3 ${first ? "" : "border-t border-line"}`}>
+          {badge}
+          <T className="flex-1 text-sm"><T variant="bold" className="text-sm">{line.played}</T> {dayWord(d.day)}. {line.right}</T>
+        </Pressable>
+      </Link>
+    );
+  }
+  return (
+    <View className={`flex-row items-start gap-3 px-4 py-3 ${first ? "" : "border-t border-line"}`} testID={`two-truths-${d.day}`}>
+      {line.shown.length === 1 ? <Pressable onPress={() => open(line.shown[0].id)}><Avatar name={line.shown[0].name} url={line.shown[0].avatarUrl} size={40} /></Pressable> : badge}
+      <View className="min-w-0 flex-1 gap-1">
+        <T className="text-sm">
+          {line.shown.map((p, i) => (
+            <T key={p.id}>
+              {i > 0 && (i === line.shown.length - 1 && !line.more ? " and " : ", ")}
+              <T variant="bold" className="text-sm text-brand" onPress={() => open(p.id)} testID={`played-${p.id}`}>{p.name}</T>
+            </T>
+          ))}
+          {line.more > 0 && <T variant="bold" className="text-sm"> and {line.more} more</T>} played your Two truths and a lie {dayWord(d.day)}. {line.right}
+        </T>
+        {line.more > 0 && (
+          <Pressable onPress={() => setAll((a) => !a)} className="min-h-9 justify-center self-start" testID={`see-all-${d.day}`}>
+            <T variant="semibold" className="text-sm text-brand">{all ? "Show less" : `See all ${d.players.length}`}</T>
+          </Pressable>
+        )}
+        {all && (
+          <View className="mt-1 gap-1" testID={`all-players-${d.day}`}>
+            {d.players.map((p) => (
+              <Pressable key={p.id} onPress={() => open(p.id)} className="min-h-11 flex-row items-center gap-2.5 rounded-xl px-1 py-1 active:opacity-80">
+                <Avatar name={p.name} url={p.avatarUrl} size={28} />
+                <T variant="semibold" className="flex-1 text-sm" numberOfLines={1}>{p.name}</T>
+                <Muted className={`text-xs ${p.right ? "text-ok" : ""}`}>{p.right ? "✓ Spotted the lie" : "Didn't spot it"}</Muted>
+              </Pressable>
+            ))}
+          </View>
+        )}
+      </View>
+    </View>
+  );
 }

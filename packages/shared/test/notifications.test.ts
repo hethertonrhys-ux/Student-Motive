@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
-import { getSocietyPosts } from "../src/notifications";
+import { getSocietyPosts, groupTwoTruthsPlays, twoTruthsLine } from "../src/notifications";
 
 type Res = { data: unknown; error: { code?: string; message?: string } | null; status?: number };
 
@@ -66,5 +66,25 @@ describe("society posts in Notifications", () => {
     const { client, queries } = fakeClient(() => ({ data: [], error: null }));
     expect(await getSocietyPosts(client, "me")).toEqual([]);
     expect(queries.filter((q) => q.table === "events")).toHaveLength(0);
+  });
+});
+
+describe("Two truths and a lie: who played", () => {
+  const p = (name: string, right: boolean, at: string) => ({ id: name.toLowerCase(), name, avatarUrl: null, right, at });
+  it("groups plays by UK day, newest day first, and names one player", () => {
+    const days = groupTwoTruthsPlays([p("Sam", true, "2026-10-21T22:30:00Z"), p("Bea", false, "2026-10-22T09:00:00Z")]);
+    // 22:30 UTC on the 21st is 23:30 in London: still the 21st.
+    expect(days.map((d) => d.day)).toEqual(["2026-10-22", "2026-10-21"]);
+    expect(twoTruthsLine(days[1])).toMatchObject({ played: "Sam played your Two truths and a lie", right: "They spotted the lie!", more: 0 });
+    expect(twoTruthsLine(days[0]).right).toBe("They didn't spot the lie.");
+  });
+  it("names up to three, then 'and N more'", () => {
+    const three = groupTwoTruthsPlays([p("Sam", true, "2026-10-22T10:00:00Z"), p("Bea", false, "2026-10-22T11:00:00Z"), p("Cas", true, "2026-10-22T12:00:00Z")]);
+    expect(twoTruthsLine(three[0])).toMatchObject({ played: "Sam, Bea and Cas played your Two truths and a lie", right: "2 of them spotted the lie.", more: 0 });
+    const five = groupTwoTruthsPlays(["Sam", "Bea", "Cas", "Dev", "Eve"].map((n, i) => p(n, false, `2026-10-22T1${i}:00:00Z`)));
+    const line = twoTruthsLine(five[0]);
+    expect(line).toMatchObject({ played: "Sam, Bea and 3 more played your Two truths and a lie", right: "Nobody spotted the lie.", more: 3 });
+    expect(line.shown.map((x) => x.name)).toEqual(["Sam", "Bea"]);
+    expect(five[0].at).toBe("2026-10-22T10:00:00Z");
   });
 });
