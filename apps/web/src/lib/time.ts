@@ -90,11 +90,12 @@ export function nowMs() {
   return Date.now();
 }
 
-// The next 6am in London after `now`. "Tonight" runs until then.
-export function nextLondonSixAm(now = Date.now(), extraDays = 0): string {
+// When "Tonight" ends: 6am on the morning after today's evening, in London
+// (the London calendar day, so at 3am on Thursday, Thursday evening is still
+// "Tonight"). extraNights moves it on (1 = when "Tomorrow" ends).
+export function nightEnds(now = Date.now(), extraNights = 0): string {
   const p = londonParts(new Date(now));
-  const addDays = (p.hour >= 6 ? 1 : 0) + extraDays;
-  const d = new Date(Date.UTC(p.year, p.month - 1, p.day + addDays));
+  const d = new Date(Date.UTC(p.year, p.month - 1, p.day + 1 + extraNights));
   const pad = (n: number) => String(n).padStart(2, "0");
   const local = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T06:00`;
   return londonInputToIso(local)!;

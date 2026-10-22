@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { nextLondonSixAm, nowMs } from "@/lib/time";
+import { nightEnds, nowMs } from "@/lib/time";
 import type { EventCategory } from "@/lib/types";
 import { getCards } from "@/lib/social";
 import { socialToMapCategory, type MapCategory } from "@/lib/map-categories";
@@ -25,8 +25,8 @@ export type MapEvent = {
 
 export type MapWindows = {
   now: string;
-  tonightEnds: string; // next 6am
-  tomorrowEnds: string; // the 6am after that
+  tonightEnds: string; // 6am after tonight
+  tomorrowEnds: string; // 6am after tomorrow night
 };
 
 type Row = {
@@ -66,8 +66,8 @@ export async function getMapEvents(): Promise<{ events: MapEvent[]; windows: Map
   const now = nowMs();
   const windows: MapWindows = {
     now: new Date(now).toISOString(),
-    tonightEnds: nextLondonSixAm(now),
-    tomorrowEnds: nextLondonSixAm(now, 1),
+    tonightEnds: nightEnds(now),
+    tomorrowEnds: nightEnds(now, 1),
   };
 
   const supabase = await createClient();
