@@ -27,7 +27,8 @@ export default function EditEventScreen() {
   const refreshAll = () => Promise.all([queryClient.invalidateQueries({ queryKey: ["managed", societyId] }), queryClient.invalidateQueries({ queryKey: ["event-admin", eventId] }), queryClient.invalidateQueries({ queryKey: ["edit-event", societyId, eventId] }), queryClient.invalidateQueries({ queryKey: ["event", eventId] }), queryClient.invalidateQueries({ queryKey: ["manage-event", societyId, eventId] }), queryClient.invalidateQueries({ queryKey: ["map-events"] }), queryClient.invalidateQueries({ queryKey: ["feed"] }), queryClient.invalidateQueries({ queryKey: ["founding-progress", societyId] }), queryClient.invalidateQueries({ queryKey: ["founding-badge", societyId] })]);
   return (
     <SafeAreaView className="flex-1 bg-bg">
-      <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10" keyboardShouldPersistTaps="handled">
+      {/* The phone keeps the page where it is as the keyboard comes and goes. */}
+      <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10" keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets>
         <BackButton fallback={`/dashboard/${societyId}`} />
         <View className="mb-8 mt-3 flex-row items-center justify-between gap-4">
           <Heading>Edit event</Heading>

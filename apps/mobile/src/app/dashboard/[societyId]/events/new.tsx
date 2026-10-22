@@ -29,7 +29,8 @@ export default function NewEventScreen() {
   const created = useRef<string | null>(null);
   return (
     <SafeAreaView className="flex-1 bg-bg">
-      <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10" keyboardShouldPersistTaps="handled">
+      {/* The phone keeps the page where it is as the keyboard comes and goes. */}
+      <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10" keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets>
         <BackButton fallback={fromHub ? `/hub/${societyId}/setup?step=event` : `/dashboard/${societyId}`} />
         <Heading className="mb-8 mt-3">Post an event</Heading>
         {!society || !venues.data ? (
