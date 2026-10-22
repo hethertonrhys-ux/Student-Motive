@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Modal, Pressable, ScrollView, View } from "react-native";
+import { Keyboard, Modal, Pressable, ScrollView, View } from "react-native";
 import { Icon } from "@/components/icon";
 import { Input, Muted, T } from "@/components/ui";
 
@@ -20,9 +20,16 @@ export function Select({ value, options, onChange, placeholder = "Choose…", ac
     setOpen(false);
     setQuery("");
   };
+  // Put the keyboard away first (this also takes the focus off the box being
+  // typed in). Otherwise, on iPhone, closing the list gives that box its
+  // focus back, and the page scrolls back up to it.
+  const openList = () => {
+    Keyboard.dismiss();
+    setOpen(true);
+  };
   return (
     <>
-      <Pressable onPress={() => setOpen(true)} accessibilityRole="combobox" accessibilityLabel={accessibilityLabel} testID={testID} className={`min-h-11 flex-row items-center justify-between gap-2 rounded-xl border border-line bg-surface px-3.5 py-2.5 ${className}`}>
+      <Pressable onPress={openList} accessibilityRole="combobox" accessibilityLabel={accessibilityLabel} testID={testID} className={`min-h-11 flex-row items-center justify-between gap-2 rounded-xl border border-line bg-surface px-3.5 py-2.5 ${className}`}>
         <T className={`flex-1 ${current ? "" : "text-muted"}`} numberOfLines={1}>{current?.label ?? placeholder}</T>
         <Icon name="chevron-down" size={18} color="#5e5d78" />
       </Pressable>
