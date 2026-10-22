@@ -12,8 +12,8 @@ import { supabase } from "@/lib/supabase";
 import { usePullToRefresh, useRefetchOnFocus } from "@/lib/use-refetch-on-focus";
 import { useSession } from "@/providers/session";
 
-// The Societies tab: find societies, your memberships, the ones you run, and
-// two buttons to the society events pages (everything coming up, and the
+// The Societies tab: find societies, your memberships, the ones you run
+// (only for people who manage one), and two buttons to the society events pages (everything coming up, and the
 // ones you're going to).
 export default function SocietiesScreen() {
   const { session } = useSession();
@@ -51,24 +51,14 @@ export default function SocietiesScreen() {
           </View>
         )}
 
-        {session && profile && (
-          <View className="mt-8">
+        {/* Only for people who manage a society. */}
+        {session && profile && runs.length > 0 && (
+          <View className="mt-8" testID="societies-you-run">
             <T variant="display" className="text-xl">Societies you run</T>
-            {runs.length > 0 ? (
-              <>
-                <Muted className="mt-1 text-sm">{runs.length === 1 ? runs[0].name : `${runs.length} societies`}: post events, approve members and see who&apos;s coming.</Muted>
-                {/* One society: straight to its dashboard. More: pick one there. */}
-                <Link href={(runs.length === 1 ? `/dashboard/${runs[0].id}` : "/dashboard") as never} asChild>
-                  <Button className="mt-3" testID="dashboard-link">Society dashboard</Button>
-                </Link>
-              </>
-            ) : (
-              data && <Muted className="mt-1 text-sm">On a committee? Ask to manage your society&apos;s page and we&apos;ll approve it once we&apos;ve checked.</Muted>
-            )}
-            <Link href={"/dashboard/claim" as never} asChild>
-              <Pressable className="mt-3 min-h-11 justify-center self-start" accessibilityRole="link" testID="request-manage">
-                <T variant="semibold" className="text-sm text-brand">+ Request to manage a society</T>
-              </Pressable>
+            <Muted className="mt-1 text-sm">{runs.length === 1 ? runs[0].name : `${runs.length} societies`}: post events, approve members and see who&apos;s coming.</Muted>
+            {/* One society: straight to its dashboard. More: pick one there. */}
+            <Link href={(runs.length === 1 ? `/dashboard/${runs[0].id}` : "/dashboard") as never} asChild>
+              <Button className="mt-3" testID="dashboard-link">Society dashboard</Button>
             </Link>
           </View>
         )}
@@ -84,6 +74,18 @@ export default function SocietiesScreen() {
               testID="your-upcoming"
             />
           </View>
+        )}
+
+        {/* How a committee gets started (or adds another society). */}
+        {session && profile && data && (
+          <Link href={"/dashboard/claim" as never} asChild>
+            <Pressable className="mt-6 min-h-11 justify-center self-start" accessibilityRole="link" testID="request-manage">
+              <T variant="semibold" className="text-sm text-muted">
+                {runs.length > 0 ? "Run another society? " : "On a society's committee? "}
+                <T variant="semibold" className="text-sm text-brand">Ask to manage its page</T>
+              </T>
+            </Pressable>
+          </Link>
         )}
 
         {tab.isError && <T variant="semibold" className="mt-6 text-sm text-danger">Couldn&apos;t load your societies. Pull down to try again.</T>}
