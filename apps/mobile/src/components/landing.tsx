@@ -8,10 +8,11 @@ import type { University } from "@function/shared";
 import { Muted, T } from "@/components/ui";
 import { buttonTap } from "@/lib/haptics";
 
+// For societies, after the social side.
 const perks = [
-  { title: "One place, not twelve", body: "Stop reposting across WhatsApp groups, Instagram stories and email lists." },
-  { title: "Reach beyond your members", body: "Students who don't follow you yet still see you on the map tonight." },
-  { title: "See who's coming", body: "Live \"I'm going\" numbers for every event, before the night." },
+  { title: "Post once", body: "No more reposting across WhatsApp groups, Instagram stories and email lists." },
+  { title: "Reach new faces", body: "Students who don't follow you yet find your events on the map." },
+  { title: "See who's coming", body: "Live \"I'm going\" numbers before the night." },
   { title: "Free for societies", body: "Always. No fees, no catch." },
 ];
 
@@ -22,9 +23,6 @@ const PHOTOS = [require("@/assets/landing/quiz.jpg"), require("@/assets/landing/
 // The welcome screen is always black, like TikTok's and Snapchat's, in light and dark mode alike.
 const BLACK = "#000000";
 const CARD = "bg-[#1C1C1E]";
-
-// "LSE's", but "King's" stays "King's" (not "King's's").
-export const possessive = (name: string) => (name.endsWith("'s") ? name : `${name}'s`);
 
 // A full-width button on the black page: Function red for the main action, dark grey for the rest.
 function WelcomeButton({ children, primary = false, ...props }: Omit<PressableProps, "children"> & { children: ReactNode; primary?: boolean }) {
@@ -44,8 +42,8 @@ function WelcomeButton({ children, primary = false, ...props }: Omit<PressablePr
 }
 
 // The home page (London-wide) and each uni's page (/lse, /ucl, /kings,
-// /imperial), which says the same things for that uni. The same words as
-// the website's landing page, laid out like TikTok's and Snapchat's
+// /imperial), which says the same things for that uni. Social first (plans,
+// friends, nights out), societies second. Laid out like TikTok's and Snapchat's
 // welcome screens: real-life photos at the top fading into black, a big
 // headline and full-width buttons.
 export function Landing({ uni }: { uni?: University }) {
@@ -57,9 +55,9 @@ export function Landing({ uni }: { uni?: University }) {
   const tile = Math.floor(Math.min(width, 672) / 2);
   const photoStyle = Platform.OS === "web" ? { width: "50%" as const, aspectRatio: 1 } : { width: tile, height: tile };
   const steps = [
-    { title: uni ? `Log in with your ${uni.short} email` : "Log in with your uni email", body: "No password needed. We email you a code." },
-    { title: "Claim your society's page", body: "We check you're on the committee, usually within a day." },
-    { title: "Post an event in a minute", body: "It goes straight onto the live map for students across London." },
+    { title: uni ? `Sign up with your ${uni.short} email` : "Sign up with your uni email", body: "We email you a code. No password to remember." },
+    { title: "See what's on", body: "Plans, parties and society events on a live map, tonight and tomorrow." },
+    { title: "Make a plan", body: "Pick a time and place, invite friends or open it up, and chat before you go." },
   ];
   return (
     <View className="flex-1" style={{ backgroundColor: BLACK }}>
@@ -106,25 +104,25 @@ export function Landing({ uni }: { uni?: University }) {
             </T>
           </View>
           <T className="text-[40px] leading-[44px] font-sans-bold tracking-tight text-white" testID="landing-title">
-            {uni ? `${possessive(uni.short)} student social life, all in one place.` : "London's student social life, all in one place."}
+            Make plans. Meet people. Go out.
           </T>
           <T variant="headline" className="mt-4 text-white">
-            {uni ? `Societies, events and socials at ${uni.short}, plus open socials across London.` : "For students at every London university."}
+            {uni ? `The social app for ${uni.short} students, with plans open to every London uni.` : "The social app for students at every London uni."}
           </T>
           <T variant="body" className="mt-2 text-[#98989F]">
-            Function puts every society and every event in one place. Students open the map and see what&apos;s happening
-            tonight. Societies post once and reach everyone.
+            Open the map to see what&apos;s on tonight and which friends are going. Start a plan, invite your mates, and meet
+            people from your course, your halls and across the city.
           </T>
           <View className="mt-7 gap-2.5">
             <Link href="/login" asChild>
               <WelcomeButton primary testID="landing-login">{uni ? `Join with your ${uni.short} email` : "Log in or sign up"}</WelcomeButton>
             </Link>
             <Link href="/(tabs)/map" asChild>
-              <WelcomeButton>See the live map</WelcomeButton>
+              <WelcomeButton>See what&apos;s on tonight</WelcomeButton>
             </Link>
             {!uni && (
               <Link href="/login" asChild>
-                <WelcomeButton>Get your society on Function</WelcomeButton>
+                <WelcomeButton>Run a society? Get it on Function</WelcomeButton>
               </Link>
             )}
           </View>
@@ -144,7 +142,7 @@ export function Landing({ uni }: { uni?: University }) {
           </View>
 
           <View className="pt-12">
-            <T variant="title2" className="text-white">What societies get</T>
+            <T variant="title2" className="text-white">Running a society?</T>
             <View className="mt-4 gap-3">
               {perks.map((perk) => (
                 <View key={perk.title} className={`rounded-2xl p-4 ${CARD}`}>

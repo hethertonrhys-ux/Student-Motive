@@ -1,7 +1,7 @@
 import { ScrollViewStyleReset, useServerDocumentContext } from "expo-router/html";
 import type { PropsWithChildren } from "react";
 
-const DESCRIPTION = "London's student social life, all in one place. Societies, events and socials for students at every London university, on one live map.";
+const DESCRIPTION = "Make plans, meet people and see what's on tonight. The social app for students at every London uni.";
 
 // The page around the web app: what search engines and link previews see,
 // and what lets phones add Function to their home screen (the manifest).
