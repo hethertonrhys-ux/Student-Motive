@@ -205,12 +205,6 @@ export default function EventScreen() {
       <View className="mt-8 flex-row flex-wrap gap-3">
         {ev.ticket_url && <Button onPress={() => Linking.openURL(ev.ticket_url!)} testID="ticket-link">Tickets / sign up</Button>}
         {!ev.is_draft && <ShareButton url={`${SITE_URL}/e/${ev.id}`} title={ev.title} />}
-        {/* Into one of your chats, as a card (people still join on the event's page). */}
-        {userId && !ev.is_draft && !ev.is_cancelled && (
-          <Link href={`/share?event=${ev.id}` as never} asChild>
-            <Button variant="ghost" testID="send-in-chat">Send in a chat</Button>
-          </Link>
-        )}
       </View>
 
       <Card className="mt-10 bg-brand-soft">

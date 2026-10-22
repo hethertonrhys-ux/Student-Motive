@@ -471,6 +471,41 @@ export async function addLateArrival(supabase: SupabaseClient, eventId: string, 
   return error ? { error: "Couldn't add them. Please try again." } : {};
 }
 
+// A player who isn't on Function (no phone), added by name to a table (or
+// to the event, tableId null). They're a results line from the start, so
+// they show in that table's results and settle-up without being added again
+// there. Only the committee can add them (the database checks).
+export async function addGuestPlayer(supabase: SupabaseClient, eventId: string, tableId: string | null, name: string): Promise<Result> {
+  const player = name.trim().replace(/\s+/g, " ").slice(0, 60);
+  if (!player) return { error: "Type their name." };
+  const { error } = await supabase.from("ledger_rows").insert({ event_id: eventId, table_id: tableId, player_name: player, user_id: null });
+  return error ? { error: "Couldn't add them. Please try again." } : {};
+}
+
+// Takes a player who isn't on Function off the event (and their results line).
+export async function removeGuestPlayer(supabase: SupabaseClient, eventId: string, rowId: string): Promise<Result> {
+  const { error } = await supabase.from("ledger_rows").delete().eq("id", rowId).eq("event_id", eventId).is("user_id", null);
+  return error ? { error: "Couldn't remove them. Please try again." } : {};
+}
+
+// Society members whose name matches what's typed (first name or any later
+// word, ignoring case and accents), best matches first, for the "Add a
+// player" box.
+export function matchMembers<M extends { name: string }>(members: M[], query: string, limit = 6): M[] {
+  const fold = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const q = fold(query);
+  if (!q) return [];
+  const scored = members
+    .map((m) => {
+      const name = fold(m.name);
+      const score = name.startsWith(q) ? 0 : name.split(/\s+/).some((w) => w.startsWith(q)) ? 1 : name.includes(q) ? 2 : -1;
+      return { m, score };
+    })
+    .filter((x) => x.score >= 0)
+    .sort((a, b) => a.score - b.score || a.m.name.localeCompare(b.m.name));
+  return scored.slice(0, limit).map((x) => x.m);
+}
+
 // Finishing positions (1 = winner); blank clears.
 export async function savePositions(supabase: SupabaseClient, eventId: string, positions: { userId: string; position: string }[]): Promise<Result> {
   for (const { userId, position } of positions) {
