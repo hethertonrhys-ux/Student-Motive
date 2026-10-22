@@ -4,8 +4,11 @@
 // Deploy:  supabase functions deploy send-push --no-verify-jwt
 // Secrets: supabase secrets set PUSH_SECRET=... VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_SUBJECT=mailto:help@studentfunction.com
 // (SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided automatically.)
-// Called every minute by pg_cron (see supabase/RUN_ONCE_push_cron.sql), or
-// by a Database Webhook on push_queue inserts, with the x-push-secret header.
+// Called straight away when notifications are queued (the push_queue_kick
+// trigger, set up by RUN_ONCE_instant_push.sql), and every minute by pg_cron
+// as the backup (RUN_ONCE_push_cron.sql), with the x-push-secret header.
+// Each run claims its batch (claim_push_batch), so two runs at once never
+// send the same notification twice.
 //
 // Any failure is returned as JSON ({ "error": "..." }) so it can be read from
 // net._http_response.content or the function's Logs tab.
@@ -63,14 +66,17 @@ async function run() {
   if (!url || !key) throw new Error("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not set");
   const supabase = createClient(url, key);
 
-  const { data: queued, error: queueError } = await supabase
-    .from("push_queue")
-    .select("id, user_id, kind, title, body, url")
-    .is("sent_at", null)
-    .order("created_at")
-    .limit(200);
-  if (queueError) throw new Error(`reading push_queue: ${queueError.message}`);
-  const rows = (queued ?? []) as QueueRow[];
+  // Take the next notifications to send, so no other run sends them too.
+  // (Before the instant-push migration is run there's no claim function, so
+  // it reads the queue the old way.)
+  let rows: QueueRow[];
+  const claimed = await supabase.rpc("claim_push_batch", { batch: 200 });
+  if (!claimed.error) rows = ((claimed.data ?? []) as QueueRow[]).sort((a, b) => a.id - b.id);
+  else {
+    const { data: queued, error: queueError } = await supabase.from("push_queue").select("id, user_id, kind, title, body, url").is("sent_at", null).order("created_at").limit(200);
+    if (queueError) throw new Error(`reading push_queue: ${queueError.message}`);
+    rows = (queued ?? []) as QueueRow[];
+  }
   if (rows.length === 0) return { sent: 0 };
 
   const { data: tokenRows, error: tokenError } = await supabase
@@ -82,12 +88,13 @@ async function run() {
   const byUser = new Map<string, TokenRow[]>();
   for (const t of tokens) byUser.set(t.user_id, [...(byUser.get(t.user_id) ?? []), t]);
 
-  const expoMessages: { to: string; title: string; body: string; data: { url: string | null }; sound: "default"; channelId: string }[] = [];
+  // priority "high": delivered straight away rather than when the phone next wakes up.
+  const expoMessages: { to: string; title: string; body: string; data: { url: string | null }; sound: "default"; channelId: string; priority: "high" }[] = [];
   const webJobs: { row: QueueRow; token: TokenRow }[] = [];
   for (const row of rows) {
     for (const t of byUser.get(row.user_id) ?? []) {
       if (t.platform === "web") webJobs.push({ row, token: t });
-      else expoMessages.push({ to: t.token, title: row.title, body: row.body, data: { url: row.url }, sound: "default", channelId: "default" });
+      else expoMessages.push({ to: t.token, title: row.title, body: row.body, data: { url: row.url }, sound: "default", channelId: "default", priority: "high" });
     }
   }
 
@@ -142,3 +149,4 @@ async function run() {
   if (markError) throw new Error(`marking push_queue as sent: ${markError.message}`);
   return { sent: rows.length, expo: expoMessages.length, web: webJobs.length, removedTokens: dead.size, errors: errors.slice(0, 5) };
 }
+
