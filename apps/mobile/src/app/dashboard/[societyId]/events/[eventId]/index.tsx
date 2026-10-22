@@ -3,11 +3,11 @@ import { Link, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { audienceLabel, bankEditorRows, eventAdminAvailable, FORMATS, formatEventTime, hasEnded, hasFeature, loadManagedSociety, loadManageEvent, nowMs, promoteEntry, removeEntry, savePositions, setResultsPublished, setTableBank, type Society, startingRows, type Person } from "@function/shared";
+import { audienceLabel, bankEditorRows, eventAdminAvailable, FORMATS, formatEventTime, hasEnded, hasFeature, loadManagedSociety, loadManageEvent, nowMs, promoteEntry, removeEntry, savePositions, setResultsPublished, setTableBank, type EventTable, type Society, startingRows, type Person } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { Avatar } from "@/components/avatar";
 import { EventAdminCard } from "@/components/committee/event-admin-card";
-import { LateArrival, TablesAdmin } from "@/components/committee/tables-admin";
+import { AddPlayer, TablesAdmin } from "@/components/committee/tables-admin";
 import { LedgerEditor } from "@/components/committee/ledger-editor";
 import { BankLedger } from "@/components/event/bank-ledger";
 import { LinkButton, type Tap } from "@/components/event/panels";
@@ -67,9 +67,11 @@ function ManageBody({ societyId, eventId, uni, ledgerOn, adminSociety, d, tap, b
   const finished = hasEnded(event.ends_at);
   const formatLabel = FORMATS.find((f) => f.value === event.format)?.label;
   const [positions, setPositions] = useState<Record<string, string>>(() => Object.fromEntries(going.map((p) => [p.userId, p.finishPosition ? String(p.finishPosition) : ""])));
-  const [bankPick, setBankPick] = useState<Record<string, string>>({});
   // Switching the ledger off doesn't take it away from an event already using it.
   const ledgerShown = ledgerOn || event.results_published || ledger.rows.length > 0 || ledger.payments.length > 0 || tables.some((t) => t.bank_user_id);
+  // Players who aren't on Function: their results line is how they're on the event.
+  const guests = ledger.rows.filter((r) => !r.user_id);
+  const guestsAllowed = ledgerShown && event.format !== "entries";
 
   return (
     <>
@@ -89,8 +91,10 @@ function ManageBody({ societyId, eventId, uni, ledgerOn, adminSociety, d, tap, b
       <T variant="display" className="mt-8 text-xl" testID="going-heading">
         {event.format === "entries" ? "Entries" : "Going"} ({going.length}{event.format === "entries" && event.capacity ? ` of ${event.capacity}` : ""})
       </T>
+      {/* Adding players comes first, and stays open to add more. */}
+      {(!finished || event.format === "tables" || guestsAllowed) && <AddPlayer eventId={eventId} members={notComing} tables={event.format === "tables" ? tables : []} guestsAllowed={guestsAllowed} tap={tap} busy={busy} />}
       {event.format === "tables" ? (
-        <TablesAdmin eventId={eventId} tables={tables} people={going} eventStarted={new Date(event.starts_at).getTime() <= nowMs()} finished={finished} tap={tap} busy={busy} />
+        <TablesAdmin eventId={eventId} tables={tables} people={going} guests={guests} eventStarted={new Date(event.starts_at).getTime() <= nowMs()} finished={finished} tap={tap} busy={busy} />
       ) : event.format === "entries" && finished ? (
         <Card className="mt-3 gap-3">
           <Muted className="text-sm">Enter finishing positions (1 = winner). Leave blank for anyone who didn&apos;t place.</Muted>
@@ -106,7 +110,6 @@ function ManageBody({ societyId, eventId, uni, ledgerOn, adminSociety, d, tap, b
       ) : (
         <PeopleList people={going} numbered={event.format === "entries"} onRemove={(uid) => void tap(() => removeEntry(supabase, eventId, uid))} busy={busy} />
       )}
-      {(!finished || event.format === "tables") && <LateArrival eventId={eventId} members={notComing} tables={event.format === "tables" ? tables : []} tap={tap} busy={busy} />}
       {waitlist.length > 0 && (
         <View className="mt-6" testID="waitlist">
           <T variant="semibold">Waiting list ({waitlist.length})</T>
@@ -143,23 +146,11 @@ function ManageBody({ societyId, eventId, uni, ledgerOn, adminSociety, d, tap, b
               const tableId = table?.id ?? null;
               const saved = ledger.rows.filter((r) => r.table_id === tableId);
               const seated = going.filter((p) => (tableId ? p.tableId === tableId : true));
-              const bankValue = table ? (bankPick[table.id] ?? table.bank_user_id ?? "") : "";
               return (
                 <View key={tableId ?? "event"} className="gap-2">
-                  {table && (
-                    <View className="rounded-xl border border-line bg-surface p-3" testID={`bank-pick-${table.id}`}>
-                      <T variant="semibold">How {table.name} settles up</T>
-                      <View className="mt-2 flex-row flex-wrap items-center gap-2">
-                        <View className="min-w-[60%] flex-1">
-                          <Select value={bankValue} onChange={(v) => setBankPick((cur) => ({ ...cur, [table.id]: v }))} options={[{ value: "", label: "Auto-settle (fewest payments)" }, ...seated.map((p) => ({ value: p.userId, label: `${p.name} is the bank` }))]} accessibilityLabel={`Bank for ${table.name}`} testID={`bank-select-${table.id}`} />
-                        </View>
-                        <Pressable onPress={() => void tap(() => setTableBank(supabase, eventId, table.id, bankValue || null))} disabled={busy} testID="set-bank"><T variant="semibold" className="text-brand">Set</T></Pressable>
-                      </View>
-                      <Muted className="mt-1.5 text-xs">{table.bank_user_id ? "One player is the bank: they record buy-ins and cash-outs, and everyone pays or is paid by them." : "Auto-settle: enter everyone's result and the app works out the fewest payments between players."}</Muted>
-                    </View>
-                  )}
+                  {table && <SettleMode eventId={eventId} table={table} seated={seated} tap={tap} busy={busy} />}
                   {table && table.bank_user_id ? (
-                    <BankLedger key={`bank-${tableId}-${seated.map((p) => p.userId).join(",")}-${saved.map((r) => `${r.id}:${r.buyin_pence}:${r.cashout_pence}:${r.paid_out}:${r.adjust_pence}`).join("|")}`} event={event} table={table} initialRows={bankEditorRows(saved, seated)} onSaved={refresh} />
+                    <BankLedger canAddPlayers={false} key={`bank-${tableId}-${seated.map((p) => p.userId).join(",")}-${saved.map((r) => `${r.id}:${r.buyin_pence}:${r.cashout_pence}:${r.paid_out}:${r.adjust_pence}`).join("|")}`} event={event} table={table} initialRows={bankEditorRows(saved, seated)} onSaved={refresh} />
                   ) : (
                     <LedgerEditor
                       key={`${tableId}-${seated.map((p) => p.userId).join(",")}-${saved.map((r) => `${r.id}:${r.net_pence}:${r.player_name}`).join("|")}`}
@@ -178,6 +169,44 @@ function ManageBody({ societyId, eventId, uni, ledgerOn, adminSociety, d, tap, b
         </View>
       )}
     </>
+  );
+}
+
+// How a table settles up, chosen straight away (no separate Set button):
+// fewest payments between players, or one player as the banker.
+function SettleMode({ eventId, table, seated, tap, busy }: { eventId: string; table: EventTable; seated: Person[]; tap: Tap; busy: boolean }) {
+  // Picking "banker" shows who; it's saved once someone's chosen.
+  const [choosingBank, setChoosingBank] = useState(false);
+  const bank = !!table.bank_user_id || choosingBank;
+  const option = (on: boolean, label: string, onPress: () => void, testID: string) => (
+    <Pressable onPress={onPress} disabled={busy} accessibilityRole="radio" accessibilityState={{ checked: on }} className={`min-h-11 flex-1 items-center justify-center rounded-xl border px-3 py-2 ${on ? "border-brand bg-brand-soft" : "border-line bg-surface"}`} testID={testID}>
+      <T variant="semibold" className={`text-center text-sm ${on ? "text-brand" : ""}`}>{label}</T>
+    </Pressable>
+  );
+  return (
+    <View className="rounded-xl border border-line bg-surface p-3" testID={`bank-pick-${table.id}`}>
+      <T variant="semibold">How {table.name} settles up</T>
+      <View className="mt-2 flex-row gap-2">
+        {option(!bank, "Fewest payments", () => {
+          setChoosingBank(false);
+          if (table.bank_user_id) void tap(() => setTableBank(supabase, eventId, table.id, null));
+        }, `settle-fewest-${table.id}`)}
+        {option(bank, "One player is the banker", () => setChoosingBank(true), `settle-bank-${table.id}`)}
+      </View>
+      {bank && (
+        <View className="mt-2">
+          <Select
+            value={table.bank_user_id ?? ""}
+            onChange={(v) => void tap(() => setTableBank(supabase, eventId, table.id, v || null))}
+            options={seated.map((p) => ({ value: p.userId, label: p.name }))}
+            placeholder={seated.length ? "Who's the banker?" : "Seat someone at this table first"}
+            accessibilityLabel={`Banker for ${table.name}`}
+            testID={`bank-select-${table.id}`}
+          />
+        </View>
+      )}
+      <Muted className="mt-1.5 text-xs">{bank ? "The banker records buy-ins and cash-outs, and everyone pays or is paid by them." : "Enter everyone's result and the app works out the fewest payments between players."}</Muted>
+    </View>
   );
 }
 
