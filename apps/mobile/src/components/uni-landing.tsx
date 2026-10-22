@@ -1,7 +1,7 @@
 import Head from "expo-router/head";
 import { useEffect } from "react";
 import { uniById, type UniId } from "@function/shared";
-import { Landing, possessive } from "@/components/landing";
+import { Landing } from "@/components/landing";
 import { arrivalUni } from "@/lib/storage";
 
 // A uni's own landing page (/lse, /ucl, /kings, /imperial). Arriving here
@@ -23,5 +23,5 @@ export function UniLanding({ id }: { id: UniId }) {
 // Title and description for a uni's page (what search results and link previews show).
 export function uniMetadata(id: UniId) {
   const uni = uniById(id)!;
-  return { title: `Function at ${uni.short}`, description: `${possessive(uni.short)} student social life, all in one place. Societies, events and socials at ${uni.short}, plus open socials across London.` };
+  return { title: `Function at ${uni.short}`, description: `Make plans, meet people and see what's on tonight. The social app for ${uni.short} students, with plans open to every London uni.` };
 }
