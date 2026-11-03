@@ -414,7 +414,7 @@ function HostedPart({ event, info, userId, displayName, finished, tap, busy, onN
         <Card className="gap-3">
           <T variant="display-bold" className="text-lg">You&apos;re hosting</T>
           <Muted className="text-sm">
-            {event.going_count} going{event.capacity ? ` of ${event.capacity}` : ""}{requests.length ? ` · ${requests.length} waiting for your answer` : ""}{event.visibility === "friends" ? " · Friends only" : " · On the public map"}
+            {event.going_count} going{event.capacity ? ` of ${event.capacity}` : ""}{requests.length ? ` · ${requests.length} waiting for your answer` : ""}{event.visibility === "friends" ? " · Friends only" : MAP_ENABLED ? " · On the public map" : " · Public"}
           </Muted>
           <Muted className="text-sm">Editing and answering requests are on the website for now.</Muted>
           {chatId && (

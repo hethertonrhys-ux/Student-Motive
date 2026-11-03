@@ -120,7 +120,7 @@ export function usePushLifecycle(userId: string | null) {
 // iPhones only let an app show their "Allow notifications?" question once,
 // and people say no by habit if it comes too early. So Function asks in its
 // own words first, and the phone's question only comes after "Turn on":
-// - the welcome: once, the first time someone reaches the map after
+// - the welcome: once, the first time someone reaches the home tab after
 //   finishing sign-up (PushWelcome);
 // - after "Not now", at a useful moment (joining an event, sending a friend
 //   request, sending a message): at most once a week and 3 times in all.
@@ -180,7 +180,7 @@ export function usePushWelcome(ready: boolean) {
   useEffect(() => {
     if (!ready) return;
     let live = true;
-    // A moment after the map appears, so they see what's on first.
+    // A moment after the home tab appears, so they see what's on first.
     const timer = setTimeout(() => {
       void (async () => {
         if (!(await maySoftAsk("welcome")) || !live) return;

@@ -70,7 +70,7 @@ export default function TabsLayout() {
       ))}
       {/* The map's screen file is still here, so it's listed with no tab button. It's
           last, so Back on Android never lands on it. */}
-      {!MAP_ENABLED && <Tabs.Screen name="map" options={{ href: null }} />}
+      {MAP_ENABLED ? [] : [<Tabs.Screen key="map" name="map" options={{ href: null }} />]}
     </Tabs>
     {/* "Don't miss what's on tonight": the notifications ask, once, on the home tab after sign-up. */}
     <PushWelcome />

@@ -4,8 +4,10 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 // The app-wide switches in apps/mobile/src/lib/app-features.ts. The map is
-// switched off for the Abacus launch: these checks make sure nothing links
-// to it while it's off, and that its own code is still there to switch back on.
+// switched off for the Abacus launch: these checks make sure every link to it
+// goes through the switch, and that its own code is still there to switch
+// back on. They pass with the map on or off, so switching it back on is the
+// one-line change in app-features.ts and nothing else.
 const repo = fileURLToPath(new URL("../../../", import.meta.url));
 const src = join(repo, "apps/mobile/src");
 const read = (path: string) => readFileSync(join(repo, path), "utf8");
@@ -22,11 +24,11 @@ const appFiles = files(src).filter((path) => !mapCode(path) && !path.endsWith("/
 describe("app-wide switches", () => {
   const config = read("apps/mobile/src/lib/app-features.ts");
 
-  it("has the map switched off", () => {
-    expect(config).toMatch(/export const MAP_ENABLED: boolean = false;/);
+  it("has a single on/off setting for the map", () => {
+    expect(config).toMatch(/export const MAP_ENABLED: boolean = (true|false);/);
   });
 
-  it("sends people to Societies while the map is off", () => {
+  it("sends people to the map when it's on and to Societies when it's off", () => {
     expect(config).toMatch(/HOME_ROUTE = MAP_ENABLED \? MAP_ROUTE : "\/\(tabs\)\/societies"/);
     expect(config).toMatch(/HOME_PATH = MAP_ENABLED \? "\/map" : "\/societies"/);
   });
@@ -52,7 +54,7 @@ describe("app-wide switches", () => {
   it("hides the Map tab and redirects old links to it while it's off", () => {
     const tabs = read("apps/mobile/src/app/(tabs)/_layout.tsx");
     expect(tabs).toContain('ALL_TABS.filter((tab) => MAP_ENABLED || tab.name !== "map")');
-    expect(tabs).toContain('{!MAP_ENABLED && <Tabs.Screen name="map" options={{ href: null }} />}');
+    expect(tabs).toContain('{MAP_ENABLED ? [] : [<Tabs.Screen key="map" name="map" options={{ href: null }} />]}');
     expect(tabs).toContain('if (!MAP_ENABLED && pathname === "/map") return <Redirect href={HOME_ROUTE} />;');
   });
 
