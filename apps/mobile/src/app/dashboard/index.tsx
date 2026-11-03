@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
 // The committee's home: societies you run, and your requests to manage one.
+// Someone who doesn't run one sees how to ask, not an empty list.
 export default function DashboardScreen() {
   const { session } = useSession();
   const myId = session?.user.id ?? null;
@@ -30,27 +31,32 @@ export default function DashboardScreen() {
           <Muted className="mt-6">Loading…</Muted>
         ) : (
           <>
-            <T variant="display" className="mt-8 text-xl">Societies you run</T>
-            <View className="mt-3 gap-3" testID="run-list">
-              {data.data.societies.map((s) => (
-                <Link key={s.id} href={`/dashboard/${s.id}` as never} asChild>
-                  <Pressable testID={`manage-${s.id}`}>
-                    <Card className="flex-row items-center justify-between gap-4">
-                      <View className="flex-1 flex-row items-center gap-3">
-                        <Avatar name={s.name} url={s.logo_url} size={36} />
-                        <T variant="display-bold" className="flex-1 text-lg" numberOfLines={1}>{s.name}</T>
-                      </View>
-                      <T variant="semibold" className="text-sm text-brand">Manage →</T>
-                    </Card>
-                  </Pressable>
-                </Link>
-              ))}
-              {data.data.societies.length === 0 && (
-                <Card>
-                  <Muted>On a committee? Ask to manage your society&apos;s page and we&apos;ll approve it once we&apos;ve checked.</Muted>
-                </Card>
-              )}
-            </View>
+            {data.data.societies.length > 0 ? (
+              <>
+                <T variant="display" className="mt-8 text-xl">Societies you run</T>
+                <View className="mt-3 gap-3" testID="run-list">
+                  {data.data.societies.map((s) => (
+                    <Link key={s.id} href={`/dashboard/${s.id}` as never} asChild>
+                      <Pressable testID={`manage-${s.id}`}>
+                        <Card className="flex-row items-center justify-between gap-4">
+                          <View className="flex-1 flex-row items-center gap-3">
+                            <Avatar name={s.name} url={s.logo_url} size={36} />
+                            <T variant="display-bold" className="flex-1 text-lg" numberOfLines={1}>{s.name}</T>
+                          </View>
+                          <T variant="semibold" className="text-sm text-brand">Manage →</T>
+                        </Card>
+                      </Pressable>
+                    </Link>
+                  ))}
+                </View>
+              </>
+            ) : (
+              // Not managing a society (yet): how to get set up, not an empty list.
+              <Card className="mt-6 gap-2" testID="run-none">
+                <T variant="semibold">You don&apos;t run a society on Function yet.</T>
+                <Muted>On a committee? Ask to manage your society&apos;s page and we&apos;ll approve it once we&apos;ve checked.</Muted>
+              </Card>
+            )}
             {data.data.claims.length > 0 && (
               <View className="mt-8">
                 <T variant="display" className="text-lg">Your requests</T>

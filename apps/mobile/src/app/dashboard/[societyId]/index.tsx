@@ -26,7 +26,16 @@ export default function SocietyDashboardScreen() {
   if (!session) return <Screen><Muted>Log in to manage your society.</Muted></Screen>;
   if (page.isPending) return <Screen><Muted>Loading…</Muted></Screen>;
   const d = page.data;
-  if (!d) return <Screen><Heading>Not found</Heading><Muted className="mt-2">You don&apos;t run this society, or it doesn&apos;t exist.</Muted></Screen>;
+  if (!d)
+    return (
+      <Screen>
+        <Heading>Not your society</Heading>
+        <Muted className="mt-2">Only the society&apos;s managers can open its dashboard.</Muted>
+        <Link href={"/(tabs)/societies" as never} asChild>
+          <Button className="mt-6 self-start" testID="back-to-societies">Go to Societies</Button>
+        </Link>
+      </Screen>
+    );
   const upcoming = d.events.filter((e) => !hasEnded(e.ends_at, now));
   const past = d.events.filter((e) => hasEnded(e.ends_at, now)).reverse();
   // An LSE society with Event admin on: a new event is a draft until "SU approved" is ticked.
