@@ -117,7 +117,8 @@ export function PhotoGallery({ photos, canReport }: { photos: { id: string; url:
 }
 
 // Someone's Two truths and a lie: tap the one you think is the lie (one go),
-// then see the answer and how many people got it right.
+// then see the answer and how many people got it right. The owner sees who
+// played (and whether they spotted it) in their notifications.
 export function TwoTruthsGame({ person, initial }: { person: string; initial: TwoTruthsView }) {
   const [view, setView] = useState(initial);
   const [picking, setPicking] = useState<number | null>(null);
@@ -150,6 +151,8 @@ export function TwoTruthsGame({ person, initial }: { person: string; initial: Tw
           );
         })}
       </View>
+      {/* Players are named in the owner's notifications, so say so before they play. */}
+      {!revealed && !view.own && <Muted className="mt-2 text-xs" testID="two-truths-seen">They&apos;ll see that you played.</Muted>}
       {revealed && (
         <Muted className="mt-2 text-xs font-sans-semibold" testID="two-truths-result">
           {view.own ? (view.total ? `${view.total} ${view.total === 1 ? "person has" : "people have"} played · ${pct}% guessed right` : "Nobody has played yet.") : `${view.my_pick === view.lie ? "You got it!" : "Not quite."} ${pct}% guessed right (${view.total} played)`}
