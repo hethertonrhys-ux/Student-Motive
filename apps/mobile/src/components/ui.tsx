@@ -45,10 +45,14 @@ export function Label({ className = "", ...props }: TextProps & { className?: st
 
 export function Input({ className = "", ...props }: TextInputProps & { className?: string }) {
   const placeholder = usePlaceholderColor();
+  // One-line boxes get the font size without a line height: on iPhone a
+  // line height pushes the text down and cuts off the bottom of letters
+  // like g, p and y.
+  const size = props.multiline ? "text-base" : "text-[16px]";
   return (
     <TextInput
       placeholderTextColor={placeholder}
-      className={`min-h-11 w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 font-sans text-base text-ink web:outline-none web:focus:border-brand ${className}`}
+      className={`min-h-11 w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 font-sans ${size} text-ink web:outline-none web:focus:border-brand ${className}`}
       {...props}
     />
   );
