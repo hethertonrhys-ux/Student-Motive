@@ -26,6 +26,21 @@ export type Thread = {
   unread: number;
 };
 
+// A chat in the fuller chat list (my_chat_list): what kind of chat it is,
+// its community and group (community chats), its picture, and whether you
+// muted it (muted_until null while muted: until you switch it off).
+export type ChatKind = "direct" | "event" | "social" | "community";
+export type ChatListItem = Thread & {
+  kind: ChatKind;
+  community_id: string | null;
+  community_slug: string | null;
+  community_group_id: string | null;
+  group_kind: "main" | "sub" | null;
+  image_url: string | null;
+  muted: boolean;
+  muted_until: string | null;
+};
+
 // Friend requests waiting for your answer (the number on Me → Friends).
 export async function countFriendRequests(supabase: SupabaseClient, myId: string): Promise<number> {
   const { count } = await supabase.from("friendships").select("requester_id", { count: "exact", head: true }).eq("addressee_id", myId).eq("status", "pending");
@@ -40,14 +55,22 @@ export async function loadThreads(supabase: SupabaseClient, myId: string): Promi
   return { threads: ((data ?? []) as Thread[]).map((t) => ({ ...t, unread: Number(t.unread) })), requests: count ?? 0 };
 }
 
+// Your chats with everything above (community chats' unread counts stop at 99).
+export async function loadChatList(supabase: SupabaseClient): Promise<ChatListItem[]> {
+  const { data, error } = await supabase.rpc("my_chat_list");
+  if (error) throw error;
+  return ((data ?? []) as ChatListItem[]).map((t) => ({ ...t, unread: Number(t.unread), muted: t.muted === true }));
+}
+
 // "message" is what people write; "event" is an event someone shared (shown
 // as a card); "photo" and "video" are files sent in the chat; "left" and
 // "rejoined" are the notes a group chat shows when someone leaves it or
 // comes back ("Rhys left"), and "removed" when an admin takes someone out
-// ("Sam removed Rhys from the group").
-export type MessageKind = "message" | "event" | "photo" | "video" | "left" | "rejoined" | "removed";
+// ("Sam removed Rhys from the group"). A community's sub-groups also show
+// "joined" ("Sam joined the group") and "added" ("Sam added Rhys").
+export type MessageKind = "message" | "event" | "photo" | "video" | "left" | "rejoined" | "removed" | "joined" | "added";
 
-export const isNote = (kind: MessageKind) => kind === "left" || kind === "rejoined" || kind === "removed";
+export const isNote = (kind: MessageKind) => kind === "left" || kind === "rejoined" || kind === "removed" || kind === "joined" || kind === "added";
 
 export type ChatMessage = {
   id: string;
@@ -121,6 +144,76 @@ export async function fetchMessages(supabase: SupabaseClient, threadId: string, 
   return rows.map((r) => toChatMessage(r, cards));
 }
 
+// ---- Paging through a chat (newest first, by created_at then id) ----
+
+// Where a page starts or ends: a message's time and id.
+export type MessageCursor = { created_at: string; id: string };
+export const MESSAGE_PAGE_SIZE = 50;
+// Catching up starts this much before the newest message you have, so a
+// message whose sending started a moment earlier but finished later is
+// never missed. Merge what comes back by id.
+export const CATCH_UP_OVERLAP_MS = 5000;
+const TIMESTAMP = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}(:?\d{2})?)?$/;
+const cursorOk = (c: MessageCursor | undefined | null): c is MessageCursor => !!c && TIMESTAMP.test(c.created_at) && UUID.test(c.id);
+// Only well-formed times and ids reach a filter (quoted, as the database's filter syntax wants).
+const quoted = (v: string) => `"${v}"`;
+
+// One page of a chat, newest first: the latest messages, or (with `before`)
+// the ones just older than a message. `older` is where the next page
+// starts, or null when this was the last.
+export async function fetchMessagesPage(
+  supabase: SupabaseClient,
+  threadId: string,
+  options: { before?: MessageCursor; limit?: number } = {},
+): Promise<{ messages: ChatMessage[]; older: MessageCursor | null }> {
+  const limit = Math.min(Math.max(Math.floor(options.limit ?? MESSAGE_PAGE_SIZE), 1), 100);
+  if (!UUID.test(threadId) || (options.before && !cursorOk(options.before))) return { messages: [], older: null };
+  let query = supabase.from("messages").select("*").eq("thread_id", threadId);
+  if (options.before) {
+    const { created_at, id } = options.before;
+    query = query.lte("created_at", created_at).or(`created_at.lt.${quoted(created_at)},id.lt.${id}`);
+  }
+  const { data, error } = await query.order("created_at", { ascending: false }).order("id", { ascending: false }).limit(limit);
+  if (error) throw error;
+  const rows = (data ?? []) as MessageRow[];
+  const last = rows[rows.length - 1];
+  return { messages: await toChatMessages(supabase, rows), older: rows.length === limit && last ? { created_at: last.created_at, id: last.id } : null };
+}
+
+// Everything after a message, oldest first, a page of `pageSize` at a time
+// (so a burst of more than 100 new messages is never cut short), for
+// catching up after the app comes back or reconnects. Starts
+// CATCH_UP_OVERLAP_MS early: merge by id. `complete` is false if it stopped
+// at maxPages; carry on from the last message.
+export async function fetchMessagesAfter(
+  supabase: SupabaseClient,
+  threadId: string,
+  after: MessageCursor,
+  options: { pageSize?: number; maxPages?: number; overlapMs?: number } = {},
+): Promise<{ messages: ChatMessage[]; complete: boolean }> {
+  if (!UUID.test(threadId) || !cursorOk(after)) return { messages: [], complete: true };
+  const pageSize = Math.min(Math.max(Math.floor(options.pageSize ?? 100), 1), 100);
+  const maxPages = Math.max(Math.floor(options.maxPages ?? 10), 1);
+  const overlap = Math.max(options.overlapMs ?? CATCH_UP_OVERLAP_MS, 0);
+  const from = new Date(new Date(after.created_at).getTime() - overlap).toISOString();
+  const rows: MessageRow[] = [];
+  let cursor: MessageCursor | null = null;
+  for (let page = 0; page < maxPages; page++) {
+    let query = supabase.from("messages").select("*").eq("thread_id", threadId);
+    query = cursor
+      ? query.gte("created_at", cursor.created_at).or(`created_at.gt.${quoted(cursor.created_at)},id.gt.${cursor.id}`)
+      : query.gte("created_at", from);
+    const { data, error } = await query.order("created_at", { ascending: true }).order("id", { ascending: true }).limit(pageSize);
+    if (error) throw error;
+    const got = (data ?? []) as MessageRow[];
+    rows.push(...got);
+    if (got.length < pageSize) return { messages: await toChatMessages(supabase, rows), complete: true };
+    const last = got[got.length - 1];
+    cursor = { created_at: last.created_at, id: last.id };
+  }
+  return { messages: await toChatMessages(supabase, rows), complete: false };
+}
+
 export type ThreadInfo = {
   event: { id: string; title: string; going_count: number } | null;
   socialEvent: { id: string; title: string; going_count: number } | null;
@@ -148,10 +241,11 @@ export type ThreadInfo = {
 export async function loadThreadInfo(supabase: SupabaseClient, threadId: string, myId: string): Promise<ThreadInfo | null> {
   if (!UUID.test(threadId)) return null;
   // All columns, so this still works before the database has members_can_share_events.
-  const { data: thread } = await supabase.from("threads").select("*").eq("id", threadId).maybeSingle<{ id: string; event_id: string | null; social_event_id: string | null; user_a: string | null; user_b: string | null; members_can_share_events?: boolean; pinned_message_id?: string | null }>();
+  const { data: thread } = await supabase.from("threads").select("*").eq("id", threadId).maybeSingle<{ id: string; event_id: string | null; social_event_id: string | null; community_group_id?: string | null; user_a: string | null; user_b: string | null; members_can_share_events?: boolean; pinned_message_id?: string | null }>();
   if (!thread) return null;
-  const otherId = thread.event_id || thread.social_event_id ? null : thread.user_a === myId ? thread.user_b : thread.user_a;
-  const isGroup = !!(thread.event_id || thread.social_event_id);
+  // A community's chats are group chats too.
+  const isGroup = !!(thread.event_id || thread.social_event_id || thread.community_group_id);
+  const otherId = isGroup ? null : thread.user_a === myId ? thread.user_b : thread.user_a;
   const [cards, hidden, { data: event }, { data: socialEvent }, hosts, { data: leave }, { data: admin }] = await Promise.all([
     getCards(supabase, otherId ? [otherId] : []),
     getHiddenPeople(supabase),
@@ -222,15 +316,23 @@ export type ShareTarget = { id: string; title: string; isGroup: boolean; otherAv
 export async function loadShareTargets(supabase: SupabaseClient): Promise<ShareTarget[]> {
   const { data } = await supabase.rpc("my_threads");
   const threads = (data ?? []) as Thread[];
-  const groups = threads.filter((t) => t.event_id || t.social_event_id).map((t) => t.id);
-  const { data: settings } = groups.length ? await supabase.from("threads").select("*").in("id", groups) : { data: [] };
-  const off = ((settings ?? []) as { id: string; members_can_share_events?: boolean }[]).filter((t) => t.members_can_share_events === false).map((t) => t.id);
+  // Every chat's row (all columns, so this still works before the database
+  // has members_can_share_events or community_group_id): community chats
+  // are only told apart by theirs. 100 ids a request keeps addresses short.
+  const ids = threads.map((t) => t.id);
+  const parts = await Promise.all(
+    Array.from({ length: Math.ceil(ids.length / 100) }, (_, i) => supabase.from("threads").select("*").in("id", ids.slice(i * 100, (i + 1) * 100))),
+  );
+  const rows = parts.flatMap((p) => (p.data ?? []) as { id: string; community_group_id?: string | null; members_can_share_events?: boolean }[]);
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  const isGroup = (t: Thread) => !!(t.event_id || t.social_event_id || byId.get(t.id)?.community_group_id);
+  const off = threads.filter((t) => isGroup(t) && byId.get(t.id)?.members_can_share_events === false).map((t) => t.id);
   const admin = new Set<string>();
   await Promise.all(off.map(async (id) => {
     const { data: yes } = await supabase.rpc("is_thread_admin", { tid: id });
     if (yes === true) admin.add(id);
   }));
-  return threads.map((t) => ({ id: t.id, title: t.title, isGroup: !!(t.event_id || t.social_event_id), otherAvatar: t.other_avatar, allowed: !off.includes(t.id) || admin.has(t.id) }));
+  return threads.map((t) => ({ id: t.id, title: t.title, isGroup: isGroup(t), otherAvatar: t.other_avatar, allowed: !off.includes(t.id) || admin.has(t.id) }));
 }
 
 // Send an event into a chat. The database checks you're in the chat, may
@@ -261,6 +363,7 @@ export async function setMembersCanShareEvents(supabase: SupabaseClient, threadI
 export async function leaveChat(supabase: SupabaseClient, threadId: string): Promise<Result> {
   const { error } = await supabase.rpc("leave_thread", { tid: threadId });
   if (!error) return {};
+  if (/leave the community instead/.test(error.message)) return { error: "To leave this chat, leave the community instead." };
   return { error: /only admin/.test(error.message) ? "You're this group's only admin. Make someone else an admin (in Members) before you leave." : "Couldn't leave the group. Try again." };
 }
 

@@ -19,3 +19,14 @@ grant execute on function auth.uid() to anon, authenticated;
 grant all on storage.objects to anon, authenticated;
 alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
 alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+-- Realtime ("broadcast from database"): realtime.messages, realtime.topic()
+-- (the topic a listener is joining, set with set_config('realtime.topic', ...)
+-- in tests) and realtime.send(), which records each broadcast as a row.
+create schema realtime;
+create table realtime.messages (id uuid default gen_random_uuid(), topic text, extension text, payload jsonb, event text, private boolean, inserted_at timestamptz default now(), updated_at timestamptz default now());
+alter table realtime.messages enable row level security;
+create function realtime.topic() returns text language sql stable as $$ select current_setting('realtime.topic', true) $$;
+create function realtime.send(payload jsonb, event text, topic text, private boolean default true) returns void language sql as $$ insert into realtime.messages (topic, extension, payload, event, private) values ($3, 'broadcast', $1, $2, $4) $$;
+grant usage on schema realtime to anon, authenticated;
+grant select, insert, update, delete on realtime.messages to anon, authenticated;
+grant execute on function realtime.topic() to anon, authenticated;
