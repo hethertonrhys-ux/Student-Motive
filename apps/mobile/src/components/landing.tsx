@@ -6,11 +6,12 @@ import { Linking, Platform, Pressable, ScrollView, useWindowDimensions, View, ty
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { University } from "@function/shared";
 import { Muted, T } from "@/components/ui";
+import { MAP_ENABLED, MAP_ROUTE } from "@/lib/app-features";
 import { buttonTap } from "@/lib/haptics";
 
 const perks = [
   { title: "One place, not twelve", body: "Stop reposting across WhatsApp groups, Instagram stories and email lists." },
-  { title: "Reach beyond your members", body: "Students who don't follow you yet still see you on the map tonight." },
+  { title: "Reach beyond your members", body: MAP_ENABLED ? "Students who don't follow you yet still see you on the map tonight." : "Students who don't follow you yet still find your events tonight." },
   { title: "See who's coming", body: "Live \"I'm going\" numbers for every event, before the night." },
   { title: "Free for societies", body: "Always. No fees, no catch." },
 ];
@@ -59,7 +60,7 @@ export function Landing({ uni }: { uni?: University }) {
   const steps = [
     { title: uni ? `Log in with your ${uni.short} email` : "Log in with your uni email", body: "No password needed. We email you a code." },
     { title: "Claim your society's page", body: "We check you're on the committee, usually within a day." },
-    { title: "Post an event in a minute", body: "It goes straight onto the live map for students across London." },
+    { title: "Post an event in a minute", body: MAP_ENABLED ? "It goes straight onto the live map for students across London." : "Students across London can see it straight away." },
   ];
   return (
     <View className="flex-1" style={{ backgroundColor: BLACK }}>
@@ -112,16 +113,18 @@ export function Landing({ uni }: { uni?: University }) {
             {uni ? `Societies, events and socials at ${uni.short}, plus open socials across London.` : "For students at every London university."}
           </T>
           <T variant="body" className="mt-2 text-[#98989F]">
-            Function puts every society and every event in one place. Students open the map and see what&apos;s happening
+            Function puts every society and every event in one place. Students open {MAP_ENABLED ? "the map" : "the app"} and see what&apos;s happening
             tonight. Societies post once and reach everyone.
           </T>
           <View className="mt-7 gap-2.5">
             <Link href="/login" asChild>
               <WelcomeButton primary testID="landing-login">{uni ? `Join with your ${uni.short} email` : "Log in or sign up"}</WelcomeButton>
             </Link>
-            <Link href="/(tabs)/map" asChild>
-              <WelcomeButton>See the live map</WelcomeButton>
-            </Link>
+            {MAP_ENABLED && (
+              <Link href={MAP_ROUTE} asChild>
+                <WelcomeButton>See the live map</WelcomeButton>
+              </Link>
+            )}
             {!uni && (
               <Link href="/login" asChild>
                 <WelcomeButton>Get your society on Function</WelcomeButton>

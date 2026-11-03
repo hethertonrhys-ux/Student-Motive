@@ -1,0 +1,67 @@
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
+
+// The app-wide switches in apps/mobile/src/lib/app-features.ts. The map is
+// switched off for the Abacus launch: these checks make sure nothing links
+// to it while it's off, and that its own code is still there to switch back on.
+const repo = fileURLToPath(new URL("../../../", import.meta.url));
+const src = join(repo, "apps/mobile/src");
+const read = (path: string) => readFileSync(join(repo, path), "utf8");
+
+const files = (dir: string): string[] =>
+  readdirSync(dir).flatMap((name) => {
+    const path = join(dir, name);
+    return statSync(path).isDirectory() ? files(path) : /\.tsx?$/.test(name) ? [path] : [];
+  });
+// The map's own code, which is left as it is while it's switched off.
+const mapCode = (path: string) => path.includes("/components/map/") || path.endsWith("/app/(tabs)/map.tsx");
+const appFiles = files(src).filter((path) => !mapCode(path) && !path.endsWith("/lib/app-features.ts"));
+
+describe("app-wide switches", () => {
+  const config = read("apps/mobile/src/lib/app-features.ts");
+
+  it("has the map switched off", () => {
+    expect(config).toMatch(/export const MAP_ENABLED: boolean = false;/);
+  });
+
+  it("sends people to Societies while the map is off", () => {
+    expect(config).toMatch(/HOME_ROUTE = MAP_ENABLED \? MAP_ROUTE : "\/\(tabs\)\/societies"/);
+    expect(config).toMatch(/HOME_PATH = MAP_ENABLED \? "\/map" : "\/societies"/);
+  });
+
+  it("keeps the map's own code", () => {
+    expect(statSync(join(src, "app/(tabs)/map.tsx")).isFile()).toBe(true);
+    expect(readdirSync(join(src, "components/map")).length).toBeGreaterThan(0);
+  });
+
+  it("has no link straight to the map outside the switch file", () => {
+    const direct = appFiles.filter((path) => /["'`]\/\(tabs\)\/map["'`]|href=["']\/map["']/.test(readFileSync(path, "utf8")));
+    expect(direct.map((path) => path.slice(src.length + 1))).toEqual([]);
+  });
+
+  it("only links to the map behind the switch", () => {
+    const unguarded = appFiles.filter((path) => {
+      const code = readFileSync(path, "utf8");
+      return code.includes("MAP_ROUTE") && !code.includes("MAP_ENABLED");
+    });
+    expect(unguarded.map((path) => path.slice(src.length + 1))).toEqual([]);
+  });
+
+  it("hides the Map tab and redirects old links to it while it's off", () => {
+    const tabs = read("apps/mobile/src/app/(tabs)/_layout.tsx");
+    expect(tabs).toContain('ALL_TABS.filter((tab) => MAP_ENABLED || tab.name !== "map")');
+    expect(tabs).toContain('{!MAP_ENABLED && <Tabs.Screen name="map" options={{ href: null }} />}');
+    expect(tabs).toContain('if (!MAP_ENABLED && pathname === "/map") return <Redirect href={HOME_ROUTE} />;');
+  });
+
+  it("only asks for location on the map", () => {
+    const askers = appFiles.filter((path) => /lib\/location|expo-location/.test(readFileSync(path, "utf8")) && !path.endsWith("/lib/location.ts"));
+    expect(askers).toEqual([]);
+  });
+
+  it("opens the home-screen website at the front door, not the map", () => {
+    expect(JSON.parse(read("apps/mobile/public/manifest.webmanifest")).start_url).toBe("/");
+  });
+});

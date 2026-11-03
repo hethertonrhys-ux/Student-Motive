@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { DEFAULT_UNI, logSignupEvent, uniById, uniFromEmail } from "@function/shared";
 import { AccountDetailsForm } from "@/components/account/details-form";
 import { Card, Heading, Muted, T } from "@/components/ui";
+import { HOME_ROUTE } from "@/lib/app-features";
 import { useInvalidateProfile, useProfile } from "@/lib/profile";
 import { welcomed } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
@@ -17,7 +18,7 @@ import { supabase } from "@/lib/supabase";
 export default function WelcomeScreen() {
   const router = useRouter();
   const { next: nextParam } = useLocalSearchParams<{ next?: string }>();
-  const next = typeof nextParam === "string" && nextParam.startsWith("/") && nextParam !== "/welcome" ? nextParam : "/(tabs)/map";
+  const next = typeof nextParam === "string" && nextParam.startsWith("/") && nextParam !== "/welcome" ? nextParam : HOME_ROUTE;
   const { profile } = useProfile();
   const invalidateProfile = useInvalidateProfile();
   const uni = uniFromEmail(profile?.email) ?? uniById(profile?.university) ?? uniById(DEFAULT_UNI)!;

@@ -41,6 +41,7 @@ import { StoryCard } from "@/components/hub/story-card";
 import { Icon } from "@/components/icon";
 import { pickPhotos, type Picked } from "@/components/photos/pick-photos";
 import { Button, Card, Heading, Input, Label, Muted, T } from "@/components/ui";
+import { MAP_ENABLED } from "@/lib/app-features";
 import { SITE_URL } from "@/lib/site";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
@@ -504,7 +505,9 @@ function EventStep({ hub, onLater }: { hub: HubSociety; onLater: () => void }) {
       <StepTitle title="Post your first event">
         {withAdmin
           ? "Function prepares the SU paperwork as you go; your committee checks and submits it. It goes live once the SU has approved it."
-          : "It goes on the map and your society page straight away, and your members hear about it."}
+          : MAP_ENABLED
+            ? "It goes on the map and your society page straight away, and your members hear about it."
+            : "It goes on your society page straight away, and your members hear about it."}
       </StepTitle>
       <Card className="gap-3">
         {["What it is and when", "Where it is", "How people sign up"].map((line) => (

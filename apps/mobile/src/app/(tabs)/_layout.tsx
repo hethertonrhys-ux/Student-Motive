@@ -1,22 +1,25 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Tabs } from "expo-router";
+import { Redirect, Tabs, usePathname } from "expo-router";
 import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PushWelcome } from "@/components/push-welcome";
 import { TabAvatar } from "@/components/tab-avatar";
+import { HOME_ROUTE, MAP_ENABLED } from "@/lib/app-features";
 import { useNewNotifications, useUnreadMessages } from "@/lib/badges";
 import { useProfile } from "@/lib/profile";
 import { useTheme } from "@/lib/theme";
 
-// The five tabs, the same as the website's bottom bar: Map, Societies,
-// Social, Chats, Me.
-const TABS = [
+// The tabs, the same as the website's bottom bar: Map, Societies, Social,
+// Chats, Me. The Map tab only shows while the map is switched on
+// (lib/app-features.ts).
+const ALL_TABS = [
   { name: "map", title: "Map", icon: "location" },
   { name: "societies", title: "Societies", icon: "people" },
   { name: "social", title: "Social", icon: "person-add" },
   { name: "chats", title: "Chats", icon: "chatbubble-ellipses" },
   { name: "me", title: "Me", icon: "person-circle" },
 ] as const;
+const TABS = ALL_TABS.filter((tab) => MAP_ENABLED || tab.name !== "map");
 
 export default function TabsLayout() {
   const { colors } = useTheme();
@@ -33,7 +36,10 @@ export default function TabsLayout() {
   const fresh = useNewNotifications();
   // Your photo stands in for the Me icon.
   const { profile } = useProfile();
+  const pathname = usePathname();
   const badge = (name: string) => (name === "chats" && unread > 0 ? unread : name === "me" && fresh > 0 ? fresh : undefined);
+  // With the map switched off, an old link or bookmark to it opens the home tab instead.
+  if (!MAP_ENABLED && pathname === "/map") return <Redirect href={HOME_ROUTE} />;
   return (
     <>
     <Tabs
@@ -62,8 +68,11 @@ export default function TabsLayout() {
           }}
         />
       ))}
+      {/* The map's screen file is still here, so it's listed with no tab button. It's
+          last, so Back on Android never lands on it. */}
+      {!MAP_ENABLED && <Tabs.Screen name="map" options={{ href: null }} />}
     </Tabs>
-    {/* "Don't miss what's on tonight": the notifications ask, once, on the map after sign-up. */}
+    {/* "Don't miss what's on tonight": the notifications ask, once, on the home tab after sign-up. */}
     <PushWelcome />
     </>
   );

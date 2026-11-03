@@ -7,6 +7,7 @@ import { BigButton, HubGate, HubLayout, SocietyLogo, useWide } from "@/component
 import { useManagers } from "@/components/hub/managers";
 import { Icon } from "@/components/icon";
 import { Card, Heading, Muted, T } from "@/components/ui";
+import { MAP_ENABLED } from "@/lib/app-features";
 
 // A society's Hub home (Overview): finish setting up (until it's done), a
 // Founding Society's progress (events posted, prize draw, badge), your page,
@@ -87,7 +88,7 @@ function Overview({ hub }: { hub: HubSociety }) {
             {hasFeature(hub.features, "event_admin") && eventAdminAvailable(s.university) ? (
               <>Post an event and it goes live once your committee ticks &ldquo;SU approved&rdquo;.</>
             ) : (
-              <>Post an event and it&apos;s on the map and your page straight away.</>
+              <>Post an event and it&apos;s on {MAP_ENABLED ? "the map and your page" : "your page"} straight away.</>
             )}
           </Muted>
           <Link href={`/dashboard/${s.id}/events/new` as never} asChild>

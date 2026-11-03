@@ -3,12 +3,14 @@ import type { ReactNode } from "react";
 import { Pressable, View } from "react-native";
 import { Icon } from "@/components/icon";
 import { T } from "@/components/ui";
+import { HOME_ROUTE } from "@/lib/app-features";
 import { useTheme } from "@/lib/theme";
 
 // The back button every screen outside the tabs has at the top left (like
 // Instagram's). Goes back if there's somewhere to go back to; otherwise
-// (the page was opened from a link) it goes to `fallback`.
-export function BackButton({ fallback = "/(tabs)/map", label = "Back", className = "", testID = "back" }: { fallback?: string; label?: string; className?: string; testID?: string }) {
+// (the page was opened from a link) it goes to `fallback`, the home tab
+// unless a screen says otherwise.
+export function BackButton({ fallback = HOME_ROUTE, label = "Back", className = "", testID = "back" }: { fallback?: string; label?: string; className?: string; testID?: string }) {
   const router = useRouter();
   const { colors } = useTheme();
   function go() {
