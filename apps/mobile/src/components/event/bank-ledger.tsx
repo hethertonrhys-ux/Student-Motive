@@ -9,8 +9,9 @@ let counter = 0;
 const newKey = () => `new-${++counter}`;
 
 // The bank's screen: record buy-ins and rebuys as they happen, then each
-// player's cash-out and whether it's been paid.
-export function BankLedger({ event, table, initialRows, onSaved }: { event: MotiveEvent; table: EventTable; initialRows: BankEditorRow[]; onSaved: () => Promise<unknown> }) {
+// player's cash-out and whether it's been paid. canAddPlayers: off on the
+// committee's manage page, where players are added at the top instead.
+export function BankLedger({ event, table, initialRows, onSaved, canAddPlayers = true }: { event: MotiveEvent; table: EventTable; initialRows: BankEditorRow[]; onSaved: () => Promise<unknown>; canAddPlayers?: boolean }) {
   const [rows, setRows] = useState<BankEditorRow[]>(initialRows);
   const [saving, setSaving] = useState(false);
   const [state, setState] = useState<{ error?: string; saved?: boolean }>({});
@@ -73,7 +74,9 @@ export function BankLedger({ event, table, initialRows, onSaved }: { event: Moti
           return (
             <View key={r.key} className="rounded-xl border border-line p-3" testID={`bank-row-${r.userId ?? r.key}`}>
               <View className="flex-row items-center gap-2">
-                <Input value={r.name} onChangeText={(v) => update(r.key, { name: v })} editable={!r.userId} placeholder="Player name" maxLength={60} className={`flex-1 py-2 font-sans-semibold ${r.userId ? "bg-bg" : ""}`} accessibilityLabel="Player name" />
+                <View className="min-w-0 flex-1">
+                  <Input value={r.name} onChangeText={(v) => update(r.key, { name: v })} editable={!r.userId} placeholder="Player name" maxLength={60} className={`py-2 font-sans-semibold ${r.userId ? "bg-bg" : ""}`} accessibilityLabel="Player name" />
+                </View>
                 {net !== null && <T variant="display-bold" className={net > 0 ? "text-ok" : net < 0 ? "text-danger" : ""}>{formatPounds(net, true)}</T>}
                 <Pressable onPress={() => setRows((cur) => cur.filter((x) => x.key !== r.key))} accessibilityLabel={`Remove ${r.name || "player"}`} className="px-1">
                   <Icon name="close" size={18} color="#5e5d78" />
@@ -83,7 +86,9 @@ export function BankLedger({ event, table, initialRows, onSaved }: { event: Moti
                 <View className="flex-1">
                   <Muted className="text-xs font-sans-semibold">Buy-ins (£)</Muted>
                   <View className="mt-1 flex-row gap-1">
-                    <Input value={r.buyins} onChangeText={(v) => update(r.key, { buyins: v })} keyboardType="default" placeholder="10" className="flex-1 py-2 text-right font-sans-semibold" accessibilityLabel={`${r.name || "Player"} buy-ins`} testID="buyins" />
+                    <View className="min-w-0 flex-1">
+                      <Input value={r.buyins} onChangeText={(v) => update(r.key, { buyins: v })} keyboardType="default" placeholder="10" className="py-2 font-sans-semibold" accessibilityLabel={`${r.name || "Player"} buy-ins`} testID="buyins" />
+                    </View>
                     {!!firstBuyin && (
                       <Pressable onPress={() => update(r.key, { buyins: `${r.buyins}+${firstBuyin}` })} className="justify-center rounded-lg border border-line px-2" accessibilityLabel="Add a rebuy" testID="rebuy">
                         <T variant="bold" className="text-xs text-brand">+{firstBuyin}</T>
@@ -93,7 +98,7 @@ export function BankLedger({ event, table, initialRows, onSaved }: { event: Moti
                 </View>
                 <View className="flex-1">
                   <Muted className="text-xs font-sans-semibold">Cash-out (£)</Muted>
-                  <Input value={r.cashout} onChangeText={(v) => update(r.key, { cashout: v, paidOut: v.trim() ? r.paidOut : false })} keyboardType="decimal-pad" placeholder="Still playing" className="mt-1 py-2 text-right font-sans-semibold" accessibilityLabel={`${r.name || "Player"} cash-out`} testID="cashout" />
+                  <Input value={r.cashout} onChangeText={(v) => update(r.key, { cashout: v, paidOut: v.trim() ? r.paidOut : false })} keyboardType="decimal-pad" placeholder="Still playing" className="mt-1 py-2 font-sans-semibold" accessibilityLabel={`${r.name || "Player"} cash-out`} testID="cashout" />
                 </View>
               </View>
               {payout !== null && (
@@ -113,9 +118,11 @@ export function BankLedger({ event, table, initialRows, onSaved }: { event: Moti
         })}
       </View>
 
-      <Pressable onPress={() => setRows((cur) => [...cur, { key: newKey(), name: "", buyins: "", cashout: "", paidOut: false, adjust: 0 }])} testID="add-player">
-        <T variant="semibold" className="text-sm text-brand">+ Add a player not on Function</T>
-      </Pressable>
+      {canAddPlayers && (
+        <Pressable onPress={() => setRows((cur) => [...cur, { key: newKey(), name: "", buyins: "", cashout: "", paidOut: false, adjust: 0 }])} testID="add-player">
+          <T variant="semibold" className="text-sm text-brand">+ Add a player not on Function</T>
+        </Pressable>
+      )}
 
       {parsed.invalid.length > 0 && <T variant="semibold" className="text-sm text-danger">Check the amounts for {parsed.invalid.join(", ")}.</T>}
 

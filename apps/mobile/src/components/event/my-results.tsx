@@ -56,14 +56,15 @@ export function MyResults({ eventId, userId, tables, rows, payments, onChange }:
             ) : (
               <View className="gap-1.5">
                 {myTransfers.map((t, i) => (
-                  <View key={i} className="flex-row items-center justify-between gap-2 rounded-xl bg-brand-soft px-3 py-2" testID="transfer">
-                    <T className="flex-1">{t.fromId === mine.id ? <>You pay <T variant="bold">{names.get(t.toId)}</T></> : <><T variant="bold">{names.get(t.fromId)}</T> pays you</>}</T>
-                    <View className="flex-row items-center gap-3">
+                  <View key={i} className="flex-row items-center gap-3 rounded-xl bg-brand-soft px-3 py-2" testID="transfer">
+                    {/* Names and amount wrap on the left, so the button never goes off the screen. */}
+                    <View className="min-w-0 flex-1">
+                      <T>{t.fromId === mine.id ? <>You pay <T variant="bold">{names.get(t.toId)}</T></> : <><T variant="bold">{names.get(t.fromId)}</T> pays you</>}</T>
                       <T variant="display-bold" className="text-lg">{formatPounds(t.amountPence)}</T>
-                      <Pressable onPress={() => void markPaymentPaid(supabase, eventId, t.fromId, t.toId, t.amountPence).then(() => onChange())} className="rounded-lg bg-surface px-2.5 py-1" testID="mark-paid">
-                        <T variant="bold" className="text-sm text-brand">{t.fromId === mine.id ? "I've paid" : "Got it"}</T>
-                      </Pressable>
                     </View>
+                    <Pressable onPress={() => void markPaymentPaid(supabase, eventId, t.fromId, t.toId, t.amountPence).then(() => onChange())} className="min-h-11 shrink-0 justify-center rounded-lg bg-surface px-3" testID="mark-paid">
+                      <T variant="bold" className="text-sm text-brand">{t.fromId === mine.id ? "I've paid" : "Got it"}</T>
+                    </Pressable>
                   </View>
                 ))}
               </View>
