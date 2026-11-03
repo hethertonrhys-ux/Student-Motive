@@ -19,6 +19,7 @@ import { SelfReport } from "@/components/event/self-report";
 import { TablesPicker } from "@/components/event/tables-picker";
 import { ShareButton } from "@/components/share-button";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
+import { MAP_ENABLED, MAP_ROUTE } from "@/lib/app-features";
 import { useProfile } from "@/lib/profile";
 import { SITE_URL } from "@/lib/site";
 import { supabase } from "@/lib/supabase";
@@ -161,7 +162,7 @@ export default function EventScreen() {
         {(ev.venues || pin) && (
           <View>
             <Muted className="text-sm font-sans-semibold">Where</Muted>
-            <T variant="semibold">{ev.venues ? ev.venues.name : ev.location_note || "See the map"}{ev.venues && ev.location_note ? ` · ${ev.location_note}` : ""}</T>
+            <T variant="semibold">{ev.venues ? ev.venues.name : ev.location_note || (MAP_ENABLED ? "See the map" : "Pinned location")}{ev.venues && ev.location_note ? ` · ${ev.location_note}` : ""}</T>
             {ev.venues?.address && <Muted className="text-sm">{ev.venues.address}</Muted>}
             {hosted && (exact?.address ? <T className="text-sm">{exact.address}</T> : <Muted className="text-sm">The exact address is shared with people going.</Muted>)}
             {mapsUrl && (
@@ -213,15 +214,17 @@ export default function EventScreen() {
         )}
       </View>
 
-      <Card className="mt-10 bg-brand-soft">
-        <T variant="display-bold" className="text-lg">See what&apos;s on in London tonight</T>
-        <Muted>Every society event and social on one live map.</Muted>
-        <Link href="/(tabs)/map" asChild>
-          <Pressable className="mt-2 self-start">
-            <T variant="semibold" className="text-brand">Open the live map →</T>
-          </Pressable>
-        </Link>
-      </Card>
+      {MAP_ENABLED && (
+        <Card className="mt-10 bg-brand-soft">
+          <T variant="display-bold" className="text-lg">See what&apos;s on in London tonight</T>
+          <Muted>Every society event and social on one live map.</Muted>
+          <Link href={MAP_ROUTE} asChild>
+            <Pressable className="mt-2 self-start">
+              <T variant="semibold" className="text-brand">Open the live map →</T>
+            </Pressable>
+          </Link>
+        </Card>
+      )}
     </Screen>
   );
 }
@@ -411,7 +414,7 @@ function HostedPart({ event, info, userId, displayName, finished, tap, busy, onN
         <Card className="gap-3">
           <T variant="display-bold" className="text-lg">You&apos;re hosting</T>
           <Muted className="text-sm">
-            {event.going_count} going{event.capacity ? ` of ${event.capacity}` : ""}{requests.length ? ` · ${requests.length} waiting for your answer` : ""}{event.visibility === "friends" ? " · Friends only" : " · On the public map"}
+            {event.going_count} going{event.capacity ? ` of ${event.capacity}` : ""}{requests.length ? ` · ${requests.length} waiting for your answer` : ""}{event.visibility === "friends" ? " · Friends only" : MAP_ENABLED ? " · On the public map" : " · Public"}
           </Muted>
           <Muted className="text-sm">Editing and answering requests are on the website for now.</Muted>
           {chatId && (
@@ -454,7 +457,7 @@ function Screen({ children, menu }: { children: React.ReactNode; menu?: React.Re
     <SafeAreaView className="flex-1 bg-bg">
       <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-10" keyboardShouldPersistTaps="handled">
         <View className="z-10 mb-4 flex-row items-start justify-between">
-          <BackButton fallback="/(tabs)/map" />
+          <BackButton />
           {menu}
         </View>
         {children}

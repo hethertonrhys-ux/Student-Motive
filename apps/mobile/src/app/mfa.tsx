@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button, Card, Heading, Input, Label, Muted, T } from "@/components/ui";
+import { HOME_ROUTE } from "@/lib/app-features";
 import { mfaErrorText, verifiedFactors } from "@/lib/mfa";
 import { disablePushOnThisDevice } from "@/lib/push";
 import { supabase } from "@/lib/supabase";
@@ -15,7 +16,7 @@ export default function MfaScreen() {
   const router = useRouter();
   const { session } = useSession();
   const { next: nextParam } = useLocalSearchParams<{ next?: string }>();
-  const next = typeof nextParam === "string" && nextParam.startsWith("/") ? nextParam : "/(tabs)/map";
+  const next = typeof nextParam === "string" && nextParam.startsWith("/") ? nextParam : HOME_ROUTE;
   const [factors, setFactors] = useState<Factor[] | null>(null);
   const [factor, setFactor] = useState<Factor | null>(null);
   const [challengeId, setChallengeId] = useState<string | null>(null);

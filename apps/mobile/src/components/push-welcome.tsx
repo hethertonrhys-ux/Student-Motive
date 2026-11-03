@@ -4,6 +4,7 @@ import { Modal, Platform, View } from "react-native";
 import { accountDetailsMissing } from "@function/shared";
 import { Icon } from "@/components/icon";
 import { Button, Muted, T } from "@/components/ui";
+import { HOME_PATH } from "@/lib/app-features";
 import { useDevice } from "@/lib/install";
 import { useProfile } from "@/lib/profile";
 import { enablePush, usePushWelcome } from "@/lib/push";
@@ -15,8 +16,8 @@ const PERKS: { icon: React.ComponentProps<typeof Icon>["name"]; text: string }[]
 ];
 
 // "Don't miss what's on tonight": Function's own ask to turn notifications
-// on, shown once, the first time someone reaches the map after finishing
-// sign-up. The phone's own question only comes after "Turn on" (see
+// on, shown once, the first time someone reaches the home tab (the map, or
+// Societies while the map is switched off) after finishing sign-up. The phone's own question only comes after "Turn on" (see
 // lib/push.ts for when Function asks again after "Not now").
 // Phones, and the website when it's opened from the home screen.
 export function PushWelcome() {
@@ -24,7 +25,7 @@ export function PushWelcome() {
   const pathname = usePathname();
   const device = useDevice();
   const canPush = Platform.OS !== "web" || !!device?.installed;
-  const ready = !!profile && !accountDetailsMissing(profile) && pathname === "/map" && canPush;
+  const ready = !!profile && !accountDetailsMissing(profile) && pathname === HOME_PATH && canPush;
   const { show, close } = usePushWelcome(ready);
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState(false);

@@ -4,12 +4,14 @@ import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PushWelcome } from "@/components/push-welcome";
 import { TabAvatar } from "@/components/tab-avatar";
+import { MAP_ENABLED } from "@/lib/app-features";
 import { useNewNotifications, useUnreadMessages } from "@/lib/badges";
 import { useProfile } from "@/lib/profile";
 import { useTheme } from "@/lib/theme";
 
 // The five tabs, the same as the website's bottom bar: Map, Societies,
-// Social, Chats, Me.
+// Social, Chats, Me. While the map is switched off (lib/app-features.ts) the
+// Map tab stays and says "Map coming soon" (see app/(tabs)/map.tsx).
 const TABS = [
   { name: "map", title: "Map", icon: "location" },
   { name: "societies", title: "Societies", icon: "people" },
@@ -17,6 +19,10 @@ const TABS = [
   { name: "chats", title: "Chats", icon: "chatbubble-ellipses" },
   { name: "me", title: "Me", icon: "person-circle" },
 ] as const;
+
+// The tab the app opens on. While the map is off that's Societies, and
+// Android's Back button returns there rather than to "Map coming soon".
+export const unstable_settings = { initialRouteName: MAP_ENABLED ? "map" : "societies" };
 
 export default function TabsLayout() {
   const { colors } = useTheme();
@@ -37,6 +43,7 @@ export default function TabsLayout() {
   return (
     <>
     <Tabs
+      backBehavior={MAP_ENABLED ? "firstRoute" : "initialRoute"}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: tone("brand", colors.brand),
@@ -63,7 +70,7 @@ export default function TabsLayout() {
         />
       ))}
     </Tabs>
-    {/* "Don't miss what's on tonight": the notifications ask, once, on the map after sign-up. */}
+    {/* "Don't miss what's on tonight": the notifications ask, once, on the home tab after sign-up. */}
     <PushWelcome />
     </>
   );

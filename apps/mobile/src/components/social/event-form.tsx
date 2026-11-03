@@ -8,6 +8,7 @@ import { Icon } from "@/components/icon";
 import { PlacePicker, type Point } from "@/components/place/place-picker";
 import { Chip } from "@/components/social/filters";
 import { Button, Card, Input, Label, Muted, T } from "@/components/ui";
+import { MAP_ENABLED } from "@/lib/app-features";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
@@ -109,7 +110,7 @@ export function SocialEventForm({ onSubmit, event, exact, defaults, centre }: Pr
         <View>
           <Label>Place name everyone sees</Label>
           <Input value={area} onChangeText={setArea} maxLength={120} placeholder="e.g. Powerleague Shoreditch, or Near Holborn" testID="area" />
-          <Muted className="mt-1 text-xs">The map shows a rough spot. Hosting at home? Put the area here, not your address.</Muted>
+          <Muted className="mt-1 text-xs">{MAP_ENABLED ? "The map shows a rough spot. " : ""}Hosting at home? Put the area here, not your address.</Muted>
         </View>
         <View>
           <Label>Exact address <Muted className="text-sm">(only people going see this)</Muted></Label>

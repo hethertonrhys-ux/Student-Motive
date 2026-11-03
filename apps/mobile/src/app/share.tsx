@@ -51,7 +51,7 @@ export default function ShareEventScreen() {
   if (!session) {
     return (
       <Screen>
-        <BackButton fallback="/(tabs)/map" />
+        <BackButton />
         <Card className="mt-6 flex-row flex-wrap items-center justify-between gap-3">
           <T variant="semibold">Log in to send events to your chats.</T>
           <Link href={{ pathname: "/login", params: { next: eventId ? `/share?event=${eventId}` : `/share?social=${socialId}` } }} asChild>

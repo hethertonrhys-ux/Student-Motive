@@ -4,6 +4,7 @@ import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { logSignupEvent } from "@function/shared";
 import { Button, Card, Heading, Muted } from "@/components/ui";
+import { HOME_ROUTE } from "@/lib/app-features";
 import { needsAccountDetails } from "@/lib/profile";
 import { loginPending } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
@@ -14,7 +15,7 @@ import { supabase } from "@/lib/supabase";
 export default function AuthCallback() {
   const router = useRouter();
   const { code, next: nextParam } = useLocalSearchParams<{ code?: string; next?: string }>();
-  const next = typeof nextParam === "string" && nextParam.startsWith("/") ? nextParam : "/(tabs)/map";
+  const next = typeof nextParam === "string" && nextParam.startsWith("/") ? nextParam : HOME_ROUTE;
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {

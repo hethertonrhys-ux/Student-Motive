@@ -7,6 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { DEFAULT_UNI, logSignupEvent, uniById, uniFromEmail } from "@function/shared";
 import { BackButton } from "@/components/back-button";
 import { Button, Card, Heading, Input, Label, Muted, T } from "@/components/ui";
+import { HOME_ROUTE } from "@/lib/app-features";
 import { needsSecondFactor } from "@/lib/mfa";
 import { needsAccountDetails } from "@/lib/profile";
 import { arrivalUni, loginPending } from "@/lib/storage";
@@ -34,7 +35,7 @@ const isEmail = (address: string) => /^[^@\s]+@[^@\s]+$/.test(address);
 export default function LoginScreen() {
   const router = useRouter();
   const { next: nextParam, mode: modeParam } = useLocalSearchParams<{ next?: string; mode?: string }>();
-  const next = typeof nextParam === "string" && nextParam.startsWith("/") ? nextParam : "/(tabs)/map";
+  const next = typeof nextParam === "string" && nextParam.startsWith("/") ? nextParam : HOME_ROUTE;
   const { session } = useSession();
   const [mode, setMode] = useState<Mode>(modeParam === "signup" ? "signup" : "login");
   const [step, setStep] = useState<Step>("form");

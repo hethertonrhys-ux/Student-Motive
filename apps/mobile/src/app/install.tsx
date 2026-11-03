@@ -8,6 +8,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BackButton } from "@/components/back-button";
 import { SiteFooter } from "@/components/landing";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
+import { HOME_ROUTE, MAP_ENABLED } from "@/lib/app-features";
 import { oneTapInstall, useCanOneTapInstall, useDevice } from "@/lib/install";
 import { SITE_URL } from "@/lib/site";
 
@@ -56,7 +57,7 @@ export default function InstallPage() {
           <Card className="mt-8 bg-ok/10">
             <T variant="display-bold" className="text-xl">✓ You&apos;re all set</T>
             <Muted className="mt-1">You&apos;re already using the Function app.</Muted>
-            <Link href="/(tabs)/map" asChild><Button className="mt-4 self-start">Open the live map</Button></Link>
+            <Link href={HOME_ROUTE} asChild><Button className="mt-4 self-start">{MAP_ENABLED ? "Open the live map" : "Open Function"}</Button></Link>
           </Card>
         )}
         {Platform.OS === "web" && (
@@ -83,7 +84,7 @@ function InstallGuide() {
       <Card className="mt-8 bg-ok/10">
         <T variant="display-bold" className="text-xl">✓ You&apos;re all set</T>
         <Muted className="mt-1">You&apos;re using Function from your home screen.</Muted>
-        <Link href="/(tabs)/map" asChild><Button className="mt-4 self-start">Open the live map</Button></Link>
+        <Link href={HOME_ROUTE} asChild><Button className="mt-4 self-start">{MAP_ENABLED ? "Open the live map" : "Open Function"}</Button></Link>
       </Card>
     );
   }

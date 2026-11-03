@@ -12,6 +12,7 @@ import { Icon } from "@/components/icon";
 import { pickPhotos, type Picked } from "@/components/photos/pick-photos";
 import { ShareButton } from "@/components/share-button";
 import { Button, Card, Heading, Input, Label, Muted, T } from "@/components/ui";
+import { MAP_ENABLED } from "@/lib/app-features";
 import { SITE_URL } from "@/lib/site";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
@@ -76,7 +77,7 @@ export default function SocietyDashboardScreen() {
       <T variant="display" className="mt-8 text-xl">Upcoming</T>
       {upcoming.length === 0 ? (
         <Muted className="mt-3" testID="no-upcoming">
-          {withAdmin ? <>No upcoming events. Post one and it goes live once your committee ticks &ldquo;SU approved&rdquo;.</> : "No upcoming events. Post one and it appears on the map straight away."}
+          {withAdmin ? <>No upcoming events. Post one and it goes live once your committee ticks &ldquo;SU approved&rdquo;.</> : `No upcoming events. Post one and it appears on ${MAP_ENABLED ? "the map" : "your society page"} straight away.`}
         </Muted>
       ) : <View className="mt-3 gap-3">{upcoming.map((e) => <EventRow key={e.id} event={e} live={isLive(e.starts_at, e.ends_at, now)} />)}</View>}
       <T variant="display" className="mt-12 text-xl">Society details</T>

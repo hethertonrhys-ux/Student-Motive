@@ -1,7 +1,8 @@
 import { ScrollViewStyleReset, useServerDocumentContext } from "expo-router/html";
 import type { PropsWithChildren } from "react";
+import { MAP_ENABLED } from "@/lib/app-features";
 
-const DESCRIPTION = "London's student social life, all in one place. Societies, events and socials for students at every London university, on one live map.";
+const DESCRIPTION = `London's student social life, all in one place. Societies, events and socials for students at every London university${MAP_ENABLED ? ", on one live map" : ""}.`;
 
 // The page around the web app: what search engines and link previews see,
 // and what lets phones add Function to their home screen (the manifest).
