@@ -27,11 +27,13 @@ import {
   type Walk,
   type When,
 } from "@function/shared";
+import { MapComingSoon } from "@/components/map-coming-soon";
 import { EventSheet, FilterPanel, RoundButton, SearchBar } from "@/components/map/controls";
 import { LiveMap } from "@/components/map/Map";
 import type { MapHandle } from "@/components/map/types";
 import { Frosted, Muted, T } from "@/components/ui";
 import { WhatsOnList } from "@/components/whats-on-list";
+import { MAP_ENABLED } from "@/lib/app-features";
 import { useFilterContext } from "@/lib/filter-context";
 import { buttonTap, selectionTap } from "@/lib/haptics";
 import { whereAmI } from "@/lib/location";
@@ -46,10 +48,16 @@ import { useSession } from "@/providers/session";
 
 type WalkInfo = { walk: Walk; title: string; note: string | null; maps: string };
 
+// While the map is switched off (lib/app-features.ts), the Map tab says
+// "Map coming soon" instead. The map itself (MapScreen, below) is unchanged.
+export default function MapTab() {
+  return MAP_ENABLED ? <MapScreen /> : <MapComingSoon />;
+}
+
 // The live map: what's on now, tonight and tomorrow across London's unis.
 // The map itself is drawn by the Map component (web or native); everything
 // around it here is shared by both.
-export default function MapScreen() {
+function MapScreen() {
   const insets = useSafeAreaInsets();
   const { profile } = useProfile();
   const home = uniById(profile?.university) ?? uniById(DEFAULT_UNI)!;

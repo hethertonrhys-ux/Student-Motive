@@ -4,9 +4,9 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 // The app-wide switches in apps/mobile/src/lib/app-features.ts. The map is
-// switched off for the Abacus launch: these checks make sure every link to it
-// goes through the switch, and that its own code is still there to switch
-// back on. They pass with the map on or off, so switching it back on is the
+// switched off for the Abacus launch: the Map tab says "Map coming soon", and
+// these checks make sure every other link to it goes through the switch, and
+// that its own code is still there to switch back on. They pass with the map on or off, so switching it back on is the
 // one-line change in app-features.ts and nothing else.
 const repo = fileURLToPath(new URL("../../../", import.meta.url));
 const src = join(repo, "apps/mobile/src");
@@ -51,11 +51,15 @@ describe("app-wide switches", () => {
     expect(unguarded.map((path) => path.slice(src.length + 1))).toEqual([]);
   });
 
-  it("hides the Map tab and redirects old links to it while it's off", () => {
+  it("keeps the Map tab, which says 'Map coming soon' while the map is off", () => {
     const tabs = read("apps/mobile/src/app/(tabs)/_layout.tsx");
-    expect(tabs).toContain('ALL_TABS.filter((tab) => MAP_ENABLED || tab.name !== "map")');
-    expect(tabs).toContain('{MAP_ENABLED ? [] : [<Tabs.Screen key="map" name="map" options={{ href: null }} />]}');
-    expect(tabs).toContain('if (!MAP_ENABLED && pathname === "/map") return <Redirect href={HOME_ROUTE} />;');
+    expect(tabs).toContain('{ name: "map", title: "Map", icon: "location" }');
+    expect(tabs).toContain('initialRouteName: MAP_ENABLED ? "map" : "societies"');
+    expect(tabs).toContain('backBehavior={MAP_ENABLED ? "firstRoute" : "initialRoute"}');
+    expect(read("apps/mobile/src/app/(tabs)/map.tsx")).toContain("return MAP_ENABLED ? <MapScreen /> : <MapComingSoon />;");
+    const soon = read("apps/mobile/src/components/map-coming-soon.tsx");
+    expect(soon).toContain("Map coming soon");
+    expect(soon).not.toMatch(/components\/map\/|lib\/location/);
   });
 
   it("only asks for location on the map", () => {

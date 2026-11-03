@@ -6,9 +6,10 @@
 // The website updates by itself within a few minutes; phones get it with
 // the next phone update (npm run send-update in apps/mobile).
 
-// The live map: the Map tab and every link to it. Switched off for the
-// Abacus launch. All of its code is kept (app/(tabs)/map.tsx and
-// components/map/), so set this to true to bring it back.
+// The live map. Switched off for the Abacus launch: the Map tab stays in the
+// bar and says "Map coming soon", and the other links to the map are hidden.
+// All of its code is kept (app/(tabs)/map.tsx and components/map/), so set
+// this to true to bring it back.
 export const MAP_ENABLED: boolean = false;
 
 // The Map tab's address, for the links that open it while it's switched on.
