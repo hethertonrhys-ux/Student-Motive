@@ -5,7 +5,7 @@ import type { MapCategory } from "./map-categories";
 import { socialToMapCategory } from "./map-categories";
 import { getCards, type PersonCard } from "./social";
 import type { SocialCategory } from "./social-events";
-import { nextLondonSixAm } from "./time";
+import { nightEnds } from "./time";
 import type { MotiveEvent, Society, Venue } from "./types";
 import { uniShort } from "./universities";
 
@@ -103,8 +103,8 @@ export async function loadFeed(supabase: SupabaseClient, myUni: string | null, n
 
   const items: FeedItem[] = [...rows.map((row) => feedItemFromEvent(row, hosts, myUni)), ...socials.map((row) => feedItemFromSocial(row, hosts))].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 
-  const tonightEnds = nextLondonSixAm(now);
-  const tomorrowEnds = nextLondonSixAm(now, 1);
+  const tonightEnds = nightEnds(now);
+  const tomorrowEnds = nightEnds(now, 1);
   const groups: FeedGroup[] = [
     { key: "tonight", title: "Tonight", items: items.filter((e) => e.startsAt < tonightEnds) },
     { key: "tomorrow", title: "Tomorrow", items: items.filter((e) => e.startsAt >= tonightEnds && e.startsAt < tomorrowEnds) },

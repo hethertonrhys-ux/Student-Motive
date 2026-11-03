@@ -4,7 +4,7 @@ import type { MapWindows } from "./map";
 import { socialToMapCategory, type MapCategory } from "./map-categories";
 import { getCards } from "./social";
 import type { SocialCategory } from "./social-events";
-import { nextLondonSixAm, nowMs } from "./time";
+import { nightEnds, nowMs } from "./time";
 import type { EventCategory } from "./types";
 
 // One pin on the live map. The website builds the same thing on its server
@@ -68,8 +68,8 @@ export async function loadMapEvents(supabase: SupabaseClient): Promise<{ events:
   const now = nowMs();
   const windows: MapWindows = {
     now: new Date(now).toISOString(),
-    tonightEnds: nextLondonSixAm(now),
-    tomorrowEnds: nextLondonSixAm(now, 1),
+    tonightEnds: nightEnds(now),
+    tomorrowEnds: nightEnds(now, 1),
   };
 
   const socialQuery = supabase
