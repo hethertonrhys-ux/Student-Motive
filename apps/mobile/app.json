@@ -66,6 +66,11 @@
               "scheme": "https",
               "host": "studentfunction.com",
               "pathPrefix": "/hub"
+            },
+            {
+              "scheme": "https",
+              "host": "studentfunction.com",
+              "pathPrefix": "/c/"
             }
           ],
           "category": [

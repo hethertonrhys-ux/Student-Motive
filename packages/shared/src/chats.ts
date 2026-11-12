@@ -62,6 +62,38 @@ export async function loadChatList(supabase: SupabaseClient): Promise<ChatListIt
   return ((data ?? []) as ChatListItem[]).map((t) => ({ ...t, unread: Number(t.unread), muted: t.muted === true }));
 }
 
+// A chat from the older list (my_threads) in the fuller list's shape: its
+// kind worked out from its event, never muted, no community.
+export function asChatListItem(t: Thread): ChatListItem {
+  return {
+    ...t,
+    kind: t.event_id ? "event" : t.social_event_id ? "social" : "direct",
+    community_id: null,
+    community_slug: null,
+    community_group_id: null,
+    group_kind: null,
+    image_url: null,
+    muted: false,
+    muted_until: null,
+  };
+}
+
+// The Chats tab: every chat (with its kind, community and mute) and how
+// many friend requests are waiting. If the database doesn't have
+// my_chat_list yet (before the communities migration has run), it's the
+// older list, so the tab keeps working.
+export async function loadChatsTab(supabase: SupabaseClient, myId: string): Promise<{ threads: ChatListItem[]; requests: number }> {
+  const [list, requests] = await Promise.all([loadChatList(supabase).catch(() => null), countFriendRequests(supabase, myId)]);
+  if (list) return { threads: list, requests };
+  const old = await loadThreads(supabase, myId);
+  return { threads: old.threads.map(asChatListItem), requests: old.requests };
+}
+
+// Group chats (events, Social plans and communities) are listed under
+// "Events & Societies"; chats with one person under "Personal".
+export const isGroupChat = (t: { kind?: ChatKind | null; event_id: string | null; social_event_id: string | null }) =>
+  t.kind === "community" || t.kind === "event" || t.kind === "social" || !!(t.event_id || t.social_event_id);
+
 // "message" is what people write; "event" is an event someone shared (shown
 // as a card); "photo" and "video" are files sent in the chat; "left" and
 // "rejoined" are the notes a group chat shows when someone leaves it or

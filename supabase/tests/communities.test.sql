@@ -1300,4 +1300,42 @@ select pg_temp.expect(pg_temp.fails($q$select public.purge_push_queue()$q$), 'no
 select pg_temp.as_server();
 delete from public.push_queue;
 
+-- ---------------------------------------------------------------------
+-- 23. Paying-member claims for the Manage screen (community_member_claims)
+-- ---------------------------------------------------------------------
+select pg_temp.as_server();
+select pg_temp.expect((select p.prosecdef and p.proconfig = array['search_path=""'] from pg_proc p where p.oid = 'public.community_member_claims(uuid)'::regprocedure),
+  'community_member_claims is security definer with an empty search path');
+select pg_temp.expect(not has_function_privilege('anon', 'public.community_member_claims(uuid)', 'execute')
+  and has_function_privilege('authenticated', 'public.community_member_claims(uuid)', 'execute'), 'only logged-in people can call it');
+select pg_temp.as_person('ada');
+insert into ids values ('cl', public.admin_create_community('Claims Community', 'claims-comm'));
+select public.admin_set_community_admin(pg_temp.id('cl'), pg_temp.u('sam'));
+select pg_temp.as_person('bea'); select public.request_to_join('claims-comm', 'Bea', false);
+select pg_temp.as_person('cas'); select public.request_to_join('claims-comm', 'Cas', true);
+select pg_temp.as_person('dee'); select public.request_to_join('claims-comm', 'Dee', true);
+select pg_temp.as_person('ivy'); select public.request_to_join('claims-comm', 'Ivy', true);
+select pg_temp.as_person('sam');
+select public.approve_request(pg_temp.id('cl'), pg_temp.u('bea'), false);
+select public.set_community_role(pg_temp.id('cl'), pg_temp.u('bea'), 'committee');
+select public.approve_request(pg_temp.id('cl'), pg_temp.u('ivy'), true);
+select pg_temp.as_person('bea');
+select public.approve_request(pg_temp.id('cl'), pg_temp.u('cas'), false);
+select pg_temp.as_person('sam');
+select pg_temp.expect((select array_agg(user_id) from public.community_member_claims(pg_temp.id('cl'))) = array[pg_temp.u('cas')],
+  'the admin sees Cas''s claim (approved by committee as a non-member), not Dee (still waiting), Ivy (confirmed) or Bea (never claimed)');
+select pg_temp.as_person('ada');
+select pg_temp.expect((select count(*) from public.community_member_claims(pg_temp.id('cl'))) = 1, 'the Function team sees it too');
+select pg_temp.as_person('bea');
+select pg_temp.expect((select count(*) from public.community_member_claims(pg_temp.id('cl'))) = 0, 'committee don''t (only admins confirm paying members)');
+select pg_temp.as_person('cas');
+select pg_temp.expect((select count(*) from public.community_member_claims(pg_temp.id('cl'))) = 0, 'a regular person doesn''t');
+select pg_temp.as_person('gus');
+select pg_temp.expect((select count(*) from public.community_member_claims(pg_temp.id('cl'))) = 0, 'an outsider doesn''t');
+select pg_temp.as_person('sam');
+select public.confirm_membership(pg_temp.id('cl'), pg_temp.u('cas'), true);
+select pg_temp.expect((select count(*) from public.community_member_claims(pg_temp.id('cl'))) = 0, 'once confirmed, the claim is no longer waiting');
+select pg_temp.act_as(null);
+select pg_temp.expect(pg_temp.fails(format($q$select * from public.community_member_claims('%s')$q$, pg_temp.id('cl'))), 'a logged-out visitor can''t call it');
+
 rollback;

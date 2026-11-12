@@ -3,8 +3,9 @@ import { Link, useIsFocused } from "expo-router";
 import { useState } from "react";
 import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { loadThreads } from "@function/shared";
+import { isGroupChat, isMutedNow, loadChatsTab, unreadLabel } from "@function/shared";
 import { Avatar } from "@/components/avatar";
+import { CommunityLogo } from "@/components/community/community-header";
 import { Icon } from "@/components/icon";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
@@ -17,26 +18,28 @@ const when = (iso: string) => {
   return new Intl.DateTimeFormat("en-GB", sameDay ? { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" } : { day: "numeric", month: "short", timeZone: "Europe/London" }).format(d);
 };
 
-// Your chats, in two sections: the group chats of events and societies,
-// and personal chats with friends. Each section shows how many unread
-// messages it has.
+// Your chats, in two sections: the group chats of events, societies and
+// communities ("UCL Abacus", "UCL Abacus · AbaFam", with the community's
+// picture), and personal chats with friends. Each section shows how many
+// unread messages it has; a muted chat has a bell with a line through it.
 type Section = "events" | "personal";
-const isGroup = (t: { event_id: string | null; social_event_id: string | null }) => !!(t.event_id || t.social_event_id);
 
 export default function ChatsScreen() {
   const { session } = useSession();
   const myId = session?.user.id ?? null;
   const focused = useIsFocused();
-  const data = useQuery({ queryKey: ["threads", myId], queryFn: () => loadThreads(supabase, myId!), enabled: !!myId, refetchInterval: focused ? 30_000 : false });
+  const data = useQuery({ queryKey: ["threads", myId], queryFn: () => loadChatsTab(supabase, myId!), enabled: !!myId, refetchInterval: focused ? 30_000 : false });
   useRefetchOnFocus(data);
   const pull = usePullToRefresh(data.refetch);
   const all = data.data?.threads ?? [];
   const requests = data.data?.requests ?? 0;
   const [section, setSection] = useState<Section>("events");
-  const groups = all.filter(isGroup);
-  const personal = all.filter((t) => !isGroup(t));
+  const groups = all.filter(isGroupChat);
+  const personal = all.filter((t) => !isGroupChat(t));
   const threads = section === "events" ? groups : personal;
   const unread = { events: groups.reduce((n, t) => n + t.unread, 0), personal: personal.reduce((n, t) => n + t.unread, 0) };
+  // A community chat's count stops at 99, so a total that includes one at 99 is "99+".
+  const capped = groups.some((t) => t.kind === "community" && t.unread >= 99);
 
   return (
     <SafeAreaView className="flex-1 bg-bg">
@@ -66,7 +69,7 @@ export default function ChatsScreen() {
                 <T variant="bold" className={`text-sm ${section === key ? "text-brand-ink" : "text-muted"}`}>{label}</T>
                 {unread[key] > 0 && (
                   <View className={`min-w-5 items-center rounded-full px-1.5 ${section === key ? "bg-white" : "bg-live"}`}>
-                    <T variant="bold" className={`text-xs leading-5 ${section === key ? "text-brand" : "text-white"}`}>{unread[key]}</T>
+                    <T variant="bold" className={`text-xs leading-5 ${section === key ? "text-brand" : "text-white"}`}>{key === "events" && capped ? unreadLabel(unread[key], true) : unread[key]}</T>
                   </View>
                 )}
               </Pressable>
@@ -95,7 +98,9 @@ export default function ChatsScreen() {
             {threads.map((t, i) => (
               <Link key={t.id} href={`/chats/${t.id}` as never} asChild>
                 <Pressable className={`flex-row items-center gap-3 px-4 py-3 ${i > 0 ? "border-t border-line" : ""}`} testID={`thread-${t.id}`}>
-                  {t.event_id || t.social_event_id ? (
+                  {t.kind === "community" ? (
+                    <CommunityLogo name={t.other_name ?? t.title} url={t.image_url} size={44} />
+                  ) : t.event_id || t.social_event_id ? (
                     <View className="h-11 w-11 items-center justify-center rounded-full bg-brand-soft">
                       <Icon name="people" size={22} color="#DA291C" />
                     </View>
@@ -105,15 +110,20 @@ export default function ChatsScreen() {
                   <View className="min-w-0 flex-1">
                     <View className="flex-row items-baseline justify-between gap-2">
                       <T variant={t.unread ? "bold" : "semibold"} className="flex-1" numberOfLines={1}>{t.title}</T>
+                      {isMutedNow(t) && (
+                        <View accessibilityLabel="Muted" testID="thread-muted">
+                          <Icon name="notifications-off-outline" size={14} color="#5e5d78" />
+                        </View>
+                      )}
                       <Muted className="text-xs">{when(t.last_at)}</Muted>
                     </View>
                     <T variant={t.unread ? "semibold" : "normal"} className={`text-sm ${t.unread ? "" : "text-muted"}`} numberOfLines={1}>
-                      {t.last_body ? `${t.last_sender === myId ? "You: " : ""}${t.last_body}` : t.event_id || t.social_event_id ? "Event chat. Say hi to everyone going." : "Say hi"}
+                      {t.last_body ? `${t.last_sender === myId ? "You: " : ""}${t.last_body}` : t.kind === "community" ? "Community chat. Say hi to everyone." : t.event_id || t.social_event_id ? "Event chat. Say hi to everyone going." : "Say hi"}
                     </T>
                   </View>
                   {t.unread > 0 && (
                     <View className="min-w-6 items-center rounded-full bg-live px-1.5" testID="unread-badge">
-                      <T variant="bold" className="text-xs leading-5 text-white">{t.unread}</T>
+                      <T variant="bold" className="text-xs leading-5 text-white">{t.kind === "community" ? unreadLabel(t.unread, true) : t.unread}</T>
                     </View>
                   )}
                 </Pressable>

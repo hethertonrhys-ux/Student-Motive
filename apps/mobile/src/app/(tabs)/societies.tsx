@@ -2,8 +2,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
 import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { loadSocietiesTab, uniShort } from "@function/shared";
+import { communityPath, COMMUNITY_ROLE_LABELS, loadSocietiesTab, myCommunities, uniShort, type MyCommunity } from "@function/shared";
 import { Avatar } from "@/components/avatar";
+import { CommunityLogo } from "@/components/community/community-header";
 import { Icon } from "@/components/icon";
 import { SocietySearch } from "@/components/society-search";
 import { Button, Card, Heading, Muted, T } from "@/components/ui";
@@ -12,17 +13,22 @@ import { supabase } from "@/lib/supabase";
 import { usePullToRefresh, useRefetchOnFocus } from "@/lib/use-refetch-on-focus";
 import { useSession } from "@/providers/session";
 
-// The Societies tab: find societies, your memberships, the ones you run
-// (only for people who manage one), and two buttons to the society events pages (everything coming up, and the
-// ones you're going to).
+// The Societies tab: your communities (only for people in one or waiting
+// to join one), find societies, your memberships, the ones you run (only
+// for people who manage one), and two buttons to the society events pages
+// (everything coming up, and the ones you're going to).
 export default function SocietiesScreen() {
   const { session } = useSession();
   const { profile } = useProfile();
   const me = profile ? { id: profile.id, university: profile.university } : null;
   const tab = useQuery({ queryKey: ["societies-tab", me?.id ?? null, me?.university ?? null], queryFn: () => loadSocietiesTab(supabase, me), enabled: !session || !!profile });
   useRefetchOnFocus(tab);
+  // Its own query, so the rest of the tab works even if this can't load
+  // (e.g. before the communities migration has run).
+  const communities = useQuery({ queryKey: ["my-communities", session?.user.id ?? null], queryFn: () => myCommunities(supabase).catch(() => [] as MyCommunity[]), enabled: !!session });
+  useRefetchOnFocus(communities);
   const queryClient = useQueryClient();
-  const pull = usePullToRefresh(() => Promise.all([tab.refetch(), queryClient.invalidateQueries({ queryKey: ["filter-context"] }), queryClient.invalidateQueries({ queryKey: ["recommended", "society"] })]));
+  const pull = usePullToRefresh(() => Promise.all([tab.refetch(), queryClient.invalidateQueries({ queryKey: ["filter-context"] }), queryClient.invalidateQueries({ queryKey: ["recommended", "society"] }), communities.refetch()]));
   const data = tab.data;
   const myUni = profile?.university;
   const runs = data?.runs ?? [];
@@ -32,6 +38,8 @@ export default function SocietiesScreen() {
       <ScrollView contentContainerClassName="mx-auto w-full max-w-2xl px-4 py-8" keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={() => void pull.onRefresh()} />}>
         <Heading>Societies</Heading>
         <Muted className="mt-1 text-sm">{myUni ? `Every ${uniShort(myUni)} society, hall and more in one place.` : "Every society, hall and more across London's unis."}</Muted>
+
+        {session && !!communities.data?.length && <YourCommunities list={communities.data} />}
 
         <SocietySearch societies={data?.all ?? []} myUni={myUni} relations={data?.relations} />
         {!!data?.memberships.length && (
@@ -100,6 +108,33 @@ export default function SocietiesScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+// The communities you're in or waiting to join, each opening its page.
+function YourCommunities({ list }: { list: MyCommunity[] }) {
+  return (
+    <View className="mt-6" testID="your-communities">
+      <T variant="display" className="text-xl">Your communities</T>
+      <View className="mt-3 overflow-hidden rounded-2xl border border-line bg-surface">
+        {list.map((c, i) => (
+          <Link key={c.id} href={communityPath(c.slug) as never} asChild>
+            <Pressable accessibilityRole="link" className={`flex-row items-center gap-3 px-4 py-3 active:opacity-80 ${i > 0 ? "border-t border-line" : ""}`} testID={`community-${c.slug}`}>
+              <CommunityLogo name={c.name} url={c.image_url} size={40} />
+              <View className="min-w-0 flex-1">
+                <T variant="semibold" numberOfLines={1}>{c.name}</T>
+                {c.status === "pending" ? (
+                  <T variant="semibold" className="text-xs text-brand" testID="community-waiting">Waiting for approval</T>
+                ) : (
+                  <Muted className="text-xs" numberOfLines={1}>As {c.nickname}{c.role !== "regular" ? ` · ${COMMUNITY_ROLE_LABELS[c.role]}` : ""}</Muted>
+                )}
+              </View>
+              <Icon name="chevron-forward" size={18} color="#5e5d78" />
+            </Pressable>
+          </Link>
+        ))}
+      </View>
+    </View>
   );
 }
 

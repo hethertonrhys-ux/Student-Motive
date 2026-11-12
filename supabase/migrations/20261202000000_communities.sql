@@ -2025,3 +2025,23 @@ insert into public.community_groups (community_id, name, kind, sort)
 select c.id, 'AbaFam', 'sub', 1 from public.communities c
 where c.slug = 'ucl-abacus'
   and not exists (select 1 from public.community_groups g where g.community_id = c.id and g.kind = 'sub' and lower(g.name) = 'abafam');
+
+-- ---------------------------------------------------------------------
+-- 11. For the community screens (part 2): who said they're a paying
+--     member but hasn't been confirmed as one yet. Committee approvals are
+--     always as a non-member and the claim stays, so an admin can confirm
+--     it later from Manage. Only the community's admins and the Function
+--     team see it (an empty list for everyone else); never an email.
+--     Safe to run more than once.
+-- ---------------------------------------------------------------------
+create or replace function public.community_member_claims(cid uuid)
+returns table (user_id uuid)
+language sql stable security definer set search_path = ''
+as $$
+  select m.user_id
+  from public.community_members m
+  where m.community_id = cid and m.status = 'active' and m.membership = 'non_member' and m.membership_claimed
+    and (public.is_motive_admin() or public.community_role_of(cid, (select auth.uid())) = 'admin');
+$$;
+revoke execute on function public.community_member_claims(uuid) from public, anon;
+grant execute on function public.community_member_claims(uuid) to authenticated;

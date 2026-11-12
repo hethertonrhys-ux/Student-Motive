@@ -40,6 +40,28 @@
       "destination": "/api/preview?path=/social/:id"
     },
     {
+      "source": "/c/:slug/join",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|WhatsApp|Twitterbot|Slackbot|LinkedInBot|Discordbot|TelegramBot|Applebot|Googlebot|bingbot|Pinterest|Snapchat|SkypeUriPreview|Embedly|Iframely|redditbot).*"
+        }
+      ],
+      "destination": "/api/preview?path=/c/:slug/join"
+    },
+    {
+      "source": "/c/:slug",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|WhatsApp|Twitterbot|Slackbot|LinkedInBot|Discordbot|TelegramBot|Applebot|Googlebot|bingbot|Pinterest|Snapchat|SkypeUriPreview|Embedly|Iframely|redditbot).*"
+        }
+      ],
+      "destination": "/api/preview?path=/c/:slug"
+    },
+    {
       "source": "/e/:id",
       "destination": "/e/%5Bid%5D"
     },
@@ -106,6 +128,18 @@
     {
       "source": "/hub/:societyId",
       "destination": "/hub/%5BsocietyId%5D"
+    },
+    {
+      "source": "/c/:slug/join",
+      "destination": "/c/%5Bslug%5D/join"
+    },
+    {
+      "source": "/c/:slug/manage",
+      "destination": "/c/%5Bslug%5D/manage"
+    },
+    {
+      "source": "/c/:slug",
+      "destination": "/c/%5Bslug%5D"
     }
   ],
   "headers": [

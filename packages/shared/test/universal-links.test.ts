@@ -72,6 +72,36 @@ describe("Android app links (app.json intent filters)", () => {
   });
 });
 
+describe("community links (/c/<slug> and its join link)", () => {
+  it("open in the app on iPhone and Android", () => {
+    const detail = aasa.applinks.details[0];
+    expect(detail.paths).toContain("/c/*");
+    expect(detail.components.map((c) => c["/"])).toContain("/c/*");
+    expect(app.expo.android.intentFilters[0].data.map((d) => d.pathPrefix)).toContain("/c/");
+  });
+
+  it("have screens in the app", () => {
+    for (const screen of ["c/[slug]/index.tsx", "c/[slug]/join.tsx", "c/[slug]/manage.tsx"]) expect(has(`apps/mobile/src/app/${screen}`), screen).toBe(true);
+  });
+
+  it("have website rewrites, the more specific first", () => {
+    const rewrites = vercel.rewrites.filter((r) => !r.has).map((r) => `${r.source} -> ${r.destination}`);
+    expect(rewrites).toContain("/c/:slug/join -> /c/%5Bslug%5D/join");
+    expect(rewrites).toContain("/c/:slug/manage -> /c/%5Bslug%5D/manage");
+    expect(rewrites).toContain("/c/:slug -> /c/%5Bslug%5D");
+    expect(rewrites.indexOf("/c/:slug/join -> /c/%5Bslug%5D/join")).toBeLessThan(rewrites.indexOf("/c/:slug -> /c/%5Bslug%5D"));
+  });
+
+  it("show a link preview to crawlers (page and join link)", () => {
+    const crawler = vercel.rewrites.filter((r) => r.has).map((r) => `${r.source} -> ${r.destination}`);
+    expect(crawler).toContain("/c/:slug/join -> /api/preview?path=/c/:slug/join");
+    expect(crawler).toContain("/c/:slug -> /api/preview?path=/c/:slug");
+    // Crawlers are sent to the preview before the app's own rewrite catches them.
+    const all = vercel.rewrites.map((r) => `${r.has ? "crawler " : ""}${r.source}`);
+    expect(all.indexOf("crawler /c/:slug/join")).toBeLessThan(all.indexOf("/c/:slug/join"));
+  });
+});
+
 describe("the new links have screens and web pages", () => {
   it("each opens a screen in the app, so a tap never lands on 'not found'", () => {
     for (const screen of ["claim/[token].tsx", "hub/index.tsx", "hub/[societyId]/index.tsx", "hub/[societyId]/requests.tsx"]) {

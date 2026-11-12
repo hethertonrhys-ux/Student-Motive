@@ -1,7 +1,7 @@
 // Link previews for shared links (WhatsApp, iMessage, Instagram, Slack…).
 //
-// The web app is drawn in the browser, so a crawler fetching /e/<id> would
-// see an empty page. vercel.json sends crawlers (by user agent) here
+// The web app is drawn in the browser, so a crawler fetching /e/<id> (or a
+// community's /c/<slug>/join) would see an empty page. vercel.json sends crawlers (by user agent) here
 // instead, and this builds a tiny page with the title, time, place and
 // image as <meta> tags. People never see it: they get the app.
 //
@@ -25,6 +25,19 @@ async function fetchRow(table, query) {
   return Array.isArray(rows) && rows[0] ? rows[0] : null;
 }
 
+// A database function anyone may call logged out (e.g. a community's public card).
+async function callRpc(name, args) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+    method: "POST",
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(args),
+  });
+  if (!res.ok) return null;
+  const rows = await res.json();
+  return Array.isArray(rows) && rows[0] ? rows[0] : null;
+}
+const COMMUNITY_SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
 // The same words as the app's formatEventTime: "Thu 5 Mar, 19:00–22:00".
 const dayFormat = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: LONDON });
 const timeFormat = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: LONDON });
@@ -40,8 +53,16 @@ const formatWhen = (iso) => new Intl.DateTimeFormat("en-GB", { weekday: "short",
 
 // What to show for each kind of link. Returns null when there's nothing to show.
 async function describe(path) {
-  const [, kind, id] = path.match(/^\/(e|s|social)\/([^/?#]+)/) || [];
+  const [, kind, id] = path.match(/^\/(e|s|social|c)\/([^/?#]+)/) || [];
   if (!kind) return null;
+  if (kind === "c") {
+    // A community's page or its join link (/c/<slug>/join): its public card only.
+    const slug = id.toLowerCase();
+    if (slug.length < 3 || slug.length > 60 || !COMMUNITY_SLUG.test(slug)) return null;
+    const community = await callRpc("community_public", { community_slug: slug });
+    if (!community) return null;
+    return { title: `Join ${community.name} on Function`, description: community.bio || `Ask to join ${community.name} on Function: its chats, groups and more.`, image: community.image_url || community.banner_url || null };
+  }
   if (kind === "e") {
     if (!UUID.test(id)) return null;
     const event = await fetchRow("events", `id=eq.${id}&select=title,starts_at,ends_at,location_note,image_url,venues(name),societies(name)`);
@@ -90,5 +111,5 @@ module.exports = async function handler(req, res) {
   }
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.setHeader("Cache-Control", "public, max-age=300, s-maxage=600");
-  res.status(found ? 200 : 404).send(page(found ? { ...found, url } : { title: /^\/(e|s|social)\//.test(path) ? "Not found" : "London's student social life", description: DEFAULT_DESCRIPTION, image: null, url }));
+  res.status(found ? 200 : 404).send(page(found ? { ...found, url } : { title: /^\/(e|s|social|c)\//.test(path) ? "Not found" : "London's student social life", description: DEFAULT_DESCRIPTION, image: null, url }));
 };

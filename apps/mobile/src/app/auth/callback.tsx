@@ -6,7 +6,7 @@ import { logSignupEvent } from "@function/shared";
 import { Button, Card, Heading, Muted } from "@/components/ui";
 import { HOME_ROUTE } from "@/lib/app-features";
 import { needsAccountDetails } from "@/lib/profile";
-import { loginPending } from "@/lib/storage";
+import { loginNext, loginPending } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
 
 // The login link in the email lands here (on the web as a page, on phones
@@ -15,7 +15,7 @@ import { supabase } from "@/lib/supabase";
 export default function AuthCallback() {
   const router = useRouter();
   const { code, next: nextParam } = useLocalSearchParams<{ code?: string; next?: string }>();
-  const next = typeof nextParam === "string" && nextParam.startsWith("/") ? nextParam : HOME_ROUTE;
+  const given = typeof nextParam === "string" && nextParam.startsWith("/") ? nextParam : null;
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -23,7 +23,11 @@ export default function AuthCallback() {
       if (typeof code !== "string") return setFailed(true);
       const { data, error } = await supabase.auth.exchangeCodeForSession(code);
       if (error || !data.user) return setFailed(true);
+      // The link in the email has no ?next=: where the login started was kept
+      // on this device when the email was sent (lib/storage loginNext).
+      const next = given ?? (await loginNext.get()) ?? HOME_ROUTE;
       await loginPending.set(null);
+      await loginNext.set(null);
       if (await needsAccountDetails(data.user.id)) {
         await logSignupEvent(supabase, "signup_finished");
         router.replace({ pathname: "/welcome", params: { next } });
@@ -31,7 +35,7 @@ export default function AuthCallback() {
         router.replace(next as never);
       }
     })();
-  }, [code, next, router]);
+  }, [code, given, router]);
 
   return (
     <SafeAreaView className="flex-1 bg-bg">

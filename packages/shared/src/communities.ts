@@ -280,6 +280,17 @@ export async function threadMemberRoles(supabase: SupabaseClient, threadId: stri
   return (data ?? []) as ChatMemberRole[];
 }
 
+// Who has said they're a paying member but isn't confirmed as one yet
+// (active non-members who ticked the box when they asked to join): only
+// the community's admins and the Function team see these, so an admin can
+// confirm them later. Empty for everyone else.
+export async function communityMemberClaims(supabase: SupabaseClient, communityId: string): Promise<Set<string>> {
+  if (!UUID.test(communityId)) return new Set();
+  const { data, error } = await supabase.rpc("community_member_claims", { cid: communityId });
+  if (error) throw error;
+  return new Set(((data ?? []) as { user_id: string }[]).map((r) => r.user_id));
+}
+
 // ---- Joining ----
 
 // Ask to join (or update a waiting request). "active": you're already in.
@@ -435,4 +446,127 @@ export async function adminListCommunities(supabase: SupabaseClient): Promise<Ad
   const { data, error } = await supabase.rpc("admin_list_communities");
   if (error) throw error;
   return ((data ?? []) as AdminCommunity[]).map((c) => ({ ...c, active_members: Number(c.active_members), pending_requests: Number(c.pending_requests), admins: Number(c.admins) }));
+}
+
+// ---- What the screens show (the database checks everything again) ----
+
+// Where you stand with a community: in it, waiting, turned down, left,
+// removed, or never asked ("none").
+export type CommunityView = CommunityMemberStatus | "none";
+export function communityView(me: Pick<MyCommunityPlace, "status"> | null | undefined): CommunityView {
+  return me?.status ?? "none";
+}
+
+// An active admin or committee member: they see Manage, every sub-group
+// and the join requests.
+export function isCommunityManager(me: Pick<MyCommunityPlace, "status" | "role"> | null | undefined): boolean {
+  return me?.status === "active" && (me.role === "admin" || me.role === "committee");
+}
+
+// The tabs on a community's page. Manage is for admins, committee and the
+// Function team.
+export type CommunityTab = "chat" | "groups" | "tickets" | "manage";
+export function communityTabs(home: { me: Pick<MyCommunityPlace, "status" | "role"> | null; is_function_admin: boolean }): CommunityTab[] {
+  const tabs: CommunityTab[] = ["chat", "groups", "tickets"];
+  return isCommunityManager(home.me) || home.is_function_admin ? [...tabs, "manage"] : tabs;
+}
+export const COMMUNITY_TAB_LABELS: Record<CommunityTab, string> = { chat: "Chat", groups: "Groups", tickets: "Tickets", manage: "Manage" };
+
+// The community's own word for a paying member ("paying member" unless it
+// says otherwise), with "a" or "an" in front.
+function memberWord(label: string | null | undefined): string {
+  const word = (label ?? "").trim() || DEFAULT_COMMUNITY_SETTINGS.membership_label;
+  return `${/^[aeiou]/i.test(word) ? "an" : "a"} ${word}`;
+}
+// The join screen's tick box: "I'm a paying member of UCL Abacus".
+export function membershipClaimLabel(communityName: string, membershipLabel?: string | null): string {
+  return `I'm ${memberWord(membershipLabel)} of ${communityName}`;
+}
+// The badge on a request: "Says they're a paying member".
+export function membershipClaimBadge(membershipLabel?: string | null): string {
+  return `Says they're ${memberWord(membershipLabel)}`;
+}
+
+export const COMMUNITY_ROLE_LABELS: Record<CommunityRole, string> = { admin: "Admin", committee: "Committee", regular: "Regular" };
+
+// An unread count for a badge. Community chats stop counting at 99
+// (`capped`), so 99 there means "99 or more".
+export function unreadLabel(count: number, capped = false): string {
+  const n = Math.max(0, Math.floor(Number(count) || 0));
+  return n > 99 || (capped && n >= 99) ? "99+" : String(n);
+}
+
+// The nickname the join screen starts with: your profile nickname, else
+// your first name (cut to the 30 characters a nickname can have).
+export function defaultJoinNickname(profile: { nickname?: string | null; full_name?: string | null; display_name?: string | null } | null | undefined): string {
+  const nickname = (profile?.nickname ?? "").trim();
+  const first = (profile?.full_name ?? "").trim().split(/\s+/)[0] || (profile?.display_name ?? "").trim().split(/\s+/)[0] || "";
+  return [...(nickname || first)].slice(0, NICKNAME_MAX).join("");
+}
+
+// The ?ref= on a join link: a user id, or nothing.
+export function joinRef(value: unknown): string | null {
+  const v = Array.isArray(value) ? value[0] : value;
+  return typeof v === "string" && UUID.test(v) ? v.toLowerCase() : null;
+}
+
+// The app's own paths for a community.
+export const communityPath = (slug: string) => `/c/${encodeURIComponent(slug)}`;
+export const communityJoinPath = (slug: string) => `${communityPath(slug)}/join`;
+export const communityManagePath = (slug: string) => `${communityPath(slug)}/manage`;
+
+// How many people, paying members, committee and admins (from the roster).
+export function rosterCounts(roster: Pick<RosterEntry, "role" | "membership">[]): { members: number; paying: number; committee: number; admins: number } {
+  return {
+    members: roster.length,
+    paying: roster.filter((r) => r.membership === "member").length,
+    committee: roster.filter((r) => r.role === "committee").length,
+    admins: roster.filter((r) => r.role === "admin").length,
+  };
+}
+
+// Searching a list of people by nickname (ignoring case, accents and look-alike letters).
+export function filterByNickname<T extends { nickname: string }>(people: T[], query: string): T[] {
+  const fold = (s: string) => nicknameKey(s).normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+  const q = fold(query.trim());
+  return q ? people.filter((p) => fold(p.nickname).includes(q)) : people;
+}
+
+// What you may do to someone in Manage, mirroring the database:
+// - admins (and the Function team) change roles and paying membership,
+//   never their own (the Function team excepted);
+// - admins remove anyone, committee only regular people, nobody themselves;
+// - the last admin can't be demoted or removed (the database says so if
+//   anyone tries; `lastAdmin` lets the screen explain it).
+export type MemberActions = { changeRole: boolean; changeMembership: boolean; remove: boolean; lastAdmin: boolean };
+export function memberActions(
+  me: { userId: string; role: CommunityRole | null; isFunctionAdmin: boolean },
+  target: Pick<RosterEntry, "user_id" | "role">,
+  adminCount: number,
+): MemberActions {
+  const self = me.userId === target.user_id;
+  const admin = me.isFunctionAdmin || me.role === "admin";
+  const committee = me.role === "committee";
+  const lastAdmin = target.role === "admin" && adminCount <= 1;
+  return {
+    changeRole: admin && (!self || me.isFunctionAdmin),
+    changeMembership: admin && (!self || me.isFunctionAdmin),
+    remove: !self && (admin || (committee && target.role === "regular")),
+    lastAdmin,
+  };
+}
+
+// A web address for a new community, from its name: "UCL Abacus" ->
+// "ucl-abacus" (lowercase letters, numbers and single hyphens, up to 60).
+export function communitySlugFrom(name: string): string {
+  return name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/['\u2019]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60)
+    .replace(/-+$/g, "");
 }

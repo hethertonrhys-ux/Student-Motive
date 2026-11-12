@@ -10,9 +10,10 @@ import { Button, Card, Heading, Input, Label, Muted, T } from "@/components/ui";
 import { HOME_ROUTE } from "@/lib/app-features";
 import { needsSecondFactor } from "@/lib/mfa";
 import { needsAccountDetails } from "@/lib/profile";
-import { arrivalUni, loginPending } from "@/lib/storage";
+import { arrivalUni, loginNext, loginPending } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
 import { SUPPORT_EMAIL } from "@/lib/site";
+import { useMounted } from "@/lib/use-mounted";
 import { useSession } from "@/providers/session";
 
 type Mode = "login" | "signup";
@@ -35,9 +36,18 @@ const isEmail = (address: string) => /^[^@\s]+@[^@\s]+$/.test(address);
 export default function LoginScreen() {
   const router = useRouter();
   const { next: nextParam, mode: modeParam } = useLocalSearchParams<{ next?: string; mode?: string }>();
-  const next = typeof nextParam === "string" && nextParam.startsWith("/") ? nextParam : HOME_ROUTE;
+  // Where the code being typed in was asked for from, if the app reloaded
+  // while you checked your email (the page's own ?next= is gone then).
+  const [savedNext, setSavedNext] = useState<string | null>(null);
+  const next = typeof nextParam === "string" && nextParam.startsWith("/") ? nextParam : (savedNext ?? HOME_ROUTE);
   const { session } = useSession();
-  const [mode, setMode] = useState<Mode>(modeParam === "signup" ? "signup" : "login");
+  // The tab you picked, else the one the link asked for (?mode=signup).
+  // The website's page is drawn before its address is known (on the Log in
+  // tab), so there the link's tab only shows once the page is on; starting
+  // there would make the page redraw from scratch.
+  const [picked, setMode] = useState<Mode | null>(null);
+  const mounted = useMounted();
+  const mode: Mode = picked ?? (modeParam === "signup" && (Platform.OS !== "web" || mounted) ? "signup" : "login");
   const [step, setStep] = useState<Step>("form");
   // Which tab sent the code being typed in.
   const [codeFor, setCodeFor] = useState<Mode>("login");
@@ -69,6 +79,7 @@ export default function LoginScreen() {
       if (saved) {
         setEmail(saved);
         setStep("code");
+        void loginNext.get().then(setSavedNext);
       }
     });
     arrivalUni.get().then((id) => {
@@ -111,6 +122,8 @@ export default function LoginScreen() {
     setCode("");
     setCodeFor(forMode);
     await loginPending.set(address);
+    // A login link in the email opens /auth/callback without ?next=: it finds it here.
+    await loginNext.set(next);
     setStep("code");
   }
 
@@ -180,6 +193,7 @@ export default function LoginScreen() {
   async function arrive(who: Pick<User, "id">) {
     setBusy(true);
     await loginPending.set(null);
+    await loginNext.set(null);
     // Accounts with 2FA on give their code before anything else.
     if (await needsSecondFactor()) return router.replace({ pathname: "/mfa", params: { next } } as never);
     if (await needsAccountDetails(who.id)) {
