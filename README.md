@@ -1,9 +1,17 @@
 # Function
 
-London's student social life, all in one place: societies, events and socials for students at LSE, UCL, King's and Imperial, on one live map.
+London's student social life, all in one place: societies, events, socials
+and communities for students at London universities.
+
+**New here? Start with [docs/HANDOVER.md](docs/HANDOVER.md)** (where
+everything stands and what's waiting), then [CLAUDE.md](CLAUDE.md) and
+[docs/CLAUDE_CHATS.md](docs/CLAUDE_CHATS.md) to work on it with Claude Code.
 
 | Folder | What it is |
 |---|---|
-| `supabase/` | Database: tables, security rules, starter data |
-| `web/` | Website for societies (Next.js on Vercel). See `web/README.md`. |
-| `app/` | Student phone app (Expo / React Native). *Phase 3.* |
+| `apps/mobile/` | The app (Expo / React Native). Also the website, studentfunction.com (Vercel project `function-app`). |
+| `packages/shared/` | Code shared by the app and website, with its unit tests. |
+| `supabase/` | Database (migrations, tests), edge functions, one-off set-up files, and `staging/` for the test project. |
+| `apps/web/` | The old Next.js website, kept only as a rollback. |
+| `tools/browser-tests/` | Browser tests used during the build, kept for reference. |
+| `docs/` | Plans, reports and guides. |
